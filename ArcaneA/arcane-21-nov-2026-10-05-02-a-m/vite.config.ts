@@ -11,14 +11,18 @@ export default defineConfig(() => {
       react(),
       tailwindcss(),
       {
-        name: 'copy-unbundled-src-assets',
+        name: 'fix-aistudio-asset-paths',
         apply: 'build',
         transform(code: string, id: string) {
           if (id.includes('node_modules')) return null;
-          if (code.includes('/src/assets/')) {
-            return code.replace(/(["'`(])\/src\/assets\//g, '$1/ArcaneA/src/assets/');
+          let updated = code;
+          if (updated.includes('/public/assets/')) {
+            updated = updated.replace(/(["'`(])\/public\/assets\//g, '$1/ArcaneA/assets/');
           }
-          return null;
+          if (updated.includes('/src/assets/')) {
+            updated = updated.replace(/(["'`(])\/src\/assets\//g, '$1/ArcaneA/src/assets/');
+          }
+          return updated !== code ? updated : null;
         },
         closeBundle(error?: Error): void {
           if (error) {
