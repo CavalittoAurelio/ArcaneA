@@ -2347,6 +2347,21 @@ export default function App() {
         return;
       }
     }
+    // Validación: no se puede castear Reforzar Hechizo si ya está activo
+    if (
+      !isTest &&
+      spell.id === 'basic_reforzar_hechizo' &&
+      combatantBeforeCast?.activeStatuses?.some((st) => st.isReinforceBuff)
+    ) {
+      pushLog({
+        kind: 'event',
+        title: `Reforzar Hechizo ya activo — ${caster.name}`,
+        summaryText:
+          'Ya tenés Reforzar Hechizo activo en este turno. Usalo en tu próximo ataque antes de volver a castearlo (no se descontó maná).',
+      });
+      return;
+    }
+
     const consumesTurnAction =
       !isTest && Boolean(combatantBeforeCast) && spellConsumesTurnAction(spell);
     if (!isTest) {
@@ -2567,7 +2582,11 @@ export default function App() {
         )
       );
     }
-    if (spell.id === 'basic_hechizo_veloz' || spell.id === 'basic_elevar_limite') {
+    if (
+      spell.id === 'basic_hechizo_veloz' ||
+      spell.id === 'basic_elevar_limite' ||
+      spell.id === 'basic_reforzar_hechizo'
+    ) {
       setAutoPassPaused(false);
     }
 
