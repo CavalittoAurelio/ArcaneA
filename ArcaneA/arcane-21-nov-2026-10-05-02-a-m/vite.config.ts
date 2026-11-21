@@ -13,16 +13,13 @@ export default defineConfig(() => {
       {
         name: 'fix-aistudio-asset-paths',
         apply: 'build',
-        transform(code: string, id: string) {
-          if (id.includes('node_modules')) return null;
-          let updated = code;
-          if (updated.includes('/public/assets/')) {
-            updated = updated.replace(/(["'`(])\/public\/assets\//g, '$1/ArcaneA/assets/');
+        generateBundle(_options, bundle) {
+          for (const fileName of Object.keys(bundle)) {
+            const chunk = bundle[fileName];
+            if (chunk.type === 'chunk' && chunk.code.includes('/public/assets/')) {
+              chunk.code = chunk.code.split('/public/assets/').join('/ArcaneA/assets/');
+            }
           }
-          if (updated.includes('/src/assets/')) {
-            updated = updated.replace(/(["'`(])\/src\/assets\//g, '$1/ArcaneA/src/assets/');
-          }
-          return updated !== code ? updated : null;
         },
         closeBundle(error?: Error): void {
           if (error) {
