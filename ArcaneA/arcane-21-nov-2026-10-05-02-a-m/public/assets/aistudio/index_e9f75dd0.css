@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+:root {
+  --arc-canvas: #15100b;
+  --arc-header: #1b140e;
+  --arc-surface: #211912;
+  --arc-surface-alt: #18120d;
+  --arc-raised: #2b2017;
+  --arc-input: #100c08;
+  --arc-border: #3a2d20;
+  --arc-border-strong: #5c4b37;
+  --arc-text: #efe6d5;
+  --arc-muted: #b0a084;
+  --arc-accent: #e2c275;
+  --arc-action: #6a9147;
+  --arc-action-hover: #8fb56a;
+  --arc-action-border: #8fb56a;
+  --arc-action-text: #141a0d;
+  --arc-phys-bg: #261d12;
+  --arc-phys-raised: #3a2d1b;
+  --arc-phys-border: #634d2e;
+  --arc-phys-accent: #f0b865;
+  --arc-phys-text: #f3e6cf;
+  --arc-magic-bg: #101826;
+  --arc-magic-raised: #172945;
+  --arc-magic-border: #2b4a78;
+  --arc-magic-accent: #7cb8ff;
+  --arc-magic-text: #d3e2fa;
+  --arc-atk-bg: #2b1017;
+  --arc-atk-raised: #421723;
+  --arc-atk-border: #96354d;
+  --arc-atk-accent: #ff6b8b;
+  --arc-atk-text: #ffe4ea;
+  --arc-def-bg: #082422;
+  --arc-def-raised: #103b37;
+  --arc-def-border: #29857a;
+  --arc-def-accent: #3fe6c5;
+  --arc-def-text: #dffcf5;
+}
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--arc-canvas);
+    color: var(--arc-text);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  .font-display {
+    font-family: 'Cinzel', Georgia, serif;
+  }
+
+  .font-mono-num {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}

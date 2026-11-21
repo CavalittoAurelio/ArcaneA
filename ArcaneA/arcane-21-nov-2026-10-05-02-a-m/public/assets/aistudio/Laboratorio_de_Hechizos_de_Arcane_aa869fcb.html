@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arcane Spell Lab — Laboratorio independiente de hechizos</title>
+<meta name="description" content="Laboratorio independiente para crear, probar y administrar hechizos de un sistema de rol basado en dados d6.">
+<meta name="theme-color" content="#1a1108">
+<style>
+  :root {
+    --bg:#1a1108;--panel:#2c1e12;--panel-2:#38281a;--panel-3:#44301e;
+    --border:#4a3624;--border-light:#5a4530;
+    --accent:#8fb56a;--accent-dark:#6a9147;--accent-2:#d4a843;--accent-3:#b87b4a;
+    --text:#ecdfc4;--text-dim:#b0a084;--text-muted:#7a6b52;
+    --danger:#d85a3a;--success:#a4d67e;--fail:#e08060;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:radial-gradient(ellipse at top,#2a1e10 0%,var(--bg) 70%);
+    background-attachment:fixed;color:var(--text);min-height:100vh;position:relative}
+  body::before{content:"";position:fixed;inset:0;z-index:-1;
+    background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='280' viewBox='0 0 160 280'%3E%3Cg fill='%238fb56a'%3E%3Crect x='22' y='0' width='7' height='280' rx='1'/%3E%3Crect x='19' y='65' width='13' height='3' rx='1' fill='%236a9147'/%3E%3Crect x='19' y='155' width='13' height='3' rx='1' fill='%236a9147'/%3E%3Crect x='19' y='245' width='13' height='3' rx='1' fill='%236a9147'/%3E%3Crect x='78' y='0' width='6' height='280' rx='1'/%3E%3Crect x='75' y='40' width='12' height='3' rx='1' fill='%236a9147'/%3E%3Crect x='75' y='120' width='12' height='3' rx='1' fill='%236a9147'/%3E%3Crect x='75' y='200' width='12' height='3' rx='1' fill='%236a9147'/%3E%3Crect x='128' y='0' width='8' height='280' rx='1'/%3E%3Crect x='125' y='85' width='14' height='3' rx='1' fill='%236a9147'/%3E%3Crect x='125' y='175' width='14' height='3' rx='1' fill='%236a9147'/%3E%3C/g%3E%3Cg fill='%238fb56a'%3E%3Cpath d='M 28 70 Q 48 50 58 68 Q 42 66 28 70 Z'/%3E%3Cpath d='M 28 70 Q 8 58 2 78 Q 16 72 28 70 Z'/%3E%3Cpath d='M 84 125 Q 104 105 114 123 Q 98 121 84 125 Z'/%3E%3Cpath d='M 84 125 Q 64 113 58 133 Q 72 127 84 125 Z'/%3E%3C/g%3E%3C/svg%3E");
+    background-size:160px 280px;opacity:.07;pointer-events:none}
+
+  header{padding:22px 24px;
+    background:linear-gradient(135deg,rgba(60,40,20,.9) 0%,rgba(44,30,18,.95) 50%,rgba(40,50,26,.9) 100%);
+    border-bottom:2px solid var(--accent-dark);display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    box-shadow:0 4px 24px rgba(0,0,0,.5),inset 0 -1px 0 rgba(212,168,67,.15)}
+  header .logo{flex:0 0 auto;filter:drop-shadow(0 2px 8px rgba(0,0,0,.6))}
+  header .title-block{flex:1;min-width:200px}
+  header h1{margin:0;font-size:1.55rem;letter-spacing:1.5px;
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;font-weight:700}
+  header .sub{color:var(--text-dim);font-size:.85rem;margin-top:2px;letter-spacing:.3px}
+  header .badges{display:flex;gap:8px;flex-wrap:wrap}
+  .badge{background:rgba(20,14,8,.5);border:1px solid var(--border-light);
+    color:var(--text-dim);font-size:.72rem;padding:4px 10px;border-radius:999px;
+    display:inline-flex;align-items:center;gap:5px}
+  .badge strong{color:var(--accent-2);font-weight:600}
+
+  main{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px;max-width:1500px;margin:0 auto}
+  @media(max-width:1000px){main{grid-template-columns:1fr}}
+  .column{display:flex;flex-direction:column;gap:20px}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:18px;position:relative;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.25);
+    transition:padding .2s}
+  .panel::before{content:"";position:absolute;inset:0;
+    background:linear-gradient(135deg,rgba(143,181,106,.05),transparent 40%);pointer-events:none}
+  .panel > *{position:relative}
+  .panel.collapsed{padding-bottom:10px}
+  .panel.collapsed .panel-content{display:none}
+  .panel h2{margin:0 0 14px;font-size:1.1rem;color:var(--accent);
+    border-bottom:1px solid var(--border);padding-bottom:8px;display:flex;align-items:center;gap:8px;
+    cursor:pointer;user-select:none;transition:margin .2s,padding .2s,border-color .2s}
+  .panel.collapsed h2{margin-bottom:0;padding-bottom:0;border-bottom-color:transparent}
+  .panel-toggle{background:none;border:none;padding:0;width:18px;height:18px;
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--text-dim);cursor:pointer;font-size:.75rem;
+    transition:transform .2s;flex:0 0 auto}
+  .panel.collapsed .panel-toggle{transform:rotate(-90deg)}
+  .panel h2 .icon{flex:0 0 auto;opacity:.9}
+  .panel h2:hover{color:var(--accent-2)}
+  .icon-inline{width:1em;height:1em;flex:0 0 auto;vertical-align:-.16em;color:currentColor}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media(max-width:520px){.stat-grid{grid-template-columns:1fr}}
+  .stat-card{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;
+    padding:12px;transition:border-color .15s}
+  .stat-card:hover{border-color:var(--accent-dark)}
+  .stat-name{font-size:.78rem;text-transform:uppercase;letter-spacing:.6px;
+    color:var(--accent-2);font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .stat-card select{margin-bottom:8px}
+  .stat-info{display:flex;justify-content:space-between;align-items:center;
+    font-size:.78rem;color:var(--text-dim)}
+  .stat-points{background:var(--panel);border:1px solid var(--border);
+    padding:2px 8px;border-radius:4px;color:var(--accent-3)}
+  .stat-dice{background:var(--panel);border:1px solid var(--accent-dark);
+    padding:2px 10px;border-radius:4px;color:var(--accent);font-family:monospace;font-weight:700}
+
+  .formula-formula{font-family:monospace;font-size:.9rem;background:var(--panel-2);
+    border:1px solid var(--accent-dark);border-radius:8px;padding:10px 12px;
+    text-align:center;color:var(--accent-2);margin-bottom:12px}
+  .formula-formula strong{color:var(--accent);font-weight:700}
+  .formula-presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .formula-table{width:100%;border-collapse:collapse;font-size:.85rem;
+    background:var(--panel-2);border-radius:8px;overflow:hidden;border:1px solid var(--border);margin-top:6px}
+  .formula-table th{padding:7px 10px;background:var(--panel);color:var(--text-dim);
+    font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;text-align:left}
+  .formula-table th:last-child{text-align:right}
+  .formula-table th:nth-child(2){text-align:right}
+  .formula-table td{padding:7px 10px;border-top:1px solid var(--border)}
+  .formula-table td:nth-child(2){text-align:right;color:var(--accent-3);font-family:monospace}
+  .formula-table td:nth-child(3){text-align:right;color:var(--accent);font-family:monospace;font-weight:700}
+  .formula-table tr.current{background:rgba(143,181,106,.12)}
+  .formula-table tr.current td:first-child{color:var(--accent);font-weight:600}
+  .formula-note{font-size:.75rem;color:var(--text-muted);font-style:italic;margin-top:8px;line-height:1.5}
+
+  .form-group{margin-bottom:14px}
+  .form-group > label{display:block;font-size:.78rem;text-transform:uppercase;
+    letter-spacing:.5px;color:var(--text-dim);margin-bottom:6px}
+  input[type=text],input[type=number],select,textarea{width:100%;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);
+    font-family:inherit;font-size:.9rem;transition:border-color .15s,box-shadow .15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(143,181,106,.18)}
+  textarea{resize:vertical;min-height:70px}
+
+  button{background:var(--panel-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:8px 14px;cursor:pointer;font-family:inherit;font-size:.9rem;
+    transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+  button:hover{border-color:var(--accent);background:var(--panel-3)}
+  button.primary{background:var(--accent-dark);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover{background:var(--accent)}
+  button.danger{color:var(--danger)}
+  button.danger:hover{border-color:var(--danger);background:#2e1810}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;min-height:30px;margin-bottom:8px}
+  .chip{background:var(--panel-2);border:1px solid var(--accent-dark);color:var(--text);
+    border-radius:999px;padding:4px 10px;font-size:.82rem;display:inline-flex;align-items:center;gap:6px}
+  .chip::before{content:"◈";color:var(--accent-2);font-size:.75rem}
+  .chip button{background:none;border:none;color:var(--text-dim);padding:0;
+    font-size:1rem;line-height:1;cursor:pointer;display:inline-flex}
+  .chip button:hover{color:var(--danger)}
+
+  .row{display:flex;gap:8px}
+  .row > *{flex:1}
+  .row > button{flex:0 0 auto}
+
+  .dice-counter{display:flex;align-items:center;gap:10px}
+  .dice-counter button{width:38px;height:38px;font-size:1.3rem;padding:0}
+  .dice-preview{font-family:monospace;font-size:1.1rem;color:var(--accent-2);
+    padding:6px 14px;background:var(--panel-2);border-radius:8px;border:1px solid var(--border)}
+  .dice-preview-icon{display:inline-block;margin-right:6px;vertical-align:middle}
+
+  .stat-linked-box{background:var(--panel-2);border:1px solid var(--accent-dark);
+    border-radius:8px;padding:10px 12px;display:flex;align-items:center;justify-content:space-between;
+    gap:10px;flex-wrap:wrap}
+  .stat-linked-box .label{font-size:.82rem;color:var(--text-dim)}
+  .stat-linked-box .value{font-family:monospace;font-size:1.15rem;color:var(--accent);font-weight:700}
+  .stat-linked-box .stat-tag{font-size:.7rem;color:var(--text-muted);
+    background:var(--panel);padding:2px 8px;border-radius:4px;border:1px solid var(--border)}
+
+  .attack-stat-checkbox{
+    display:flex;align-items:center;gap:10px;padding:10px 12px;
+    background:var(--panel-2);border:1px solid var(--border);
+    border-radius:8px;cursor:pointer;margin-bottom:6px;
+    transition:border-color .15s,background .15s;user-select:none;
+  }
+  .attack-stat-checkbox:hover{border-color:var(--accent-dark)}
+  .attack-stat-checkbox.checked{border-color:var(--accent);background:rgba(143,181,106,.08)}
+  .attack-stat-checkbox input[type=checkbox]{width:18px;height:18px;
+    accent-color:var(--accent);cursor:pointer;flex:0 0 auto;margin:0}
+  .attack-stat-checkbox .stat-label{flex:1;color:var(--text);font-size:.88rem}
+  .attack-stat-checkbox .stat-dice-inline{font-family:monospace;color:var(--accent);
+    font-weight:700;font-size:.88rem}
+  .attack-stat-checkbox .stat-lvl-inline{font-size:.7rem;color:var(--text-muted)}
+
+  .effect-tabs{display:flex;gap:4px;margin-bottom:12px}
+  .effect-tabs button{flex:1;font-size:.85rem;padding:8px 4px}
+  .effect-tabs button.active{background:var(--accent-dark);border-color:var(--accent);color:#fff}
+
+  .damage-die-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .damage-die-row select{flex:0 0 100px}
+  .damage-die-row input{flex:0 0 80px}
+  .damage-die-row button{flex:0 0 auto;padding:6px 10px}
+
+  .actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .actions button{flex:1;min-width:110px}
+
+  .spell-card{background:var(--panel-2);border:1px solid var(--border);
+    border-left:3px solid var(--accent-dark);border-radius:10px;padding:14px;
+    margin-bottom:12px;transition:border-color .15s}
+  .spell-card:hover{border-color:var(--accent);border-left-color:var(--accent)}
+  .spell-card.is-basic{border-left-color:var(--accent-2)}
+  .spell-card h3{margin:0 0 6px;font-size:1rem;color:var(--accent-2);
+    display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .badge-basic{background:var(--accent-2);color:#2a1e10;font-size:.62rem;
+    padding:2px 7px;border-radius:4px;font-weight:700;letter-spacing:.6px;text-transform:uppercase}
+  .badge-assured{background:rgba(212,168,67,.15);color:var(--accent-2);
+    border:1px solid var(--accent-2);font-size:.62rem;padding:2px 7px;
+    border-radius:4px;font-weight:600;letter-spacing:.4px}
+  .badge-manual{background:rgba(184,123,74,.15);color:var(--accent-3);
+    border:1px solid var(--accent-3);font-size:.62rem;padding:2px 7px;
+    border-radius:4px;font-weight:600;letter-spacing:.4px}
+  .spell-stats{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .spell-stat-chip{font-size:.72rem;padding:3px 9px;border-radius:999px;
+    background:var(--panel);border:1px solid var(--border);color:var(--text-dim);
+    display:inline-flex;align-items:center;gap:5px}
+  .spell-stat-chip strong{color:var(--accent);font-family:monospace}
+  .spell-stat-chip.cast{border-color:var(--accent-dark)}
+  .spell-stat-chip.atk{border-color:var(--accent-3);color:var(--text)}
+  .spell-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:.78rem;
+    color:var(--text-dim);margin-bottom:8px}
+  .spell-meta span{background:var(--panel);padding:2px 8px;border-radius:4px;border:1px solid var(--border)}
+  .spell-orders{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+  .spell-orders .chip{font-size:.72rem;padding:2px 8px}
+  .spell-effect-text{font-size:.85rem;color:var(--text);margin-bottom:8px;white-space:pre-wrap;
+    background:var(--panel);padding:8px 10px;border-radius:6px;border:1px solid var(--border);line-height:1.5}
+  .spell-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .spell-actions button{padding:6px 10px;font-size:.82rem}
+
+  .log-entry{background:var(--panel-2);border-left:3px solid var(--accent);
+    border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:.85rem}
+  .log-entry.cast-only{border-left-color:var(--accent-dark)}
+  .log-entry.attack-only{border-left-color:var(--accent-3)}
+  .log-title{font-weight:600;color:var(--accent-2);margin-bottom:8px;font-size:.95rem}
+  .log-step{background:var(--panel);border:1px solid var(--border);border-radius:6px;
+    padding:8px 10px;margin:8px 0}
+  .log-step-title{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--accent);font-weight:600;margin-bottom:6px}
+  .log-step-title.attack{color:var(--accent-3)}
+  .log-step-title.damage{color:var(--accent-2)}
+  .log-line{margin:5px 0;line-height:1.5}
+
+  .dice-row{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0;align-items:center}
+  .die{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+    border-radius:7px;font-weight:700;font-family:monospace;font-size:.95rem;border:2px solid}
+  .die-neutral{background:#2e2418;color:var(--text-muted);border-color:#4a3624}
+  .die-fail{background:#3e1c12;color:#ff9a7a;border-color:#7a3020}
+  .die-success{background:#1e3a18;color:#c4f2a4;border-color:#4a7a30}
+  .die-assured{background:#3a2e10;color:var(--accent-2);border-color:#8a6a20;border-style:dashed}
+
+  .success{color:var(--success);font-weight:600}
+  .fail{color:var(--fail);font-weight:600}
+  .heal{color:#a4d67e;font-weight:600}
+  .empty{color:var(--text-dim);font-style:italic;font-size:.85rem}
+  .hint{font-size:.75rem;color:var(--text-dim);margin-top:4px;line-height:1.5}
+
+  .empty-illustration{display:flex;flex-direction:column;align-items:center;gap:8px;
+    padding:20px;color:var(--text-muted);font-style:italic;font-size:.85rem}
+  .empty-illustration svg{opacity:.55}
+
+  .flash{animation:flash .7s ease}
+  @keyframes flash{0%{background:var(--accent-dark)}100%{background:var(--panel-2)}}
+
+  .rule-list{list-style:none;padding:0;margin:8px 0;display:grid;
+    grid-template-columns:1fr 1fr;gap:6px;font-size:.85rem}
+  .rule-list li{display:flex;align-items:center;gap:8px;padding:6px 10px;
+    background:var(--panel-2);border-radius:6px;border:1px solid var(--border)}
+  .rule-list .die{width:26px;height:26px;font-size:.85rem}
+
+  .mini-btn{font-size:.75rem;padding:5px 10px;color:var(--text-dim);
+    background:transparent;border:1px dashed var(--border-light)}
+  .mini-btn:hover{color:var(--accent);border-color:var(--accent-dark);border-style:solid;background:var(--panel-2)}
+
+  /* ---------- FLOATING PANEL ---------- */
+  .float-panel{
+    position:fixed;bottom:20px;right:20px;width:220px;
+    background:var(--panel);border:2px solid var(--accent-dark);
+    border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.6),0 0 0 1px rgba(212,168,67,.1);
+    z-index:1000;font-size:.85rem;
+  }
+  .float-panel.minimized .float-body{display:none}
+  .float-panel.minimized .float-min{transform:rotate(180deg)}
+  .float-header{
+    cursor:move;padding:10px 12px;background:var(--panel-2);
+    border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;
+    user-select:none;font-weight:600;color:var(--accent-2);font-size:.82rem;letter-spacing:.4px;
+  }
+  .float-header:active{cursor:grabbing}
+  .float-min{
+    background:none;border:none;color:var(--text-dim);
+    width:24px;height:24px;padding:0;cursor:pointer;font-size:1rem;
+    border-radius:4px;transition:transform .2s,color .15s;
+  }
+  .float-min:hover{color:var(--accent)}
+  .float-body{padding:12px}
+  .float-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .float-row > span:first-child{flex:1;color:var(--text-dim);font-size:.78rem}
+  .float-row button{width:28px;height:28px;padding:0;font-size:1rem}
+  .float-val{font-family:monospace;min-width:1.5em;text-align:center;
+    color:var(--accent);font-weight:700;font-size:1rem}
+  #floatRoll{width:100%;margin-top:4px;padding:8px;font-size:.85rem}
+  .float-result{margin-top:10px}
+  .float-result .dice-row{margin:4px 0}
+  .float-result .die{width:26px;height:26px;font-size:.82rem}
+  .float-result .dice-summary{font-size:.75rem;color:var(--text-dim);margin-top:6px;line-height:1.4}
+
+  .manual-damage-section input[type=number]{background:var(--panel);border:1px solid var(--accent-dark);
+    padding:6px 10px;border-radius:6px;color:var(--text);font-family:inherit;font-size:.9rem;flex:1}
+  .manual-damage-section input[type=number]:focus{outline:none;border-color:var(--accent);
+    box-shadow:0 0 0 2px rgba(143,181,106,.18)}
+
+  .backup-panel{grid-column:1/-1;margin:0;padding:0;border:1px solid var(--border,var(--borde));border-radius:14px;background:linear-gradient(135deg,rgba(93,125,70,.10),rgba(197,151,76,.045));overflow:hidden}
+  .backup-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;cursor:pointer;list-style:none;padding:14px 18px}
+  .backup-head::-webkit-details-marker{display:none}
+  .backup-title{font-size:.9rem;font-weight:650;color:var(--text,var(--text-main))}
+  .backup-summary-right{display:flex;align-items:center;gap:12px}
+  .backup-chevron{font-size:1.1rem;color:var(--text-dim);transition:transform .2s}
+  .backup-panel[open] .backup-chevron{transform:rotate(45deg)}
+  .backup-panel[open] .backup-head{border-bottom:1px solid var(--border)}
+  .backup-panel > .backup-note,.backup-panel > .backup-actions,.backup-panel > .backup-status{margin-left:18px;margin-right:18px}
+  .backup-panel > .backup-note{margin-top:14px}
+  .backup-panel > .backup-actions{margin-bottom:0}
+  .backup-panel > .backup-status{margin-bottom:14px}
+  .backup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .backup-actions button{min-height:38px}
+  .backup-note{font-size:.78rem;color:var(--text-muted,var(--text-dim));line-height:1.5}
+  .backup-status{font-size:.78rem;margin-top:8px;min-height:1.2em;color:var(--success,#8ebd76)}
+  .backup-actions .primary{background:var(--accent,var(--accent-green))}
+  @media(max-width:600px){.backup-head{padding:13px}.backup-panel > .backup-note,.backup-panel > .backup-actions,.backup-panel > .backup-status{margin-left:13px;margin-right:13px}.backup-actions{display:grid;grid-template-columns:1fr 1fr}.backup-actions button{width:100%}}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 72 72" width="62" height="62" aria-hidden="true">
+      <defs>
+        <linearGradient id="rockGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#b09070"/><stop offset="100%" stop-color="#4a3a28"/>
+        </linearGradient>
+        <linearGradient id="leafGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#c4e09a"/><stop offset="100%" stop-color="#6a9147"/>
+        </linearGradient>
+      </defs>
+      <g stroke="#6a9147" stroke-width="2.2" opacity=".75">
+        <line x1="8" y1="12" x2="8" y2="62"/>
+        <line x1="4" y1="26" x2="12" y2="26" stroke-width="2.6"/>
+        <line x1="4" y1="46" x2="12" y2="46" stroke-width="2.6"/>
+        <line x1="64" y1="14" x2="64" y2="64"/>
+        <line x1="60" y1="30" x2="68" y2="30" stroke-width="2.6"/>
+        <line x1="60" y1="50" x2="68" y2="50" stroke-width="2.6"/>
+      </g>
+      <g fill="url(#leafGrad)" stroke="#3d5a2f" stroke-width=".8">
+        <path d="M 10 22 Q 20 14 26 22 Q 18 23 10 22 Z"/>
+        <path d="M 62 24 Q 54 16 48 24 Q 56 25 62 24 Z"/>
+      </g>
+      <polygon points="16,52 24,36 36,32 50,38 58,52 50,62 22,62"
+               fill="url(#rockGrad)" stroke="#2a2018" stroke-width="1.6" stroke-linejoin="round"/>
+      <line x1="26" y1="46" x2="30" y2="56" stroke="#2a2018" stroke-width="1" opacity=".55"/>
+      <line x1="46" y1="44" x2="48" y2="58" stroke="#2a2018" stroke-width="1" opacity=".55"/>
+      <line x1="36" y1="50" x2="38" y2="60" stroke="#2a2018" stroke-width="1" opacity=".45"/>
+      <path d="M 36 32 Q 37 20 48 16 Q 46 28 36 32 Z" fill="url(#leafGrad)" stroke="#3d5a2f" stroke-width="1.1"/>
+      <path d="M 36 32 Q 32 22 22 20 Q 26 28 36 32 Z" fill="#8fb56a" stroke="#3d5a2f" stroke-width="1.1" opacity=".9"/>
+      <line x1="36" y1="32" x2="36" y2="26" stroke="#3d5a2f" stroke-width="1.2"/>
+    </svg>
+  </div>
+  <div class="title-block">
+    <h1>Arcane — Testeador de Hechizos de Tierra</h1>
+    <div class="sub">Sistema casero d6 · senda del monje · paneles plegables</div>
+  </div>
+  <div class="badges">
+    <span class="badge">Regla <strong>1 fallo · 5/6 éxito</strong></span>
+    <span class="badge">Fórmula <strong id="formulaBadge">1 + nivel</strong></span>
+  </div>
+</header>
+
+<main>
+
+
+
+  <div class="column">
+    <section class="panel" data-pid="profile">
+      <h2>
+        <span class="panel-toggle">▼</span>
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4"/><path d="M4 21 v-2 a4 4 0 0 1 4 -4 h8 a4 4 0 0 1 4 4 v2"/>
+        </svg>
+        <span>Perfil del personaje</span>
+      </h2>
+      <div class="panel-content">
+        <div class="stat-grid" id="statGrid"></div>
+        <div class="hint">Los dados se calculan con la fórmula configurada más abajo.</div>
+      </div>
+    </section>
+
+    <section class="panel" data-pid="formula">
+      <h2>
+        <span class="panel-toggle">▼</span>
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 18 L8 6 L12 14 L16 4 L20 18"/>
+        </svg>
+        <span>Fórmula de dados</span>
+        <span style="margin-left:auto;font-size:.65rem;color:var(--text-muted);text-transform:none;letter-spacing:0;font-weight:normal">configurable</span>
+      </h2>
+      <div class="panel-content">
+        <div class="formula-formula">
+          dados = <strong id="formulaBaseDisplay">1</strong> + (nivel × <strong id="formulaMultDisplay">1</strong>)
+          → actualmente: <strong id="formulaCurrent">1 + nivel</strong>
+        </div>
+        <div class="row">
+          <div class="form-group" style="margin-bottom:0">
+            <label>Dados base</label>
+            <input type="number" id="formulaBase" min="0" max="10" step="1" value="1">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label>Multiplicador por nivel</label>
+            <input type="number" id="formulaMult" min="0" max="5" step="1" value="1">
+          </div>
+        </div>
+        <div class="formula-presets">
+          <button class="mini-btn formula-preset" data-base="1" data-mult="1">1 + nivel</button>
+          <button class="mini-btn formula-preset" data-base="0" data-mult="1">Solo nivel</button>
+          <button class="mini-btn formula-preset" data-base="1" data-mult="2">1 + 2×nivel</button>
+          <button class="mini-btn formula-preset" data-base="2" data-mult="1">2 + nivel</button>
+        </div>
+        <div style="margin-top:14px">
+          <table class="formula-table">
+            <thead><tr><th>Nivel</th><th>Puntos</th><th>Dados</th></tr></thead>
+            <tbody id="formulaPreviewBody"></tbody>
+          </table>
+        </div>
+        <div class="form-group" style="margin-top:14px;margin-bottom:0">
+          <label>Notas / confirmación del DM</label>
+          <input type="text" id="formulaNotes" placeholder="Ej: pendiente confirmar con el DM...">
+        </div>
+        <div class="formula-note">Los hechizos con estadísticas vinculadas se recalculan automáticamente.</div>
+      </div>
+    </section>
+
+    <section class="panel" data-pid="editor">
+      <h2>
+        <span class="panel-toggle">▼</span>
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2 L20 8 L20 16 L12 22 L4 16 L4 8 Z"/><path d="M12 2 L12 22"/><path d="M4 8 L12 12 L20 8"/>
+        </svg>
+        <span id="editorTitle">Crear hechizo</span>
+      </h2>
+      <div class="panel-content">
+        <div class="form-group">
+          <label>Nombre del hechizo</label>
+          <input type="text" id="spellName" placeholder="Ej: Puño de Tierra">
+        </div>
+        <div class="row" style="margin-bottom:14px">
+          <div style="flex:1">
+            <label style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);display:block;margin-bottom:6px">Costo de maná</label>
+            <input type="number" id="manaCost" min="0" value="3">
+          </div>
+          <div style="flex:2">
+            <label style="font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-dim);display:block;margin-bottom:6px">Duración</label>
+            <input type="text" id="duration" list="durationList" placeholder="Ej: instantáneo, 1 turno...">
+            <datalist id="durationList">
+              <option value="Instantáneo"><option value="1 turno"><option value="1 golpe">
+              <option value="Hasta el final del combate"><option value="Hasta ser disipado"><option value="Concentración">
+            </datalist>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Órdenes</label>
+          <div class="chips" id="orderChips"></div>
+          <div class="row" style="margin-bottom:6px">
+            <select id="orderSelect"></select>
+            <button id="addOrderBtn">+ Añadir</button>
+          </div>
+          <div class="row">
+            <input type="text" id="newOrderInput" placeholder="Nueva orden...">
+            <button id="createOrderBtn">+ Crear</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Estadística de casteo</label>
+          <select id="castStatSelect">
+            <option value="manipulacion">Manipulación</option>
+            <option value="fisico">Físico</option>
+            <option value="influencia">Influencia</option>
+            <option value="manual">Manual (dados libres)</option>
+            <option value="none">Ninguna (sin tirada)</option>
+          </select>
+          <div class="stat-linked-box" id="castStatBox" style="margin-top:8px">
+            <span class="label">Dados de casteo</span>
+            <span class="value" id="castStatValue">3d6</span>
+            <span class="stat-tag" id="castStatTag">Manipulación nv 2</span>
+          </div>
+          <div id="manualCastSection" style="display:none;margin-top:8px">
+            <div class="dice-counter">
+              <button id="castMinus">−</button>
+              <span id="castCount" style="font-size:1.15rem;min-width:2em;text-align:center;font-weight:600;">2</span>
+              <button id="castPlus">+</button>
+              <span class="dice-preview" id="castPreview">
+                <svg class="dice-preview-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2 L22 8 L22 16 L12 22 L2 16 L2 8 Z" opacity=".9"/>
+                </svg>2d6
+              </span>
+            </div>
+          </div>
+          <div class="hint" id="castHint">Dados tomados del perfil.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Éxitos asegurados</label>
+          <div class="dice-counter">
+            <button id="assuredMinus">−</button>
+            <span id="assuredCount" style="font-size:1.2rem;min-width:2em;text-align:center;font-weight:600;">0</span>
+            <button id="assuredPlus">+</button>
+            <span class="dice-preview" id="assuredPreview">0 éxitos</span>
+          </div>
+          <div class="hint">Se aplican al ataque si el hechizo ataca, o al casteo si es defensivo/utility.</div>
+        </div>
+
+        <div class="form-group">
+          <label>Efecto</label>
+          <div class="effect-tabs">
+            <button data-type="damage" class="active" id="tabDamage"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 14.5 8l5.8-2.2-2.2 5.8 5.4 2.4-5.4 2.4 2.2 5.8-5.8-2.2L12 23.5l-2.5-5.5-5.8 2.2 2.2-5.8L.5 12l5.4-2.4-2.2-5.8L9.5 6z"/></svg> Daño</button>
+            <button data-type="heal" id="tabHeal"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.8a5.5 5.5 0 0 0-7.8 0L12 5.9l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.3 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/><path d="M3.5 12h4l2-3 3.2 6 2-3h5.8"/></svg> Curación</button>
+            <button data-type="effect" id="tabEffect"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 1.8 7.2L21 12l-7.2 1.8L12 21l-1.8-7.2L3 12l7.2-2.8L12 2Z"/><path d="m19 2 .7 2.3L22 5l-2.3.7L19 8l-.7-2.3L16 5l2.3-.7L19 2Z"/></svg> Efecto</button>
+          </div>
+
+          <div id="diceSection">
+            <label style="font-size:.75rem;color:var(--text-dim);display:block;margin-bottom:6px" id="diceLabel">Dados de daño</label>
+            <div id="damageDiceList"></div>
+            <button id="addDamageDieBtn" style="margin-bottom:10px">+ Añadir dado</button>
+            <div class="row" style="margin-bottom:10px">
+              <div style="flex:1">
+                <label style="font-size:.75rem;color:var(--text-dim);display:block;margin-bottom:4px" id="bonusLabel">Bonificador fijo</label>
+                <input type="number" id="damageBonus" value="0">
+              </div>
+              <div style="flex:2">
+                <label style="font-size:.75rem;color:var(--text-dim);display:block;margin-bottom:4px" id="notesLabel">Notas</label>
+                <input type="text" id="damageNotes" placeholder="Ej: mágico de tierra, contundente...">
+              </div>
+            </div>
+            <div class="form-group" style="margin-bottom:0">
+              <label>Modo de resolución</label>
+              <select id="damageMode">
+                <option value="auto">Automático (la app tira los dados)</option>
+                <option value="manual">Manual (tirás vos y anotás el total)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="effectSection" style="display:none">
+            <textarea id="effectDescription" placeholder="Describe el efecto (ej: reduce el daño a la mitad, +1 dado para esquivar...)"></textarea>
+          </div>
+        </div>
+
+        <div class="form-group" id="attackStatGroup">
+          <label>Estadísticas de ataque (híbrido — seleccioná una o más)</label>
+          <div id="attackStatCheckboxes"></div>
+          <div class="stat-linked-box" id="attackStatBox" style="margin-top:10px">
+            <span class="label">Dados de ataque totales</span>
+            <span class="value" id="attackStatValue">3d6</span>
+            <span class="stat-tag" id="attackStatTag">Físico</span>
+          </div>
+          <div class="hint">Podés combinar Físico + Manipulación para un golpe potenciado. Los dados se suman.</div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="saveSpellBtn"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h13l4 4v14H3V4a1 1 0 0 1 1-1Z"/><path d="M7 3v6h10V3M7 21v-7h10v7"/></svg> Guardar hechizo</button>
+          <button id="testSpellBtn"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3.5 7.5 8.5 5 8.5-5M12 12.5V22"/><circle cx="8" cy="8" r=".8" fill="currentColor"/><circle cx="16" cy="8" r=".8" fill="currentColor"/><circle cx="12" cy="16" r=".8" fill="currentColor"/></svg> Probar</button>
+          <button id="clearFormBtn"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg> Limpiar</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="column">
+    <section class="panel" data-pid="log">
+      <h2>
+        <span class="panel-toggle">▼</span>
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12 h4 l2 -7 l4 14 l2 -7 h6"/>
+        </svg>
+        <span>Resultados de tiradas</span>
+      </h2>
+      <div class="panel-content">
+        <div id="logContainer">
+          <div class="empty-illustration">
+            <svg width="64" height="64" viewBox="0 0 64 64">
+              <defs>
+                <linearGradient id="emptyRock" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#5a4530"/><stop offset="100%" stop-color="#2a2018"/>
+                </linearGradient>
+              </defs>
+              <polygon points="10,44 20,28 32,24 44,30 54,44 44,54 20,54"
+                       fill="url(#emptyRock)" stroke="#4a3624" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M 32 24 Q 32 14 42 12 Q 40 20 32 24 Z" fill="#6a9147" opacity=".7"/>
+              <path d="M 32 24 Q 26 16 18 16 Q 22 22 32 24 Z" fill="#6a9147" opacity=".5"/>
+              <line x1="6" y1="10" x2="6" y2="56" stroke="#6a9147" stroke-width="1.5" opacity=".6"/>
+              <line x1="58" y1="12" x2="58" y2="58" stroke="#6a9147" stroke-width="1.5" opacity=".6"/>
+            </svg>
+            Aún no has lanzado ningún hechizo.
+          </div>
+        </div>
+        <div class="actions"><button id="clearLogBtn">Borrar historial</button></div>
+      </div>
+    </section>
+
+    <section class="panel" data-pid="spells">
+      <h2>
+        <span class="panel-toggle">▼</span>
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4 h12 l4 4 v12 a2 2 0 0 1 -2 2 H4 a2 2 0 0 1 -2 -2 V6 a2 2 0 0 1 2 -2 Z"/><path d="M16 4 v4 h4"/>
+        </svg>
+        <span>Hechizos guardados (<span id="spellCount">0</span>)</span>
+      </h2>
+      <div class="panel-content">
+        <div id="spellList"><p class="empty">Todavía no hay hechizos guardados.</p></div>
+        <div style="margin-top:10px;text-align:right">
+          <button class="mini-btn" id="restoreBasicsBtn"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.6 6.4"/><path d="M3 4v7h7"/></svg> Restaurar hechizos básicos</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" data-pid="rules">
+      <h2>
+        <span class="panel-toggle">▼</span>
+        <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 8 v.01 M11 12 h1 v4 h1"/>
+        </svg>
+        <span>Sistema de éxitos y fallos</span>
+      </h2>
+      <div class="panel-content">
+        <ul class="rule-list">
+          <li><span class="die die-fail">1</span> <strong>1 fallo</strong></li>
+          <li><span class="die die-neutral">2</span> nada</li>
+          <li><span class="die die-neutral">3</span> nada</li>
+          <li><span class="die die-neutral">4</span> nada</li>
+          <li><span class="die die-success">5</span> <strong>1 éxito</strong></li>
+          <li><span class="die die-success">6</span> <strong>2 éxitos</strong></li>
+        </ul>
+        <p style="font-size:.85rem;line-height:1.6;margin:8px 0 0">
+          Los éxitos y fallos se enfrentan a los del oponente.
+        </p>
+      </div>
+    </section>
+  </div>
+
+    <details class="backup-panel" aria-label="Copias de seguridad">
+    <summary class="backup-head">
+      <span class="backup-title"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v5H4zM5 9v11h14V9M9 14h6M9 17h6"/></svg> Copias de seguridad y opciones del laboratorio</span>
+      <span class="backup-summary-right"><span class="badge">Avanzado</span><span class="backup-chevron">＋</span></span>
+    </summary>
+    <p class="backup-note">Esta sección es opcional y queda plegada mientras trabajás. Los hechizos, órdenes, personaje y ajustes se guardan en este navegador. Exportá una copia JSON para conservarlos o trasladarlos a otra computadora. La copia no se sube a ningún servidor.</p>
+    <div class="backup-actions">
+      <button class="primary" id="exportBackupBtn" type="button"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></svg> Exportar copia</button>
+      <button id="importBackupBtn" type="button"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m-5 5 5-5 5 5M4 17v4h16v-4"/></svg> Importar copia</button>
+      <button id="printAppBtn" type="button"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V9h16v8h-3M7 14h10v7H7z"/><path d="M17 11h.01"/></svg> Imprimir / PDF</button>
+      <input id="backupFileInput" type="file" accept=".json,application/json" hidden>
+    </div>
+    <div class="backup-status" id="backupStatus" role="status" aria-live="polite"></div>
+  </details>
+</main>
+
+<!-- Floating dice panel -->
+<div id="floatPanel" class="float-panel">
+  <div class="float-header" id="floatHeader">
+    <span><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3.5 7.5 8.5 5 8.5-5M12 12.5V22"/><circle cx="8" cy="8" r=".8" fill="currentColor"/><circle cx="16" cy="8" r=".8" fill="currentColor"/><circle cx="12" cy="16" r=".8" fill="currentColor"/></svg> Dados rápidos</span>
+    <button class="float-min" id="floatMin" title="Minimizar">−</button>
+  </div>
+  <div class="float-body" id="floatBody">
+    <div class="float-row">
+      <span>Casteo</span>
+      <button class="mini-step" data-field="dice" data-delta="-1">−</button>
+      <span class="float-val" id="floatDice">2</span>
+      <button class="mini-step" data-field="dice" data-delta="1">+</button>
+    </div>
+    <div class="float-row">
+      <span>Asegurados</span>
+      <button class="mini-step" data-field="assured" data-delta="-1">−</button>
+      <span class="float-val" id="floatAssured">0</span>
+      <button class="mini-step" data-field="assured" data-delta="1">+</button>
+    </div>
+    <button id="floatRoll" class="primary"><svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3.5 7.5 8.5 5 8.5-5M12 12.5V22"/><circle cx="8" cy="8" r=".8" fill="currentColor"/><circle cx="16" cy="8" r=".8" fill="currentColor"/><circle cx="12" cy="16" r=".8" fill="currentColor"/></svg> Tirar</button>
+    <div id="floatResult" class="float-result"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  const LEVEL_POINTS = {1:0,2:10,3:20,4:40,5:80};
+  const STAT_NAMES = {fisico:'Físico',manipulacion:'Manipulación',influencia:'Influencia'};
+  const DIE_TYPES = ['d4','d6','d8','d10','d12'];
+
+  let character = { fisico:2, manipulacion:2, influencia:1 };
+  let formulaConfig = { base:1, multiplier:1, notes:'' };
+
+  let editingId = null;
+  let currentOrders = [];
+  let effectType = 'damage';
+  let damageDice = [{type:'d6',count:1}];
+  let assuredSuccess = 0;
+  let castStat = 'manipulacion';
+  let manualCastDice = 2;
+  let attackStats = ['fisico'];
+  let damageMode = 'auto';
+
+  let spells = [];
+  let customOrders = [];
+
+  const PRESET_ORDERS = [
+    'Levantar tierra','Mover tierra','Endurecer tierra','Moldear',
+    'Comprimir','Proyectar','Adherir','Sostener','Deslizar',
+    'Desgastar','Contener','Retrasar','Iluminar','Curar',
+    'Proteger','Fragmentar'
+  ];
+
+  const BASIC_SPELLS = [
+    {id:'basic_luz_mago',name:'Luz de Mago',manaCost:0,orders:['Iluminar'],
+     castStat:'manipulacion',manualCastDice:2,assuredSuccess:0,
+     attackStats:[],damageMode:'auto',
+     effectType:'effect',damage:{dice:[],bonus:0,notes:''},
+     effectDescription:'Crea una esfera de luz que sigue de cerca al mago, iluminando su camino.',
+     duration:'Hasta ser disipado',isBasic:true},
+    {id:'basic_escudo_magico',name:'Escudo Mágico',manaCost:0,orders:['Proteger'],
+     castStat:'manipulacion',manualCastDice:2,assuredSuccess:1,
+     attackStats:[],damageMode:'auto',
+     effectType:'effect',damage:{dice:[],bonus:0,notes:''},
+     effectDescription:'Bloquea un ataque usando la manipulación de maná. Esta tirada tiene un éxito asegurado.',
+     duration:'1 golpe',isBasic:true},
+    {id:'basic_curar_heridas',name:'Curar Heridas Leves',manaCost:0,orders:['Curar'],
+     castStat:'influencia',manualCastDice:2,assuredSuccess:0,
+     attackStats:[],damageMode:'auto',
+     effectType:'heal',damage:{dice:[{type:'d4',count:1}],bonus:0,notes:'curación'},
+     effectDescription:'Cúrate a ti mismo o a un ser vivo que puedas tocar por 1d4.',
+     duration:'Instantáneo',isBasic:true}
+  ];
+
+  const $ = id => document.getElementById(id);
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  const ICONS = {
+    die:'<path d="m12 2 9 5v10l-9 5-9-5V7l9-5Z"/><path d="m3.5 7.5 8.5 5 8.5-5M12 12.5V22"/><circle cx="8" cy="8" r=".8" fill="currentColor"/><circle cx="16" cy="8" r=".8" fill="currentColor"/><circle cx="12" cy="16" r=".8" fill="currentColor"/>',
+    attack:'<path d="m14 5 5 5M4 20l5.5-1.5L20 8l-4-4L5.5 15.5 4 20Z"/><path d="m13 7 4 4M4 20l-1 1m5-4 2 2"/>',
+    damage:'<path d="m12 2 2.5 5.5 5.8-2.2-2.2 5.8 5.4 2.4-5.4 2.4 2.2 5.8-5.8-2.2L12 23.5l-2.5-5.5-5.8 2.2 2.2-5.8L.5 12l5.4-2.4-2.2-5.8L9.5 6 12 2Z"/>',
+    heal:'<path d="M20.8 4.8a5.5 5.5 0 0 0-7.8 0L12 5.9l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.3 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z"/><path d="M3.5 12h4l2-3 3.2 6 2-3h5.8"/>',
+    effect:'<path d="m12 2 1.8 7.2L21 12l-7.2 1.8L12 21l-1.8-7.2L3 12l7.2-2.8L12 2Z"/><path d="m19 2 .7 2.3L22 5l-2.3.7L19 8l-.7-2.3L16 5l2.3-.7L19 2Z"/>',
+    save:'<path d="M4 3h13l4 4v14H3V4a1 1 0 0 1 1-1Z"/><path d="M7 3v6h10V3M7 21v-7h10v7"/>',
+    clear:'<path d="m6 6 12 12M18 6 6 18"/>',
+    restore:'<path d="M3 11a9 9 0 1 1 2.6 6.4"/><path d="M3 4v7h7"/>',
+    archive:'<path d="M4 4h16v5H4zM5 9v11h14V9M9 14h6M9 17h6"/>',
+    download:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',
+    upload:'<path d="M12 16V4m-5 5 5-5 5 5M4 17v4h16v-4"/>',
+    print:'<path d="M7 8V3h10v5M7 17H4V9h16v8h-3M7 14h10v7H7z"/><path d="M17 11h.01"/>',
+    mana:'<path d="M12 22s8-4.4 8-11a8 8 0 0 0-16 0c0 6.6 8 11 8 11Z"/><path d="M9 13c1.2-2.4 2.8-4 5-5"/>',
+    duration:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    warning:'<path d="M12 3 2.8 20h18.4L12 3Z"/><path d="M12 9v5m0 3h.01"/>',
+    manual:'<path d="M8 11V5a2 2 0 0 1 4 0v5-7a2 2 0 0 1 4 0v8-5a2 2 0 0 1 4 0v8c0 4-2.5 7-7 7h-1c-2 0-3.5-1-5-3l-3-4a2 2 0 0 1 3-2l2 2"/>',
+    edit:'<path d="m14 5 5 5M4 20l4.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20Z"/>',
+    delete:'<path d="M4 7h16M10 11v6m4-6v6M5 7l1 14h12l1-14M9 7V4h6v3"/>',
+    check:'<path d="m5 12 4 4L19 6"/>'
+  };
+  function iconSvg(name, className='icon-inline'){
+    return `<svg class="${className}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICONS[name]}</svg>`;
+  }
+  function setIconText(element, name, text){
+    element.innerHTML = `${iconSvg(name)} ${text}`;
+  }
+  function effectLabel(type){
+    const name = type==='damage'?'damage':type==='heal'?'heal':'effect';
+    const label = type==='damage'?'Daño':type==='heal'?'Curación':'Efecto';
+    return `${iconSvg(name)} ${label}`;
+  }
+  function generateId(){return 'sp_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+  function allOrders(){return [...new Set([...PRESET_ORDERS,...customOrders])].sort()}
+
+  function getAttackStats(spell){
+    if(Array.isArray(spell.attackStats)) return spell.attackStats;
+    const result = [];
+    if(spell.attackStat && spell.attackStat!=='none') result.push(spell.attackStat);
+    if(spell.bonusAttackStat && spell.bonusAttackStat!=='none') result.push(spell.bonusAttackStat);
+    return result;
+  }
+
+  function calcDice(level){
+    const raw = formulaConfig.base + (level * formulaConfig.multiplier);
+    return Math.max(0, Math.floor(raw));
+  }
+  function getDice(statKey){
+    if(!statKey || statKey==='none') return 0;
+    const lvl = character[statKey] || 1;
+    const d = calcDice(lvl);
+    return d < 1 ? 1 : d;
+  }
+  function statDiceLabel(statKey){
+    if(!statKey || statKey==='none') return '—';
+    return getDice(statKey)+'d6';
+  }
+  function formulaDescription(){
+    const b = formulaConfig.base, m = formulaConfig.multiplier;
+    if(b===0 && m===0) return '0 dados';
+    if(b===0 && m===1) return 'nivel';
+    if(b===1 && m===1) return '1 + nivel';
+    if(m===0) return b+' fijo';
+    if(m===1) return b+' + nivel';
+    return b+' + '+m+'×nivel';
+  }
+  function updateFormulaDisplays(){
+    $('formulaBadge').textContent = formulaDescription();
+    $('formulaBaseDisplay').textContent = formulaConfig.base;
+    $('formulaMultDisplay').textContent = formulaConfig.multiplier;
+    $('formulaCurrent').textContent = formulaDescription();
+  }
+  function renderFormulaPreview(){
+    const body = $('formulaPreviewBody');
+    body.innerHTML = '';
+    const currentLevels = {1:[],2:[],3:[],4:[],5:[]};
+    ['fisico','manipulacion','influencia'].forEach(k=>{
+      const lvl = character[k]||1;
+      currentLevels[lvl].push(STAT_NAMES[k]);
+    });
+    [1,2,3,4,5].forEach(lvl=>{
+      const pts = LEVEL_POINTS[lvl];
+      let dice = calcDice(lvl);
+      if(dice < 1) dice = 1;
+      const isCurrent = currentLevels[lvl].length > 0;
+      const row = document.createElement('tr');
+      if(isCurrent) row.className = 'current';
+      row.innerHTML = `
+        <td>Nivel ${lvl}${isCurrent?` <span style="color:var(--text-muted);font-size:.72rem">(${currentLevels[lvl].join(', ')})</span>`:''}</td>
+        <td>${pts} pts</td>
+        <td>${dice}d6</td>
+      `;
+      body.appendChild(row);
+    });
+  }
+
+  // ---------- PANEL COLLAPSE ----------
+  function setupPanelCollapse(){
+    const saved = JSON.parse(localStorage.getItem('arcane_panels') || '{}');
+    document.querySelectorAll('.panel[data-pid]').forEach(panel=>{
+      const pid = panel.dataset.pid;
+      const h2 = panel.querySelector('h2');
+      if(!h2) return;
+      if(saved[pid]) panel.classList.add('collapsed');
+      h2.addEventListener('click', e=>{
+        if(e.target.closest('button:not(.panel-toggle)')) return;
+        panel.classList.toggle('collapsed');
+        const state = JSON.parse(localStorage.getItem('arcane_panels') || '{}');
+        state[pid] = panel.classList.contains('collapsed');
+        localStorage.setItem('arcane_panels', JSON.stringify(state));
+      });
+    });
+  }
+
+  // ---------- STORAGE ----------
+  function loadStorage(){
+    try{
+      const s = localStorage.getItem('arcane_spells_v3');
+      if(s) spells = JSON.parse(s);
+      const o = localStorage.getItem('arcane_orders');
+      if(o) customOrders = JSON.parse(o);
+      const c = localStorage.getItem('arcane_character');
+      if(c) character = JSON.parse(c);
+      const f = localStorage.getItem('arcane_formula');
+      if(f) formulaConfig = Object.assign({base:1,multiplier:1,notes:''}, JSON.parse(f));
+    }catch(e){console.warn('storage error',e)}
+  }
+  function saveSpells(){localStorage.setItem('arcane_spells_v3',JSON.stringify(spells))}
+  function saveOrders(){localStorage.setItem('arcane_orders',JSON.stringify(customOrders))}
+  function saveCharacter(){localStorage.setItem('arcane_character',JSON.stringify(character))}
+  function saveFormula(){localStorage.setItem('arcane_formula',JSON.stringify(formulaConfig))}
+
+  function ensureBasicSpells(){
+    let added=false;
+    BASIC_SPELLS.forEach(basic=>{
+      if(!spells.find(s=>s.id===basic.id)){
+        spells.unshift(JSON.parse(JSON.stringify(basic)));
+        added=true;
+      }
+    });
+    if(added) saveSpells();
+  }
+
+  function renderProfile(){
+    const grid = $('statGrid');
+    grid.innerHTML = '';
+    ['fisico','manipulacion','influencia'].forEach(key=>{
+      const card = document.createElement('div');
+      card.className = 'stat-card';
+      const icons = {
+        fisico:'<circle cx="12" cy="6" r="3"/><path d="M6 21 l3 -8 l3 3 l3 -3 l3 8"/>',
+        manipulacion:'<path d="M12 3 L20 9 L20 15 L12 21 L4 15 L4 9 Z"/><path d="M12 3 L12 21"/>',
+        influencia:'<circle cx="12" cy="8" r="3"/><path d="M5 21 v-1 a4 4 0 0 1 4 -4 h6 a4 4 0 0 1 4 4 v1"/>'
+      };
+      card.innerHTML = `
+        <div class="stat-name">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icons[key]}</svg>
+          ${STAT_NAMES[key]}
+        </div>
+        <select data-stat="${key}" class="stat-level-select">
+          ${[1,2,3,4,5].map(n=>`<option value="${n}" ${character[key]===n?'selected':''}>Nivel ${n}</option>`).join('')}
+        </select>
+        <div class="stat-info">
+          <span class="stat-points">${LEVEL_POINTS[character[key]]} pts</span>
+          <span class="stat-dice">${getDice(key)}d6</span>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+    grid.querySelectorAll('.stat-level-select').forEach(sel=>{
+      sel.addEventListener('change', e=>{
+        const key = e.target.dataset.stat;
+        character[key] = parseInt(e.target.value);
+        saveCharacter();
+        refreshAllDice();
+      });
+    });
+  }
+
+  function refreshAllDice(){
+    renderProfile();
+    renderFormulaPreview();
+    renderAttackStatCheckboxes();
+    updateCastStatBox();
+    updateAttackStatBox();
+    renderSpellList();
+    updateFormulaDisplays();
+  }
+
+  function setupFormulaPanel(){
+    $('formulaBase').value = formulaConfig.base;
+    $('formulaMult').value = formulaConfig.multiplier;
+    $('formulaNotes').value = formulaConfig.notes || '';
+    $('formulaBase').addEventListener('change', e=>{
+      formulaConfig.base = Math.max(0, parseInt(e.target.value)||0);
+      e.target.value = formulaConfig.base;
+      saveFormula(); refreshAllDice();
+    });
+    $('formulaMult').addEventListener('change', e=>{
+      formulaConfig.multiplier = Math.max(0, parseInt(e.target.value)||0);
+      e.target.value = formulaConfig.multiplier;
+      saveFormula(); refreshAllDice();
+    });
+    $('formulaNotes').addEventListener('change', e=>{
+      formulaConfig.notes = e.target.value;
+      saveFormula();
+    });
+    document.querySelectorAll('.formula-preset').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        formulaConfig.base = parseInt(btn.dataset.base)||0;
+        formulaConfig.multiplier = parseInt(btn.dataset.mult)||0;
+        $('formulaBase').value = formulaConfig.base;
+        $('formulaMult').value = formulaConfig.multiplier;
+        saveFormula(); refreshAllDice();
+      });
+    });
+    updateFormulaDisplays();
+  }
+
+  function updateCastStatBox(){
+    const box = $('castStatBox');
+    const manual = $('manualCastSection');
+    const hint = $('castHint');
+    if(castStat==='manual'){
+      box.style.display='none';
+      manual.style.display='block';
+      hint.textContent = 'Dados libres: no cambian con la fórmula.';
+    } else if(castStat==='none'){
+      box.style.display='none';
+      manual.style.display='none';
+      hint.textContent = 'Sin tirada de casteo.';
+    } else {
+      box.style.display='flex';
+      manual.style.display='none';
+      $('castStatValue').textContent = getDice(castStat)+'d6';
+      $('castStatTag').textContent = STAT_NAMES[castStat]+' nv '+character[castStat];
+      hint.textContent = `Usando ${STAT_NAMES[castStat]} (nivel ${character[castStat]}, ${LEVEL_POINTS[character[castStat]]} pts).`;
+    }
+  }
+  $('castStatSelect').addEventListener('change', e=>{
+    castStat = e.target.value;
+    updateCastStatBox();
+  });
+
+  function renderAttackStatCheckboxes(){
+    const container = $('attackStatCheckboxes');
+    container.innerHTML = '';
+    ['fisico','manipulacion','influencia'].forEach(key=>{
+      const lbl = document.createElement('label');
+      lbl.className = 'attack-stat-checkbox' + (attackStats.includes(key) ? ' checked' : '');
+      lbl.innerHTML = `
+        <input type="checkbox" data-stat="${key}" ${attackStats.includes(key)?'checked':''}>
+        <span class="stat-label">${STAT_NAMES[key]}</span>
+        <span class="stat-dice-inline">${getDice(key)}d6</span>
+        <span class="stat-lvl-inline">nv ${character[key]}</span>
+      `;
+      const cb = lbl.querySelector('input');
+      cb.addEventListener('change', e=>{
+        if(e.target.checked){
+          if(!attackStats.includes(key)) attackStats.push(key);
+        } else {
+          attackStats = attackStats.filter(k=>k!==key);
+        }
+        lbl.classList.toggle('checked', e.target.checked);
+        updateAttackStatBox();
+      });
+      container.appendChild(lbl);
+    });
+  }
+
+  function updateAttackStatBox(){
+    const group = $('attackStatGroup');
+    if(effectType!=='damage'){
+      group.style.display='none';
+      return;
+    }
+    group.style.display='block';
+    if(attackStats.length===0){
+      $('attackStatValue').textContent = '0d6';
+      $('attackStatTag').textContent = 'Sin ataque';
+      return;
+    }
+    const totalDice = attackStats.reduce((sum,k)=>sum+getDice(k),0);
+    $('attackStatValue').textContent = totalDice+'d6';
+    $('attackStatTag').textContent = attackStats.map(k=>STAT_NAMES[k]).join(' + ');
+  }
+
+  function updateCastPreview(){
+    $('castCount').textContent = manualCastDice;
+    $('castPreview').innerHTML =
+      '<svg class="dice-preview-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">'+
+      '<path d="M12 2 L22 8 L22 16 L12 22 L2 16 L2 8 Z" opacity=".9"/></svg>'+manualCastDice+'d6';
+  }
+  $('castMinus').addEventListener('click',()=>{if(manualCastDice>0){manualCastDice--;updateCastPreview()}});
+  $('castPlus').addEventListener('click',()=>{if(manualCastDice<20){manualCastDice++;updateCastPreview()}});
+
+  function updateAssuredPreview(){
+    $('assuredCount').textContent = assuredSuccess;
+    const label = assuredSuccess===1?'1 éxito':`${assuredSuccess} éxitos`;
+    $('assuredPreview').innerHTML =
+      '<svg class="dice-preview-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">'+
+      '<path d="M12 2 L22 8 L22 16 L12 22 L2 16 L2 8 Z" opacity=".9"/></svg>'+label;
+  }
+  $('assuredMinus').addEventListener('click',()=>{if(assuredSuccess>0){assuredSuccess--;updateAssuredPreview()}});
+  $('assuredPlus').addEventListener('click',()=>{if(assuredSuccess<20){assuredSuccess++;updateAssuredPreview()}});
+
+  function setEffectType(t){
+    effectType = t;
+    $('tabDamage').classList.toggle('active', t==='damage');
+    $('tabHeal').classList.toggle('active', t==='heal');
+    $('tabEffect').classList.toggle('active', t==='effect');
+    $('diceSection').style.display = (t==='damage'||t==='heal')?'block':'none';
+    $('effectSection').style.display = t==='effect'?'block':'none';
+    $('diceLabel').textContent = t==='heal'?'Dados de curación':'Dados de daño';
+    $('bonusLabel').textContent = t==='heal'?'Bonificador de curación':'Bonificador fijo';
+    $('notesLabel').textContent = t==='heal'?'Notas de curación':'Notas';
+    $('addDamageDieBtn').textContent = t==='heal'?'+ Añadir dado de curación':'+ Añadir dado de daño';
+    if(t==='heal' && damageDice.length===1 && damageDice[0].type==='d6' && damageDice[0].count===1){
+      damageDice = [{type:'d4',count:1}];
+      renderDamageDice();
+    }
+    updateAttackStatBox();
+  }
+  $('tabDamage').addEventListener('click',()=>setEffectType('damage'));
+  $('tabHeal').addEventListener('click',()=>setEffectType('heal'));
+  $('tabEffect').addEventListener('click',()=>setEffectType('effect'));
+  $('addDamageDieBtn').addEventListener('click',()=>{
+    damageDice.push({type: effectType==='heal'?'d4':'d6', count:1});
+    renderDamageDice();
+  });
+
+  $('damageMode').addEventListener('change', e=>{
+    damageMode = e.target.value;
+  });
+
+  function renderDamageDice(){
+    const list = $('damageDiceList');
+    list.innerHTML = '';
+    damageDice.forEach((die,idx)=>{
+      const row = document.createElement('div');
+      row.className = 'damage-die-row';
+      const sel = document.createElement('select');
+      DIE_TYPES.forEach(t=>{
+        const opt = document.createElement('option');
+        opt.value = t; opt.textContent = t;
+        if(t===die.type) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change',()=>{damageDice[idx].type = sel.value});
+      const cnt = document.createElement('input');
+      cnt.type='number'; cnt.min=1; cnt.value=die.count;
+      cnt.addEventListener('change',()=>{
+        damageDice[idx].count = Math.max(1, parseInt(cnt.value)||1);
+        cnt.value = damageDice[idx].count;
+      });
+      const rm = document.createElement('button');
+      rm.textContent='×'; rm.title='Quitar dado';
+      rm.addEventListener('click',()=>{
+        damageDice.splice(idx,1);
+        if(damageDice.length===0) damageDice.push({type:'d6',count:1});
+        renderDamageDice();
+      });
+      row.appendChild(sel); row.appendChild(cnt); row.appendChild(rm);
+      list.appendChild(row);
+    });
+  }
+
+  function renderOrderChips(){
+    const container = $('orderChips');
+    container.innerHTML = '';
+    if(currentOrders.length===0){
+      container.innerHTML = '<span class="empty" style="font-size:.8rem">Sin órdenes seleccionadas</span>';
+      return;
+    }
+    currentOrders.forEach((order,idx)=>{
+      const chip = document.createElement('span');
+      chip.className='chip';
+      chip.innerHTML = `${escapeHtml(order)} <button data-idx="${idx}" title="Quitar">×</button>`;
+      chip.querySelector('button').addEventListener('click',()=>{
+        currentOrders.splice(idx,1);
+        renderOrderChips();
+      });
+      container.appendChild(chip);
+    });
+  }
+
+  function renderOrderSelect(){
+    const sel = $('orderSelect');
+    const current = sel.value;
+    sel.innerHTML = '';
+    const ph = document.createElement('option');
+    ph.value=''; ph.textContent='— Elegir orden existente —';
+    sel.appendChild(ph);
+    allOrders().forEach(o=>{
+      const opt = document.createElement('option');
+      opt.value=o; opt.textContent=o;
+      sel.appendChild(opt);
+    });
+    if(current && allOrders().includes(current)) sel.value = current;
+  }
+
+  $('addOrderBtn').addEventListener('click',()=>{
+    const sel = $('orderSelect');
+    if(sel.value && !currentOrders.includes(sel.value)){
+      currentOrders.push(sel.value);
+      renderOrderChips();
+      sel.value='';
+    }
+  });
+  $('createOrderBtn').addEventListener('click',()=>{
+    const input = $('newOrderInput');
+    const val = input.value.trim();
+    if(!val) return;
+    if(!customOrders.includes(val) && !PRESET_ORDERS.includes(val)){
+      customOrders.push(val); saveOrders();
+    }
+    if(!currentOrders.includes(val)) currentOrders.push(val);
+    input.value='';
+    renderOrderSelect();
+    renderOrderChips();
+  });
+
+  function collectFormData(){
+    return {
+      id: editingId || generateId(),
+      name: $('spellName').value.trim() || 'Hechizo sin nombre',
+      manaCost: parseInt($('manaCost').value) || 0,
+      orders: [...currentOrders],
+      castStat: castStat,
+      manualCastDice: manualCastDice,
+      assuredSuccess: assuredSuccess,
+      attackStats: [...attackStats],
+      damageMode: damageMode,
+      effectType: effectType,
+      damage: {
+        dice: damageDice.map(d=>({type:d.type,count:d.count})),
+        bonus: parseInt($('damageBonus').value) || 0,
+        notes: $('damageNotes').value.trim()
+      },
+      effectDescription: $('effectDescription').value.trim(),
+      duration: $('duration').value.trim(),
+      isBasic: false
+    };
+  }
+
+  function fillForm(spell){
+    editingId = spell.id;
+    $('spellName').value = spell.name;
+    $('manaCost').value = spell.manaCost;
+    currentOrders = [...(spell.orders||[])];
+    castStat = spell.castStat || 'manipulacion';
+    manualCastDice = spell.manualCastDice || spell.castDice || 2;
+    assuredSuccess = (typeof spell.assuredSuccess==='number') ? spell.assuredSuccess : (spell.assuredSuccess?1:0);
+    attackStats = getAttackStats(spell);
+    if(attackStats.length===0 && spell.effectType==='damage' && !spell.isBasic){
+      attackStats = ['fisico'];
+    }
+    damageMode = spell.damageMode || 'auto';
+    damageDice = (spell.damage && spell.damage.dice && spell.damage.dice.length)
+      ? spell.damage.dice.map(d=>({...d}))
+      : [{type:'d6',count:1}];
+    $('damageBonus').value = (spell.damage && spell.damage.bonus) || 0;
+    $('damageNotes').value = (spell.damage && spell.damage.notes) || '';
+    $('damageMode').value = damageMode;
+    $('effectDescription').value = spell.effectDescription || '';
+    $('duration').value = spell.duration || '';
+    $('castStatSelect').value = castStat;
+    setEffectType(spell.effectType || 'damage');
+    $('editorTitle').textContent = 'Editar hechizo';
+    setIconText($('saveSpellBtn'), 'save', 'Actualizar hechizo');
+    renderOrderChips();
+    renderDamageDice();
+    renderAttackStatCheckboxes();
+    updateCastPreview();
+    updateAssuredPreview();
+    updateCastStatBox();
+    updateAttackStatBox();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function resetForm(){
+    editingId = null;
+    $('spellName').value = '';
+    $('manaCost').value = 3;
+    currentOrders = [];
+    castStat = 'manipulacion';
+    manualCastDice = 2;
+    assuredSuccess = 0;
+    attackStats = ['fisico'];
+    damageMode = 'auto';
+    damageDice = [{type:'d6',count:1}];
+    $('damageBonus').value = 0;
+    $('damageNotes').value = '';
+    $('damageMode').value = 'auto';
+    $('effectDescription').value = '';
+    $('duration').value = '';
+    $('castStatSelect').value = 'manipulacion';
+    setEffectType('damage');
+    $('editorTitle').textContent = 'Crear hechizo';
+    setIconText($('saveSpellBtn'), 'save', 'Guardar hechizo');
+    renderOrderChips();
+    renderDamageDice();
+    renderAttackStatCheckboxes();
+    updateCastPreview();
+    updateAssuredPreview();
+    updateCastStatBox();
+    updateAttackStatBox();
+  }
+
+  $('saveSpellBtn').addEventListener('click',()=>{
+    const spell = collectFormData();
+    const idx = spells.findIndex(s=>s.id===spell.id);
+    if(idx>=0){
+      spell.isBasic = spells[idx].isBasic || false;
+      spells[idx] = spell;
+    } else {
+      spells.push(spell);
+    }
+    saveSpells();
+    renderSpellList();
+    resetForm();
+  });
+  $('clearFormBtn').addEventListener('click',()=>resetForm());
+  $('restoreBasicsBtn').addEventListener('click',()=>{ensureBasicSpells();renderSpellList()});
+
+  function renderSpellList(){
+    const list = $('spellList');
+    $('spellCount').textContent = spells.length;
+    if(spells.length===0){
+      list.innerHTML = '<p class="empty">Todavía no hay hechizos guardados.</p>';
+      return;
+    }
+    list.innerHTML = '';
+    const basics = spells.filter(s=>s.isBasic);
+    const custom = spells.filter(s=>!s.isBasic);
+    const ordered = [...basics, ...custom.reverse()];
+    ordered.forEach(spell=>{
+      const card = document.createElement('div');
+      card.className = 'spell-card'+(spell.isBasic?' is-basic':'');
+
+      const h3 = document.createElement('h3');
+      h3.innerHTML = escapeHtml(spell.name);
+      if(spell.isBasic){
+        const b=document.createElement('span'); b.className='badge-basic'; b.textContent='Básico';
+        h3.appendChild(b);
+      }
+      const assuredN = (typeof spell.assuredSuccess==='number') ? spell.assuredSuccess : (spell.assuredSuccess?1:0);
+      if(assuredN>0){
+        const b=document.createElement('span'); b.className='badge-assured';
+        b.innerHTML=`${iconSvg('check')} ${assuredN} asegurado${assuredN!==1?'s':''}`;
+        h3.appendChild(b);
+      }
+      if(spell.damageMode==='manual' && (spell.effectType==='damage'||spell.effectType==='heal')){
+        const b=document.createElement('span'); b.className='badge-manual';
+        b.innerHTML = `${iconSvg('manual')} Manual`;
+        h3.appendChild(b);
+      }
+      card.appendChild(h3);
+
+      const statsDiv = document.createElement('div');
+      statsDiv.className = 'spell-stats';
+      const cStat = spell.castStat || 'none';
+      if(cStat!=='none'){
+        const statKey = cStat==='manual' ? null : cStat;
+        const dice = statKey ? statDiceLabel(statKey) : (spell.manualCastDice||spell.castDice||2)+'d6';
+        const tag = statKey ? STAT_NAMES[statKey] : 'Manual';
+        const chip = document.createElement('span');
+        chip.className = 'spell-stat-chip cast';
+        chip.innerHTML = `${iconSvg('die')} Casteo: <strong>${dice}</strong> · ${tag}`;
+        statsDiv.appendChild(chip);
+      }
+      const aStats = getAttackStats(spell);
+      if(aStats.length>0 && (spell.effectType==='damage')){
+        const totalDice = aStats.reduce((sum,k)=>sum+getDice(k),0);
+        const chip = document.createElement('span');
+        chip.className = 'spell-stat-chip atk';
+        chip.innerHTML = `${iconSvg('attack')} Ataque: <strong>${totalDice}d6</strong> · ${aStats.map(k=>STAT_NAMES[k]).join(' + ')}`;
+        statsDiv.appendChild(chip);
+      }
+      card.appendChild(statsDiv);
+
+      const meta = document.createElement('div');
+      meta.className = 'spell-meta';
+      meta.innerHTML = `
+        <span>${iconSvg('mana')} ${spell.manaCost} maná</span>
+        ${spell.duration?`<span>${iconSvg('duration')} ${escapeHtml(spell.duration)}</span>`:''}
+        <span>${effectLabel(spell.effectType)}</span>
+      `;
+      card.appendChild(meta);
+
+      if(spell.orders && spell.orders.length){
+        const ordersDiv = document.createElement('div');
+        ordersDiv.className = 'spell-orders';
+        spell.orders.forEach(o=>{
+          const chip = document.createElement('span');
+          chip.className = 'chip'; chip.textContent = o;
+          ordersDiv.appendChild(chip);
+        });
+        card.appendChild(ordersDiv);
+      }
+
+      const effDiv = document.createElement('div');
+      effDiv.className = 'spell-effect-text';
+      if(spell.effectType==='damage' || spell.effectType==='heal'){
+        const diceParts = (spell.damage.dice||[]).map(d=>`${d.count}${d.type}`).join(' + ');
+        const bonus = spell.damage.bonus ? ` + ${spell.damage.bonus}` : '';
+        const notes = spell.damage.notes ? ` (${spell.damage.notes})` : '';
+        const prefix = spell.effectType==='heal'?'Curación':'Daño';
+        effDiv.textContent = `${prefix}: ${diceParts||'—'}${bonus}${notes}`;
+        if(spell.effectDescription) effDiv.textContent += '\n'+spell.effectDescription;
+      } else {
+        effDiv.textContent = spell.effectDescription || '(sin descripción)';
+      }
+      card.appendChild(effDiv);
+
+      const actions = document.createElement('div');
+      actions.className = 'spell-actions';
+
+      if(spell.effectType==='damage'){
+        if((spell.castStat||'none')!=='none'){
+          const castBtn = document.createElement('button');
+          setIconText(castBtn, 'die', 'Castear');
+          castBtn.addEventListener('click',()=>rollCast(spell));
+          actions.appendChild(castBtn);
+        }
+        if(getAttackStats(spell).length>0){
+          const atkBtn = document.createElement('button');
+          atkBtn.className = 'primary';
+          setIconText(atkBtn, 'attack', 'Atacar');
+          atkBtn.addEventListener('click',()=>rollAttackAndDamage(spell));
+          actions.appendChild(atkBtn);
+        }
+      } else if(spell.effectType==='heal'){
+        const healBtn = document.createElement('button');
+        healBtn.className = 'primary';
+        setIconText(healBtn, 'heal', 'Curar');
+        healBtn.addEventListener('click',()=>rollHeal(spell));
+        actions.appendChild(healBtn);
+      } else {
+        const rollBtn = document.createElement('button');
+        rollBtn.className = 'primary';
+        setIconText(rollBtn, 'die', 'Lanzar');
+        rollBtn.addEventListener('click',()=>rollCast(spell));
+        actions.appendChild(rollBtn);
+      }
+
+      const editBtn = document.createElement('button');
+      editBtn.innerHTML = iconSvg('edit'); editBtn.title = 'Editar';
+      editBtn.addEventListener('click',()=>fillForm(spell));
+      actions.appendChild(editBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'danger'; delBtn.innerHTML = iconSvg('delete'); delBtn.title = 'Eliminar';
+      delBtn.addEventListener('click',()=>{
+        if(confirm(`¿Eliminar "${spell.name}"?${spell.isBasic?'\n\n(Podés restaurarlo con "Restaurar hechizos básicos".)':''}`)){
+          spells = spells.filter(s=>s.id!==spell.id);
+          saveSpells();
+          renderSpellList();
+        }
+      });
+      actions.appendChild(delBtn);
+
+      card.appendChild(actions);
+      list.appendChild(card);
+    });
+  }
+
+  $('testSpellBtn').addEventListener('click',()=>{
+    const spell = collectFormData();
+    if(spell.effectType==='heal') rollHeal(spell);
+    else if(spell.effectType==='damage' && getAttackStats(spell).length>0) rollAttackAndDamage(spell);
+    else rollCast(spell);
+  });
+
+  function rollD6(){return Math.floor(Math.random()*6)+1}
+  function rollDie(type){return Math.floor(Math.random()*parseInt(type.replace('d','')))+1}
+
+  function countSuccesses(rolls){
+    let successes = 0, fails = 0;
+    for(const r of rolls){
+      if(r===1) fails += 1;
+      else if(r===5) successes += 1;
+      else if(r===6) successes += 2;
+    }
+    return {successes, fails};
+  }
+  function renderDie(r){
+    let cls = 'die-neutral';
+    if(r===1) cls = 'die-fail';
+    else if(r===5||r===6) cls = 'die-success';
+    return `<span class="die ${cls}">${r}</span>`;
+  }
+
+  function spellAssured(spell){
+    return (typeof spell.assuredSuccess==='number') ? spell.assuredSuccess : (spell.assuredSuccess?1:0);
+  }
+  function spellHasAttack(spell){
+    return getAttackStats(spell).length > 0 && spell.effectType === 'damage';
+  }
+
+  function rollCastDiceFor(spell){
+    const stat = spell.castStat || 'none';
+    if(stat==='none') return null;
+    let count;
+    if(stat==='manual') count = spell.manualCastDice || spell.castDice || 2;
+    else count = getDice(stat);
+    if(count<=0) return null;
+    const rolls = [];
+    for(let i=0;i<count;i++) rolls.push(rollD6());
+    const {successes, fails} = countSuccesses(rolls);
+    const assured = spellHasAttack(spell) ? 0 : spellAssured(spell);
+    return {rolls, successes: successes+assured, fails, assured, count, stat};
+  }
+
+  function rollAttackDiceFor(spell){
+    const stats = getAttackStats(spell);
+    if(stats.length===0) return null;
+    let totalDice = 0;
+    const breakdown = [];
+    for(const key of stats){
+      const d = getDice(key);
+      if(d>0){ totalDice += d; breakdown.push({stat:key, dice:d}); }
+    }
+    if(totalDice===0) return null;
+    const rolls = [];
+    for(let i=0;i<totalDice;i++) rolls.push(rollD6());
+    const {successes, fails} = countSuccesses(rolls);
+    const assured = spellAssured(spell);
+    return {rolls, successes: successes+assured, fails, assured, totalDice, breakdown};
+  }
+
+  function ensureLogVisible(){
+    const logContainer = $('logContainer');
+    const empty = logContainer.querySelector('.empty-illustration');
+    if(empty) empty.remove();
+    return logContainer;
+  }
+
+  function netLine(successes, fails){
+    const net = successes - fails;
+    let html = `<div class="log-line">→ <span class="success">${successes} éxito(s)</span> · <span class="fail">${fails} fallo(s)</span></div>`;
+    if(successes===0 && fails===0){
+      html += `<div class="log-line">${iconSvg('warning')} <strong>Sin éxitos ni fallos:</strong> no se ejecuta.</div>`;
+    } else if(net>0){
+      html += `<div class="log-line"><strong>Neto:</strong> <span class="success">+${net}</span></div>`;
+    } else if(net<0){
+      html += `<div class="log-line"><strong>Neto:</strong> <span class="fail">${net}</span></div>`;
+    } else {
+      html += `<div class="log-line"><strong>Neto:</strong> empate</div>`;
+    }
+    return html;
+  }
+
+  function buildCastSection(spell){
+    const r = rollCastDiceFor(spell);
+    if(!r) return '';
+    let diceHtml = r.rolls.map(renderDie).join('');
+    for(let i=0;i<r.assured;i++) diceHtml += '<span class="die die-assured" title="Éxito asegurado">+1</span>';
+    const statLabel = r.stat==='manual'?'Manual':STAT_NAMES[r.stat];
+    return `
+      <div class="log-step">
+        <div class="log-step-title">${iconSvg('die')} Casteo (${statLabel} · ${r.count}d6${r.assured>0?` +${r.assured} asegurado${r.assured!==1?'s':''}`:''})</div>
+        <div class="dice-row">${diceHtml||'<span class="empty">—</span>'}</div>
+        ${netLine(r.successes, r.fails)}
+      </div>
+    `;
+  }
+
+  function buildAttackSection(spell){
+    const r = rollAttackDiceFor(spell);
+    if(!r) return '';
+    let diceHtml = r.rolls.map(renderDie).join('');
+    for(let i=0;i<r.assured;i++) diceHtml += '<span class="die die-assured" title="Éxito asegurado">+1</span>';
+    const parts = r.breakdown.map(b=>`${STAT_NAMES[b.stat]} ${b.dice}d6`).join(' + ');
+    return `
+      <div class="log-step">
+        <div class="log-step-title attack">${iconSvg('attack')} Ataque híbrido (${parts}${r.assured>0?` +${r.assured} asegurado${r.assured!==1?'s':''}`:''})</div>
+        <div class="dice-row">${diceHtml||'<span class="empty">—</span>'}</div>
+        ${netLine(r.successes, r.fails)}
+      </div>
+    `;
+  }
+
+  function buildDamageSection(spell){
+    if(spell.effectType!=='damage' && spell.effectType!=='heal') return '';
+    const dmgRolls = [];
+    const parts = [];
+    (spell.damage.dice||[]).forEach(d=>{
+      const rolls = [];
+      for(let i=0;i<d.count;i++){
+        const r = rollDie(d.type);
+        rolls.push(r); dmgRolls.push(r);
+      }
+      parts.push(`${d.count}${d.type} [${rolls.join(', ')}]`);
+    });
+    const sum = dmgRolls.reduce((a,b)=>a+b,0) + (spell.damage.bonus||0);
+    const notes = spell.damage.notes?` (${escapeHtml(spell.damage.notes)})`:'';
+    const isHeal = spell.effectType==='heal';
+    return `
+      <div class="log-step">
+        <div class="log-step-title damage">${effectLabel(spell.effectType)}</div>
+        <div class="log-line">${parts.length?parts.join(' + '):'—'}${spell.damage.bonus?` + ${spell.damage.bonus}`:''} = <strong class="${isHeal?'heal':''}">${sum}</strong>${notes}</div>
+      </div>
+    `;
+  }
+
+  function buildDamageSectionManual(spell){
+    const diceParts = (spell.damage.dice||[]).map(d=>`${d.count}${d.type}`).join(' + ');
+    const bonus = spell.damage.bonus ? ` + ${spell.damage.bonus}` : '';
+    const notes = spell.damage.notes ? ` (${escapeHtml(spell.damage.notes)})` : '';
+    const isHeal = spell.effectType === 'heal';
+    return `
+      <div class="log-step manual-damage-section">
+        <div class="log-step-title damage">${effectLabel(spell.effectType)} manual</div>
+        <div class="log-line">Tirá <strong>${diceParts || '—'}${bonus}</strong>${notes} y anotá el total:</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="number" class="manual-damage-input" placeholder="Total" min="0">
+          <button class="manual-damage-confirm primary" style="padding:6px 14px">OK</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function attachManualDamageListener(entry, spell){
+    const input = entry.querySelector('.manual-damage-input');
+    const btn = entry.querySelector('.manual-damage-confirm');
+    if(!input || !btn) return;
+    const confirm = () => {
+      const val = parseInt(input.value);
+      if(isNaN(val)){ input.focus(); return; }
+      const notes = spell.damage.notes ? ` (${escapeHtml(spell.damage.notes)})` : '';
+      const isHeal = spell.effectType === 'heal';
+      const section = entry.querySelector('.manual-damage-section');
+      section.outerHTML = `
+        <div class="log-step">
+          <div class="log-step-title damage">${effectLabel(spell.effectType)}</div>
+          <div class="log-line"><strong class="${isHeal?'heal':''}">${val}</strong>${notes} <span style="color:var(--text-muted);font-size:.72rem">(manual)</span></div>
+        </div>
+      `;
+    };
+    btn.addEventListener('click', confirm);
+    input.addEventListener('keydown', e=>{ if(e.key==='Enter') confirm(); });
+  }
+
+  function rollCast(spell){
+    const container = ensureLogVisible();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry cast-only';
+    entry.innerHTML = `<div class="log-title">${iconSvg('die')} ${escapeHtml(spell.name)} — Casteo</div>`;
+    const castHtml = buildCastSection(spell);
+    entry.innerHTML += castHtml || '<p class="empty">Este hechizo no tiene tirada de casteo.</p>';
+    entry.innerHTML += `<div class="log-line" style="margin-top:8px;color:var(--text-dim)">${iconSvg('mana')} Coste: ${spell.manaCost} maná${spell.duration?` · ${iconSvg('duration')} ${escapeHtml(spell.duration)}`:''}</div>`;
+    container.prepend(entry);
+    entry.classList.add('flash');
+    setTimeout(()=>entry.classList.remove('flash'),700);
+  }
+
+  function rollAttackAndDamage(spell){
+    const container = ensureLogVisible();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry attack-only';
+    entry.innerHTML = `<div class="log-title">${iconSvg('attack')} ${escapeHtml(spell.name)} — Ataque</div>`;
+    entry.innerHTML += buildAttackSection(spell) || '';
+    if(spell.damageMode === 'manual'){
+      entry.innerHTML += buildDamageSectionManual(spell);
+    } else {
+      entry.innerHTML += buildDamageSection(spell);
+    }
+    if(spell.effectDescription){
+      entry.innerHTML += `<div class="log-line" style="margin-top:6px">${iconSvg('effect')} ${escapeHtml(spell.effectDescription)}</div>`;
+    }
+    entry.innerHTML += `<div class="log-line" style="margin-top:8px;color:var(--text-dim)">${iconSvg('mana')} Coste: ${spell.manaCost} maná${spell.duration?` · ${iconSvg('duration')} ${escapeHtml(spell.duration)}`:''}</div>`;
+    container.prepend(entry);
+    if(spell.damageMode === 'manual') attachManualDamageListener(entry, spell);
+    entry.classList.add('flash');
+    setTimeout(()=>entry.classList.remove('flash'),700);
+  }
+
+  function rollHeal(spell){
+    const container = ensureLogVisible();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<div class="log-title">${iconSvg('heal')} ${escapeHtml(spell.name)} — Curación</div>`;
+    if((spell.castStat||'none')!=='none'){
+      entry.innerHTML += buildCastSection(spell);
+    }
+    if(spell.damageMode === 'manual'){
+      entry.innerHTML += buildDamageSectionManual(spell);
+    } else {
+      entry.innerHTML += buildDamageSection(spell);
+    }
+    if(spell.effectDescription){
+      entry.innerHTML += `<div class="log-line" style="margin-top:6px">${iconSvg('effect')} ${escapeHtml(spell.effectDescription)}</div>`;
+    }
+    entry.innerHTML += `<div class="log-line" style="margin-top:8px;color:var(--text-dim)">${iconSvg('mana')} Coste: ${spell.manaCost} maná${spell.duration?` · ${iconSvg('duration')} ${escapeHtml(spell.duration)}`:''}</div>`;
+    container.prepend(entry);
+    if(spell.damageMode === 'manual') attachManualDamageListener(entry, spell);
+    entry.classList.add('flash');
+    setTimeout(()=>entry.classList.remove('flash'),700);
+  }
+
+  $('clearLogBtn').addEventListener('click',()=>{
+    $('logContainer').innerHTML = `
+      <div class="empty-illustration">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <defs>
+            <linearGradient id="emptyRock2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#5a4530"/><stop offset="100%" stop-color="#2a2018"/>
+            </linearGradient>
+          </defs>
+          <polygon points="10,44 20,28 32,24 44,30 54,44 44,54 20,54"
+                   fill="url(#emptyRock2)" stroke="#4a3624" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M 32 24 Q 32 14 42 12 Q 40 20 32 24 Z" fill="#6a9147" opacity=".7"/>
+          <path d="M 32 24 Q 26 16 18 16 Q 22 22 32 24 Z" fill="#6a9147" opacity=".5"/>
+          <line x1="6" y1="10" x2="6" y2="56" stroke="#6a9147" stroke-width="1.5" opacity=".6"/>
+          <line x1="58" y1="12" x2="58" y2="58" stroke="#6a9147" stroke-width="1.5" opacity=".6"/>
+        </svg>
+        Aún no has lanzado ningún hechizo.
+      </div>`;
+  });
+
+  // ---------- FLOATING PANEL ----------
+  function setupFloatPanel(){
+    const panel = $('floatPanel');
+    const header = $('floatHeader');
+    const minBtn = $('floatMin');
+
+    // Cargar posición guardada
+    try {
+      const saved = JSON.parse(localStorage.getItem('arcane_float_pos') || 'null');
+      if(saved){
+        panel.style.left = saved.left + 'px';
+        panel.style.top = saved.top + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+      }
+      const minimized = localStorage.getItem('arcane_float_min') === '1';
+      if(minimized){
+        panel.classList.add('minimized');
+        minBtn.textContent = '+';
+      }
+    } catch(e){}
+
+    let dragging = false, offsetX = 0, offsetY = 0;
+    header.addEventListener('mousedown', e=>{
+      if(e.target.closest('.float-min')) return;
+      dragging = true;
+      const rect = panel.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.left = rect.left + 'px';
+      panel.style.top = rect.top + 'px';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', e=>{
+      if(!dragging) return;
+      panel.style.left = (e.clientX - offsetX) + 'px';
+      panel.style.top = (e.clientY - offsetY) + 'px';
+    });
+    document.addEventListener('mouseup', ()=>{
+      if(dragging){
+        dragging = false;
+        localStorage.setItem('arcane_float_pos', JSON.stringify({
+          left: parseInt(panel.style.left),
+          top: parseInt(panel.style.top)
+        }));
+      }
+    });
+
+    minBtn.addEventListener('click', ()=>{
+      panel.classList.toggle('minimized');
+      const minimized = panel.classList.contains('minimized');
+      minBtn.textContent = minimized ? '+' : '−';
+      localStorage.setItem('arcane_float_min', minimized ? '1' : '0');
+    });
+
+    let fDice = 2, fAssured = 0;
+    panel.querySelectorAll('.mini-step').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const field = btn.dataset.field;
+        const delta = parseInt(btn.dataset.delta);
+        if(field === 'dice'){
+          fDice = Math.max(0, Math.min(20, fDice + delta));
+          $('floatDice').textContent = fDice;
+        } else {
+          fAssured = Math.max(0, Math.min(20, fAssured + delta));
+          $('floatAssured').textContent = fAssured;
+        }
+      });
+    });
+
+    $('floatRoll').addEventListener('click', ()=>{
+      const rolls = [];
+      for(let i=0;i<fDice;i++) rolls.push(rollD6());
+      let suc = 0, fail = 0;
+      for(const r of rolls){
+        if(r===1) fail += 1;
+        else if(r===5) suc += 1;
+        else if(r===6) suc += 2;
+      }
+      suc += fAssured;
+      const diceHtml = rolls.map(renderDie).join('') +
+        (fAssured>0 ? `<span class="die die-assured" title="Éxito asegurado">+${fAssured}</span>` : '');
+      $('floatResult').innerHTML = `
+        <div class="dice-row">${diceHtml||'<span class="empty">—</span>'}</div>
+        <div class="dice-summary">
+          <span class="success">${suc} éxito(s)</span> · <span class="fail">${fail} fallo(s)</span>
+          · Neto: <strong style="color:${suc-fail>0?'var(--success)':suc-fail<0?'var(--fail)':'var(--text-dim)'}">${suc-fail>0?'+':''}${suc-fail}</strong>
+        </div>
+      `;
+    });
+  }
+
+
+  // ---------- COPIAS DE SEGURIDAD PORTABLES ----------
+  const BACKUP_KEYS = [
+    'arcane_spells_v3','arcane_orders','arcane_character',
+    'arcane_formula','arcane_panels','arcane_float_pos','arcane_float_min'
+  ];
+
+  function backupStatus(message, isError=false){
+    const el = $('backupStatus');
+    if(!el) return;
+    el.textContent = message;
+    el.style.color = isError ? 'var(--fail,#d87969)' : 'var(--success,#8ebd76)';
+  }
+
+  function makeBackup(){
+    const data = {};
+    BACKUP_KEYS.forEach(key=>{
+      const raw = localStorage.getItem(key);
+      if(raw !== null){
+        try{ data[key] = JSON.parse(raw); }
+        catch(_){ data[key] = raw; }
+      }
+    });
+    return {
+      app: 'Arcane Spell Lab',
+      formatVersion: 1,
+      exportedAt: new Date().toISOString(),
+      description: 'Copia de seguridad de Arcane Spell Lab',
+      data
+    };
+  }
+
+  function downloadBlob(content, filename, mime){
+    const blob = new Blob([content], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1500);
+  }
+
+  function exportBackup(){
+    try{
+      const backup = makeBackup();
+      const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+      downloadBlob(JSON.stringify(backup,null,2), `arcane-backup-${stamp}.json`, 'application/json;charset=utf-8');
+      backupStatus('Copia exportada. Guardala en un lugar seguro.');
+    }catch(err){
+      console.error(err);
+      backupStatus('No se pudo exportar la copia. Revisá el espacio disponible del navegador.', true);
+    }
+  }
+
+  function validateBackup(parsed){
+    if(!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object'){
+      throw new Error('El archivo no tiene el formato de una copia de Arcane.');
+    }
+    if(parsed.app && parsed.app !== 'Arcane Spell Lab'){
+      throw new Error('El archivo pertenece a otra aplicación.');
+    }
+    const data = parsed.data;
+    if(data.arcane_spells_v3 !== undefined && !Array.isArray(data.arcane_spells_v3)){
+      throw new Error('La lista de hechizos no es válida.');
+    }
+    if(data.arcane_orders !== undefined && !Array.isArray(data.arcane_orders)){
+      throw new Error('La lista de órdenes no es válida.');
+    }
+    if(data.arcane_character !== undefined && (typeof data.arcane_character !== 'object' || Array.isArray(data.arcane_character))){
+      throw new Error('Los datos del personaje no son válidos.');
+    }
+    if(data.arcane_formula !== undefined && (typeof data.arcane_formula !== 'object' || Array.isArray(data.arcane_formula))){
+      throw new Error('La fórmula no es válida.');
+    }
+    return data;
+  }
+
+  function importBackupFile(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const parsed = JSON.parse(String(reader.result || ''));
+        const data = validateBackup(parsed);
+        const count = Object.keys(data).filter(k=>BACKUP_KEYS.includes(k)).length;
+        if(!count) throw new Error('La copia no contiene datos reconocibles.');
+        if(!confirm('Importar esta copia reemplazará los datos actuales de Arcane en este navegador. Antes se descargará una copia de seguridad del estado actual. ¿Continuar?')) return;
+        // Preserve the current state before replacing anything.
+        const stamp = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+        downloadBlob(JSON.stringify(makeBackup(),null,2), `arcane-backup-antes-de-importar-${stamp}.json`, 'application/json;charset=utf-8');
+        BACKUP_KEYS.forEach(key=>{
+          if(Object.prototype.hasOwnProperty.call(data,key)){
+            const value = data[key];
+            localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+          }else{
+            localStorage.removeItem(key);
+          }
+        });
+        backupStatus('Copia importada. Recargando el laboratorio…');
+        setTimeout(()=>location.reload(), 650);
+      }catch(err){
+        console.error(err);
+        backupStatus(err.message || 'No se pudo leer el archivo.', true);
+      }
+    };
+    reader.onerror = ()=>backupStatus('No se pudo leer el archivo seleccionado.', true);
+    reader.readAsText(file);
+  }
+
+  function setupBackupTools(){
+    $('exportBackupBtn').addEventListener('click', exportBackup);
+    $('importBackupBtn').addEventListener('click', ()=>$('backupFileInput').click());
+    $('backupFileInput').addEventListener('change', e=>{
+      importBackupFile(e.target.files && e.target.files[0]);
+      e.target.value = '';
+    });
+    $('printAppBtn').addEventListener('click', ()=>window.print());
+  }
+
+  function init(){
+    loadStorage();
+    setupBackupTools();
+    ensureBasicSpells();
+    setupPanelCollapse();
+    setupFormulaPanel();
+    renderProfile();
+    renderFormulaPreview();
+    updateFormulaDisplays();
+    renderOrderSelect();
+    renderOrderChips();
+    renderDamageDice();
+    renderAttackStatCheckboxes();
+    updateCastPreview();
+    updateAssuredPreview();
+    updateCastStatBox();
+    updateAttackStatBox();
+    renderSpellList();
+    setEffectType('damage');
+    setupFloatPanel();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
