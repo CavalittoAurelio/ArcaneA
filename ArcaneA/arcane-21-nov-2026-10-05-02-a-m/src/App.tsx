@@ -15,6 +15,7 @@ import {
   Plus,
   RotateCcw,
   SlidersHorizontal,
+  Swords,
   X,
 } from 'lucide-react';
 import type {
@@ -144,6 +145,7 @@ import { WeaponArsenal } from './components/WeaponArsenal';
 import { CharacterRoster, type CreateCharacterOptions } from './components/CharacterRoster';
 import { CombatPanel } from './components/CombatPanel';
 import { LogPanel } from './components/LogPanel';
+import { DiceLauncher, type FreeRollResult } from './components/DiceLauncher';
 import { CombatMechanicReader, type CombatMechanicContext } from './components/CombatMechanicReader';
 import { CombatMechanicsCompendium } from './components/CombatMechanicsCompendium';
 import { FormulaAndBackup } from './components/FormulaAndBackup';
@@ -239,6 +241,9 @@ interface PersistedState {
   knowledgeTreeSettings?: KnowledgeTreeSettings;
 }
 
+/** Hechizos base retirados: se eliminan de los estados guardados al cargar. */
+const REMOVED_BASIC_SPELL_IDS = new Set<string>(['basic_maniobra_defensiva']);
+
 const STORAGE_KEY = 'arcane_rpg_v8';
 const LEGACY_STORAGE_KEY_V7 = 'arcane_rpg_v7';
 const UNDO_STORAGE_KEY = 'arcane_rpg_undo_v8';
@@ -323,7 +328,9 @@ function loadInitialState(): PersistedState {
         Array.isArray(parsed.spells) && parsed.spells.length > 0
           ? parsed.spells
           : BUILTIN_SPELLS;
-      const normalizedSpells: Spell[] = rawSpells.map((sp) => {
+      const normalizedSpells: Spell[] = rawSpells
+        .filter((sp) => !REMOVED_BASIC_SPELL_IDS.has(sp.id))
+        .map((sp) => {
         const isCanalizadoBasic = sp.id === 'basic_ataque_canalizado';
         const isCanalizadoSignature =
           sp.name.startsWith('Impacto Canalizado (') &&
@@ -353,7 +360,6 @@ function loadInitialState(): PersistedState {
                 sp.id === 'basic_luz_mago' ||
                 sp.id === 'basic_escudo_magico' ||
                 sp.id === 'basic_curar_heridas' ||
-                sp.id === 'basic_maniobra_defensiva' ||
                 sp.id === 'basic_destello_cegador' ||
                 sp.id === 'basic_choque_noqueador'
                   ? 'none'
@@ -417,10 +423,9 @@ function loadInitialState(): PersistedState {
           spellMastery:
             ch.spellMastery && typeof ch.spellMastery === 'object' ? ch.spellMastery : {},
           weapons: Array.isArray(ch.weapons) ? ch.weapons : [],
-          knownSpells:
-            idsToAdd.length > 0
-              ? [...new Set([...currentKnown, ...idsToAdd])]
-              : currentKnown,
+          knownSpells: [
+            ...new Set([...currentKnown, ...idsToAdd]),
+          ].filter((id) => !REMOVED_BASIC_SPELL_IDS.has(id)),
           unlockedArchiveSpellIds: Array.isArray(ch.unlockedArchiveSpellIds)
             ? ch.unlockedArchiveSpellIds
             : [],
@@ -631,6 +636,8 @@ export default function App() {
     typeof initial.autoPassTurn === 'boolean' ? initial.autoPassTurn : true
   );
   const [autoPassPaused, setAutoPassPaused] = useState<boolean>(false);
+  // Combate IRL: tiradas libres sin objetivos ni PNJ, solo el jugador por turnos
+  const [irlCombat, setIrlCombat] = useState<boolean>(false);
   const [autoPassSecondsLeft, setAutoPassSecondsLeft] = useState<number | null>(null);
   const [arenaLayout, setArenaLayout] = useState<ArenaLayoutConfig>(
     normalizeArenaLayout(initial.arenaLayout)
@@ -2537,7 +2544,12 @@ export default function App() {
                   ? [...cb.preparedSpells, preparedToAdd]
                   : cb.preparedSpells,
                 activeStatuses: statusToAdd
-                  ? [...(cb.activeStatuses || []), statusToAdd]
+                  ? [
+                      ...(cb.activeStatuses || []).filter(
+                        (st) => !(statusToAdd.isReinforceBuff && st.isReinforceBuff)
+                      ),
+                      statusToAdd,
+                    ]
                   : cb.activeStatuses,
               }
             : cb
@@ -2622,7 +2634,7 @@ export default function App() {
       kind: 'cast',
       title: `${caster.name} ${
         effectSub === 'buff' ? 'activa' : 'declara'
-      } ${spell.name} (1 acción importante)`,
+      } ${spell.name}${consumesTurnAction ? ' (1 acción importante)' : ''}`,
       actorName: caster.name,
       isMagical: isSpellMagical(spell),
       castRoll: castSummary,
@@ -2726,10 +2738,7 @@ export default function App() {
       ? attackerCombatant?.activeStatuses?.find((st) => st.isReinforceBuff)
       : undefined;
     const isReinforcedAttack = Boolean(
-      reinforceStatus &&
-        isSpellMagical(spell) &&
-        spell.damageMode === 'auto' &&
-        spell.damage.dice.length > 0
+      reinforceStatus && spell.damageMode === 'auto' && spell.damage.dice.length > 0
     );
 
     if (attackerCombatant && (!isTest || preparedSpellId || isReinforcedAttack)) {
@@ -2883,6 +2892,137 @@ export default function App() {
     });
   };
 
+  // Combate IRL: ataque y daño en una sola tirada, sin objetivo ni defensa rival
+  const executeIrlAttack = (
+    spell: Spell,
+    attacker: Character,
+    preparedSpellId?: string
+  ) => {
+    if (attacker.condition !== 'active') {
+      pushLog({
+        kind: 'event',
+        title: `${attacker.name} no puede atacar`,
+        summaryText: `Estado actual: ${conditionLabel(attacker.condition)}.`,
+      });
+      return;
+    }
+
+    const attackerCombatant = combatants.find((c) => c.characterId === attacker.id);
+    const attackerEffects = getCombatantStatusEffects(attackerCombatant, attacker);
+    if (attackerEffects.cannotAttack) {
+      pushLog({
+        kind: 'event',
+        title: `${attacker.name} no puede atacar`,
+        summaryText: `Impedido por estado activo: ${attackerEffects.cannotAttackReasons.join(', ')} (no se descontó maná).`,
+      });
+      return;
+    }
+    if (attackerEffects.cannotCastMagic && isSpellMagical(spell)) {
+      pushLog({
+        kind: 'event',
+        title: `${attacker.name} está Silenciado`,
+        summaryText: `No puede lanzar hechizos mágicos mientras dure ${attackerEffects.cannotCastMagicReasons.join(', ')} (no se descontó maná).`,
+      });
+      return;
+    }
+
+    const turnStatus = getCombatantTurnActionStatus(attackerCombatant);
+    if (turnStatus.remaining <= 0) {
+      pushLog({
+        kind: 'event',
+        title: `Sin acciones restantes — ${attacker.name}`,
+        summaryText: turnStatus.hasElevarLimite
+          ? `Ya usaste las ${turnStatus.max}/${turnStatus.max} acciones de este turno (no se descontó maná). Pasá el turno para volver a lanzar.`
+          : turnStatus.hasHechizoVeloz
+            ? `Ya usaste las ${turnStatus.max}/${turnStatus.max} acciones de Hechizo Veloz (no se descontó maná). Activá Elevar el Límite (-5 maná) o pasá el turno.`
+            : `Ya usaste tu acción de este turno (${turnStatus.used}/${turnStatus.max}, no se descontó maná). Activá Hechizo Veloz (-3 maná) o pasá el turno.`,
+      });
+      return;
+    }
+
+    let manaNote: string | undefined;
+    if (!preparedSpellId && spell.manaCost > 0) {
+      const manaResult = applyManaCost(attacker.id, spell.manaCost);
+      if (!manaResult.ok) {
+        pushLog({
+          kind: 'event',
+          title: `Sin maná para ${spell.name}`,
+          summaryText: manaResult.note,
+        });
+        return;
+      }
+      manaNote = manaResult.note || undefined;
+    }
+
+    const statsToRoll = spell.combatStats.length > 0 ? spell.combatStats : (['fisico'] as StatKey[]);
+    const attackRoll = rollCombinedStats(
+      attacker,
+      statsToRoll,
+      formula,
+      getEffectiveSpellAssured(attacker, spell),
+      attackerEffects.autoFailsAttack,
+      attackerEffects.autoFailsAttackNotes
+    );
+    const masteryNote = recordSpellMastery(attacker.id, spell, attackRoll.rolls);
+
+    const reinforceStatus = attackerCombatant?.activeStatuses?.find((st) => st.isReinforceBuff);
+    const isReinforced = Boolean(
+      reinforceStatus && spell.damageMode === 'auto' && spell.damage.dice.length > 0
+    );
+
+    const currentMastery = getSpellMasteryStatus(attacker.spellMastery?.[spell.id] || 0, formula);
+    const effectiveSpell: Spell = {
+      ...spell,
+      damageKind: getEffectiveSpellDamageKind(spell),
+      damage: {
+        ...spell.damage,
+        dice: getEffectiveSpellDamageDice(spell, currentMastery).map((d) => ({ ...d })),
+      },
+    };
+
+    if (attackerCombatant) {
+      setCombatants((prev) =>
+        prev.map((cb) => {
+          if (cb.id !== attackerCombatant.id) return cb;
+          return {
+            ...cb,
+            attacksUsedThisTurn: (cb.attacksUsedThisTurn || 0) + 1,
+            preparedSpells: preparedSpellId
+              ? cb.preparedSpells.filter((p) => p.id !== preparedSpellId)
+              : cb.preparedSpells,
+            activeStatuses:
+              isReinforced && reinforceStatus
+                ? (cb.activeStatuses || []).filter((st) => st.id !== reinforceStatus.id)
+                : cb.activeStatuses,
+          };
+        })
+      );
+    }
+
+    const dmgKind = getEffectiveSpellDamageKind(effectiveSpell);
+    const { summary, reinforceNote } = rollSpellDamage(effectiveSpell, dmgKind, isReinforced);
+    const formattedNet = attackRoll.net > 0 ? `+${attackRoll.net}` : `${attackRoll.net}`;
+
+    pushLog({
+      kind: 'attack',
+      title: `${attacker.name} lanza ${spell.name} · Combate IRL`,
+      actorName: attacker.name,
+      isMagical: isSpellMagical(effectiveSpell),
+      attackRoll,
+      damageRoll: summary,
+      manaNote,
+      masteryNote,
+      clash: {
+        attackerName: attacker.name,
+        attackerAction: spell.name,
+        outcome: 'direct_hit',
+        damageKind: dmgKind,
+        isLethal: isAttackLethal,
+      },
+      summaryText: `Ataque (${dmgKind === 'magico' ? 'Mágico' : 'Físico'}) con neto ${formattedNet}. Daño ${dmgKind === 'magico' ? 'mágico' : 'físico'}: ${summary.total}. Sin objetivo ni defensa rival (modo IRL).${reinforceNote}`,
+    });
+  };
+
   const handleAttackFromSpell = (
     spell: Spell,
     casterCharacterId?: string,
@@ -2894,6 +3034,10 @@ export default function App() {
     if (!attacker) return;
     const combatant = combatants.find((c) => c.characterId === attacker.id);
     const matchingPrep = combatant?.preparedSpells.find((p) => p.spellId === spell.id);
+    if (irlCombat) {
+      executeIrlAttack(spell, attacker, matchingPrep?.id);
+      return;
+    }
     executeAttack(spell, attacker, matchingPrep?.id, false, explicitTargetCombatantId);
   };
 
@@ -6482,7 +6626,36 @@ export default function App() {
     }
   };
 
+  const handleToggleIrlCombat = () => {
+    const next = !irlCombat;
+    setIrlCombat(next);
+    setAutoPassSecondsLeft(null);
+    if (next) {
+      setAutoPassPaused(true);
+      if (activeCharacter && !combatants.some((cb) => cb.characterId === activeCharacter.id)) {
+        handleAddToCombat(activeCharacter.id, 0);
+      }
+      pushLog({
+        kind: 'event',
+        title: 'Modo Combate IRL activado',
+        summaryText:
+          'Tirás hechizos sin elegir objetivo: el ataque y el daño se resuelven en la misma tirada, sin defensa de PNJ. Usá «Pasar turno» para cerrar tu turno.',
+      });
+    } else {
+      setAutoPassPaused(false);
+      pushLog({
+        kind: 'event',
+        title: 'Modo Combate IRL desactivado',
+        summaryText: 'Volvés a la mesa de combate con objetivos y defensas.',
+      });
+    }
+  };
+
   const handleAdvanceTurn = () => {
+    if (irlCombat) {
+      advanceRoundInternal(1, combatants);
+      return;
+    }
     if (sortedCombatants.length === 0) {
       advanceRoundInternal(1, combatants);
       return;
@@ -6588,9 +6761,11 @@ export default function App() {
       : null;
 
   const shouldArmAutoPass = Boolean(
-    (autoPassTurn || currentTurnCombatant?.isBotControlled) &&
+    !irlCombat &&
+      (autoPassTurn || currentTurnCombatant?.isBotControlled) &&
       (!autoPassPaused || currentTurnCombatant?.isBotControlled) &&
       !botBattleOutcome &&
+      !(currentTurnCombatant?.activeStatuses || []).some((st) => st.isReinforceBuff) &&
       combatants.length > 0 &&
       currentTurnCombatant &&
       currentTurnChar &&
@@ -7021,6 +7196,22 @@ export default function App() {
         roll.net > 0 ? `+${roll.net}` : roll.net
       }.`,
     });
+  };
+
+  const handleFreeRoll = (die: DieType, count: number): FreeRollResult => {
+    const safeCount = Math.max(1, Math.min(30, Math.floor(count) || 1));
+    const sides = parseInt(die.replace('d', ''), 10);
+    const parts = Array.from(
+      { length: safeCount },
+      () => 1 + Math.floor(Math.random() * sides)
+    );
+    const total = parts.reduce((acc, value) => acc + value, 0);
+    pushLog({
+      kind: 'quick',
+      title: `Tirada libre · ${safeCount}${die}`,
+      summaryText: `Resultados: ${parts.join(', ')} · Total ${total}.`,
+    });
+    return { die, count: safeCount, parts, total };
   };
 
   const encodeShareCode = (jsonText: string): string => {
@@ -7924,18 +8115,27 @@ export default function App() {
           manaMode={manaMode}
           isAttackLethal={isAttackLethal}
           onToggleLethal={setIsAttackLethal}
-          onCastSpell={(s) => handleCastSpell(s, false)}
+          irlMode={irlCombat}
+          onCastSpell={(s) => {
+            handleCastSpell(s, false);
+            setMobileArenaSection('log');
+          }}
           onAttackSpell={(s) => {
             handleAttackFromSpell(s);
-            if (mobileArenaSection === 'grimorio') {
-              setMobileArenaSection('combat');
-            }
+            setMobileArenaSection(irlCombat ? 'log' : 'combat');
           }}
-          onDefendTestSpell={handleDefendTestSpell}
-          onHealSpell={(s) => handleHealSpell(s, false)}
-          onApplyStatusSpell={(s) =>
-            activeCharacter && triggerStatusCheck(s, activeCharacter, false, false)
-          }
+          onDefendTestSpell={(s) => {
+            handleDefendTestSpell(s);
+            setMobileArenaSection('log');
+          }}
+          onHealSpell={(s) => {
+            handleHealSpell(s, false);
+            setMobileArenaSection('combat');
+          }}
+          onApplyStatusSpell={(s) => {
+            if (activeCharacter) triggerStatusCheck(s, activeCharacter, false, false);
+            setMobileArenaSection('combat');
+          }}
           onTestSpell={handleTestSpell}
           autoPassSecondsLeft={
             currentTurnCombatant?.characterId === activeCharacter?.id
@@ -8470,6 +8670,20 @@ export default function App() {
             </span>
             <button
               type="button"
+              onClick={handleToggleIrlCombat}
+              aria-pressed={irlCombat}
+              title="Combate IRL: tiradas sin objetivos ni PNJ"
+              className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors ${
+                irlCombat
+                  ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
+                  : 'text-[var(--arc-accent)] hover:bg-[var(--arc-raised)]'
+              }`}
+            >
+              <Swords className="h-3.5 w-3.5" />
+              Combate IRL
+            </button>
+            <button
+              type="button"
               onClick={() => setShowQuickFormula((v) => !v)}
               className="min-h-[32px] inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] transition-colors"
             >
@@ -8938,6 +9152,7 @@ export default function App() {
           </section>
         </div>
       )}
+      <DiceLauncher onRoll={handleFreeRoll} />
       {combatMechanicReader && (
         <CombatMechanicReader
           mechanicId={combatMechanicReader.mechanicId}

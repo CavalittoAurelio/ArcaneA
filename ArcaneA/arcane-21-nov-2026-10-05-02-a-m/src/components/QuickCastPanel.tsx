@@ -49,6 +49,8 @@ interface QuickCastPanelProps {
   characters: Character[];
   selectedTargetId: string;
   onSelectTarget: (combatantId: string) => void;
+  /** Modo Combate IRL: tiradas sin objetivo ni defensa rival */
+  irlMode?: boolean;
   formula: FormulaConfig;
   spellOrder: string[];
   manaMode: 'auto' | 'manual';
@@ -199,6 +201,7 @@ export function QuickCastPanel({
   characters,
   selectedTargetId,
   onSelectTarget,
+  irlMode = false,
   formula,
   spellOrder,
   manaMode,
@@ -330,7 +333,13 @@ export function QuickCastPanel({
         {/* Selector rápido de objetivo y Letal / No letal */}
         {activeCharacter && (
           <div className="flex flex-wrap items-center gap-2">
-            {potentialTargets.length > 0 && (
+            {irlMode && (
+              <span className="inline-flex items-center rounded-lg bg-[var(--arc-input)] px-2.5 py-1.5 text-xs font-semibold text-[var(--arc-accent)]">
+                Modo IRL · sin objetivo
+              </span>
+            )}
+
+            {!irlMode && potentialTargets.length > 0 && (
               <select
                 value={selectedTargetId}
                 onChange={(e) => onSelectTarget(e.target.value)}
