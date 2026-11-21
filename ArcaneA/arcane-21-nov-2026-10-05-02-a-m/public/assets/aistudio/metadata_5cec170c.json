@@ -1,8 +1,0 @@
-{
-  "name": "Arcane — Grimorio y Sistema de Combate d6",
-  "description": "Grimorio de hechizos y sistema de combate d6 para rol casero con magos, PNJs, casteo separado del ataque y resolución de defensa.",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
-}
