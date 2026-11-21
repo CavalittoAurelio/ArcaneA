@@ -6,13 +6,9 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    base: './',
     plugins: [
       react(),
-      export default defineConfig({
-  base: './',
-  plugins: [react()],
-  // ... deja el resto de tus líneas existentes aquí
-});
       tailwindcss(),
       // Copies src/assets into dist/ so root-relative URLs like
       // "/src/assets/images/..." (e.g. generate_image output) still resolve
