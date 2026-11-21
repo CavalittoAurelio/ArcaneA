@@ -9,6 +9,18 @@ export default defineConfig(() => {
     base: '/ArcaneA/',
     plugins: [
       react(),
+      {
+      name: 'dev-public-assets-redirect',
+      apply: 'serve',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (req.url && req.url.startsWith('/public/assets/')) {
+            req.url = req.url.replace(/^\/public\/assets\//, '/ArcaneA/assets/');
+          }
+          next();
+        });
+      },
+    },
       tailwindcss(),
       {
         name: 'fix-aistudio-asset-paths',
