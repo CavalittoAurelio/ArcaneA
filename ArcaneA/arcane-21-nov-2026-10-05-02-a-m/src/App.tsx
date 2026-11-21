@@ -9,6 +9,7 @@ import {
   ArrowLeftRight,
   ArrowUp,
   BookOpen,
+  Dice1 as Dice,
   GripVertical,
   LayoutGrid,
   Palette,
@@ -148,6 +149,7 @@ import { CombatMechanicReader, type CombatMechanicContext } from './components/C
 import { CombatMechanicsCompendium } from './components/CombatMechanicsCompendium';
 import { FormulaAndBackup } from './components/FormulaAndBackup';
 import { ThemeCustomizer } from './components/ThemeCustomizer';
+import { CustomDiceRoller } from './components/CustomDiceRoller';
 import type { CombatMechanicId } from './utils/combatMechanics';
 
 const ARCANE_VERSION = 'v1.8.0';
@@ -353,7 +355,6 @@ function loadInitialState(): PersistedState {
                 sp.id === 'basic_luz_mago' ||
                 sp.id === 'basic_escudo_magico' ||
                 sp.id === 'basic_curar_heridas' ||
-                sp.id === 'basic_maniobra_defensiva' ||
                 sp.id === 'basic_destello_cegador' ||
                 sp.id === 'basic_choque_noqueador'
                   ? 'none'
@@ -642,6 +643,15 @@ export default function App() {
   const [knowledgeTreeSettings, setKnowledgeTreeSettings] = useState<KnowledgeTreeSettings>(
     () => normalizeKnowledgeTreeSettings(initial.knowledgeTreeSettings)
   );
+
+  // Modo "Combate IRL": solo el jugador, sin enemigos, sin selección de objetivo obligatoria
+  const [irlCombatMode, setIrlCombatMode] = useState<boolean>(false);
+
+  // Lanzador de dados personalizado (ventana flotante toggleable)
+  const [showCustomDice, setShowCustomDice] = useState<boolean>(false);
+  const [customDiceCount, setCustomDiceCount] = useState<number>(2);
+  const [customDiceType, setCustomDiceType] = useState<DieType>('d6');
+  const [customDiceKind, setCustomDiceKind] = useState<DamageKind>('fisico');
 
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [customizeLayoutMode, setCustomizeLayoutMode] = useState<boolean>(false);
@@ -2635,6 +2645,14 @@ export default function App() {
               spell.effectDescription || `${spell.name} se efectúa automáticamente (1 acción gastada).`
             }${armorSummary}${specialSummary}${depConsumeNote}`,
     });
+
+    // En móvil, saltar automáticamente a la mesa de combate / registro tras castear
+    setMobileArenaSection('combat');
+
+    // Modo IRL: si es hechizo de daño y no hay objetivo enemigo, queda listo para ejecutarse sin target obligatorio
+    if (irlCombatMode && spell.effectType === 'damage' && !combatants.some((cb) => cb.characterId !== caster.id)) {
+      // No se crea pendingAttack con target; el ataque se prepara y se resuelve desde la mesa de combate sin PNJ
+    }
   };
 
   // Atacar: pasa siempre a fase de defensa del objetivo seleccionado, incluso con neto negativo (ej. -1)
@@ -2823,10 +2841,15 @@ export default function App() {
       resolved: false,
     };
 
-    if (!isTest && attackerCombatant && combatants.length > 1) {
-      setPendingAttack(pending);
-      if (targetCb?.id) setSelectedTargetId(targetCb.id);
+    if (!isTest && attackerCombatant) {
+      if (irlCombatMode || combatants.length > 1) {
+        setPendingAttack(pending);
+        if (targetCb?.id) setSelectedTargetId(targetCb.id);
+      }
     }
+
+    // En móvil, saltar automáticamente a la mesa de combate / registro tras atacar
+    setMobileArenaSection('combat');
 
     const formattedNet = attackRoll.net > 0 ? `+${attackRoll.net}` : `${attackRoll.net}`;
     const dmgKindLabel = getEffectiveSpellDamageKind(effectiveSpellForAttack) === 'magico' ? 'Mágico' : 'Físico';
@@ -7011,6 +7034,33 @@ export default function App() {
     else handleCastSpell(spell, true);
   };
 
+  const handleRollCustomDice = () => {
+    const dice: DamageDie[] = [{ type: customDiceType, count: customDiceCount }];
+    const summary = rollDamageDice(dice, 0, 'Dados personalizados', customDiceKind);
+    pushLog({
+      kind: 'quick',
+      title: `Dados personalizados (${customDiceCount}${customDiceType.toUpperCase()})`,
+      castRoll: {
+        rolls: summary.parts.map((p, i) => {
+          const m = p.match(/(\d+)d(\d+)/);
+          return m ? Number(m[1]) : 1;
+        }),
+        successes: summary.total > 0 ? customDiceCount : 0,
+        fails: 0,
+        assured: 0,
+        net: summary.total,
+        totalDice: customDiceCount,
+      },
+      damageRoll: {
+        ...summary,
+        damageKind: customDiceKind,
+        isManual: true,
+      },
+      summaryText: `Tiraste ${customDiceCount}${customDiceType.toUpperCase()} → ${summary.total}. ${summary.notes}`,
+    });
+    setShowCustomDice(false);
+  };
+
   const handleQuickRoll = (diceCount: number, assured: number) => {
     const roll = rollD6Pool(diceCount, assured);
     pushLog({
@@ -8783,6 +8833,28 @@ export default function App() {
                   {customizeLayoutMode ? 'Fijar cajas' : 'Mover cajas'}
                 </button>
 
+                <button
+                  type="button"
+                  onClick={() => setIrlCombatMode((v) => !v)}
+                  className={`min-h-[36px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                    irlCombatMode
+                      ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
+                      : 'bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
+                  }`}
+                >
+                  <Dice className="h-3.5 w-3.5" />
+                  {irlCombatMode ? 'IRL: Activo' : 'Combate IRL'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowCustomDice((v) => !v)}
+                  className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
+                >
+                  <Dice className="h-3.5 w-3.5" />
+                  Dados
+                </button>
+
                 {!isDefaultLayout && (
                   <button
                     type="button"
@@ -8957,6 +9029,12 @@ export default function App() {
           }
         />
       )}
+
+      <CustomDiceRoller
+        open={showCustomDice}
+        onClose={() => setShowCustomDice(false)}
+        onRoll={handleRollCustomDice}
+      />
     </div>
   );
 }

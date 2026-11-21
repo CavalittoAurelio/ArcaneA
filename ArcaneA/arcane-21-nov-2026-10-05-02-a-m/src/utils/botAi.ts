@@ -118,7 +118,6 @@ export const BOT_ENEMY_PRESETS: BotEnemyPreset[] = [
       'basic_esquiva_fisica',
       'basic_ataque_canalizado',
       'basic_escudo_magico',
-      'basic_maniobra_defensiva',
       'basic_proteccion',
       'basic_choque_noqueador',
       'basic_reforzar_hechizo',
