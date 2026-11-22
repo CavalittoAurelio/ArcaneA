@@ -30,12 +30,69 @@ interface FormulaAndBackupProps {
   onRevertReset: () => void;
 }
 
+interface PendingBackupImport {
+  fileName: string;
+  rawContent: string;
+  summary: string;
+}
+
 const MASTERY_MODES: Array<{ id: MasteryGrowthMode; label: string; hint: string }> = [
   { id: 'linear', label: 'Lineal (base)', hint: '0, 10, 20, 30...' },
   { id: 'double', label: 'Duplicado', hint: '0, B, 2B, 4B, 8B' },
   { id: 'stepped', label: 'Escalonado', hint: '0, B, 3B, 6B, 10B' },
   { id: 'custom', label: 'Personalizado', hint: 'Hitos manuales' },
 ];
+
+function summarizeBackupContent(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  let jsonCandidate = trimmed;
+  const arcaneMatch = trimmed.match(/ARCANE1:[A-Za-z0-9+/=]+/);
+  if (arcaneMatch) {
+    try {
+      const base64 = arcaneMatch[0].slice('ARCANE1:'.length).trim();
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      jsonCandidate = new TextDecoder().decode(bytes);
+    } catch {
+      return 'Código ARCANE1 detectado (se validará al importar)';
+    }
+  } else {
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      jsonCandidate = trimmed.slice(firstBrace, lastBrace + 1);
+    }
+  }
+
+  try {
+    const parsed = JSON.parse(jsonCandidate) as {
+      characters?: unknown[];
+      spells?: unknown[];
+      round?: unknown;
+    };
+    const charCount = Array.isArray(parsed?.characters) ? parsed.characters.length : null;
+    const spellCount = Array.isArray(parsed?.spells) ? parsed.spells.length : null;
+    const roundNum =
+      typeof parsed?.round === 'number' && parsed.round >= 1 ? Math.floor(parsed.round) : null;
+
+    if (charCount === null && spellCount === null) {
+      return null;
+    }
+
+    const parts: string[] = [];
+    if (charCount !== null) parts.push(`${charCount} personaje(s)`);
+    if (spellCount !== null) parts.push(`${spellCount} hechizo(s)`);
+    if (roundNum !== null) parts.push(`Ronda ${roundNum}`);
+    return parts.join(' · ');
+  } catch {
+    return null;
+  }
+}
 
 export function FormulaAndBackup({
   formula,
@@ -53,6 +110,7 @@ export function FormulaAndBackup({
   const [backupError, setBackupError] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [pendingImport, setPendingImport] = useState<PendingBackupImport | null>(null);
 
   const milestones = getMasteryMilestones(formula);
   const statMilestones = getStatMilestones(formula);
@@ -70,18 +128,19 @@ export function FormulaAndBackup({
 
   const handleDownload = () => {
     const content = onExportBackup();
-    const blob = new Blob([content], { type: 'application/json;charset=utf-8' });
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const header = `=== ARCANE GRIMORIO · COPIA DE SEGURIDAD (${stamp}) ===\n`;
+    const blob = new Blob([header + content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     a.href = url;
-    a.download = `arcane-grimorio-combate-${stamp}.json`;
+    a.download = `arcane-backup-${stamp}.txt`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1200);
     setBackupError(false);
-    setBackupMsg('Copia JSON descargada correctamente.');
+    setBackupMsg('Copia de seguridad .txt descargada correctamente.');
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -89,12 +148,32 @@ export function FormulaAndBackup({
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const res = onImportBackup(String(reader.result || ''));
-      setBackupError(!res.ok);
-      setBackupMsg(res.message);
+      const text = String(reader.result || '');
+      const summary = summarizeBackupContent(text);
+      if (!summary) {
+        setBackupError(true);
+        setBackupMsg('El archivo seleccionado no contiene una copia de seguridad válida.');
+        setPendingImport(null);
+        return;
+      }
+      setBackupError(false);
+      setBackupMsg('');
+      setPendingImport({
+        fileName: file.name,
+        rawContent: text,
+        summary,
+      });
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleConfirmImport = () => {
+    if (!pendingImport) return;
+    const res = onImportBackup(pendingImport.rawContent);
+    setBackupError(!res.ok);
+    setBackupMsg(res.message);
+    setPendingImport(null);
   };
 
   const handleSwitchMasteryMode = (mode: MasteryGrowthMode) => {
@@ -124,13 +203,18 @@ export function FormulaAndBackup({
             </h2>
             <p className="text-[13px] text-[var(--arc-muted)] mt-0.5">
               Fórmula actual:{' '}
-              <strong className="text-[var(--arc-accent)] font-mono-num">{formatFormulaText(formula)}</strong>
+              <strong className="text-[var(--arc-accent)] font-mono-num">
+                {formatFormulaText(formula)}
+              </strong>
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="f-base" className="block text-xs font-semibold text-[var(--arc-muted)] mb-1">
+              <label
+                htmlFor="f-base"
+                className="block text-xs font-semibold text-[var(--arc-muted)] mb-1"
+              >
                 Dados base
               </label>
               <input
@@ -150,7 +234,10 @@ export function FormulaAndBackup({
             </div>
 
             <div>
-              <label htmlFor="f-mult" className="block text-xs font-semibold text-[var(--arc-muted)] mb-1">
+              <label
+                htmlFor="f-mult"
+                className="block text-xs font-semibold text-[var(--arc-muted)] mb-1"
+              >
                 Multiplicador por nivel
               </label>
               <input
@@ -177,7 +264,8 @@ export function FormulaAndBackup({
               { label: '1 + 2×nivel', base: 1, multiplier: 2 },
               { label: '2 + nivel', base: 2, multiplier: 1 },
             ].map((preset) => {
-              const active = formula.base === preset.base && formula.multiplier === preset.multiplier;
+              const active =
+                formula.base === preset.base && formula.multiplier === preset.multiplier;
               return (
                 <button
                   key={preset.label}
@@ -216,7 +304,10 @@ export function FormulaAndBackup({
                 <button
                   type="button"
                   onClick={() =>
-                    onChangeFormula({ ...formula, statMilestones: [0, 10, 20, 40, 80, 160] })
+                    onChangeFormula({
+                      ...formula,
+                      statMilestones: [0, 10, 20, 40, 80, 160],
+                    })
                   }
                   className="min-h-[30px] rounded-md bg-transparent px-2.5 text-xs text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
                 >
@@ -225,7 +316,10 @@ export function FormulaAndBackup({
                 <button
                   type="button"
                   onClick={() =>
-                    onChangeFormula({ ...formula, statMilestones: [0, 10, 20, 30, 40, 50] })
+                    onChangeFormula({
+                      ...formula,
+                      statMilestones: [0, 10, 20, 30, 40, 50],
+                    })
                   }
                   className="min-h-[30px] rounded-md bg-transparent px-2.5 text-xs text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
                 >
@@ -281,7 +375,10 @@ export function FormulaAndBackup({
           </div>
 
           <div>
-            <label htmlFor="f-notes" className="block text-xs font-semibold text-[var(--arc-muted)] mb-1">
+            <label
+              htmlFor="f-notes"
+              className="block text-xs font-semibold text-[var(--arc-muted)] mb-1"
+            >
               Notas del sistema / DM
             </label>
             <input
@@ -304,9 +401,10 @@ export function FormulaAndBackup({
             </h2>
             <p className="text-[13px] text-[var(--arc-muted)] mt-1 leading-relaxed">
               Cada <strong className="text-[var(--arc-text)]">5 vale +1</strong> y cada{' '}
-              <strong className="text-[var(--arc-text)]">6 vale +2</strong>; los negativos (1) no restan a la
-              maestría. Sube de forma <strong className="text-[var(--arc-text)]">lineal de 10 en 10</strong> y
-              aumenta el dado de daño en 1 categoría por nivel hasta{' '}
+              <strong className="text-[var(--arc-text)]">6 vale +2</strong>; los negativos (1) no
+              restan a la maestría. Sube de forma{' '}
+              <strong className="text-[var(--arc-text)]">lineal de 10 en 10</strong> y aumenta el
+              dado de daño en 1 categoría por nivel hasta{' '}
               <strong className="text-[var(--arc-text)]">2 veces</strong> (ej.{' '}
               <span className="font-mono-num">1d4 → 1d6 → 1d8</span>).
             </p>
@@ -372,7 +470,10 @@ export function FormulaAndBackup({
                 onChange={(e) =>
                   onChangeFormula({
                     ...formula,
-                    masteryMaxDieUpgrades: Math.min(4, Math.max(0, parseInt(e.target.value, 10) || 0)),
+                    masteryMaxDieUpgrades: Math.min(
+                      4,
+                      Math.max(0, parseInt(e.target.value, 10) || 0)
+                    ),
                   })
                 }
                 className="font-mono-num w-full min-h-[40px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-sm text-[var(--arc-text)]"
@@ -444,12 +545,17 @@ export function FormulaAndBackup({
               <tbody className="divide-y divide-[var(--arc-border)] font-mono-num">
                 {milestones.map((ms, idx) => {
                   const steps = Math.min(formula.masteryMaxDieUpgrades ?? 2, idx);
-                  const example = steps === 0 ? 'Base (ej. 1d4)' : `+${steps} cat. (ej. ${steps === 1 ? '1d6' : '1d8'})`;
+                  const example =
+                    steps === 0
+                      ? 'Base (ej. 1d4)'
+                      : `+${steps} cat. (ej. ${steps === 1 ? '1d6' : '1d8'})`;
                   return (
                     <tr key={idx}>
                       <td className="py-2 px-3 text-[var(--arc-text)]">Nivel {idx + 1}</td>
                       <td className="py-2 px-3 text-right text-[var(--arc-accent)]">{ms} éxitos</td>
-                      <td className="py-2 px-3 text-right text-[var(--arc-magic-accent)]">{example}</td>
+                      <td className="py-2 px-3 text-right text-[var(--arc-magic-accent)]">
+                        {example}
+                      </td>
                       <td className="py-2 px-3 text-right text-[#8fb56a]">
                         +{idx * (formula.masteryAssuredBonusPerLevel || 0)} aseg.
                       </td>
@@ -470,38 +576,38 @@ export function FormulaAndBackup({
           </h2>
           <ul className="space-y-2.5 text-[13px] text-[var(--arc-text)] opacity-90 leading-relaxed">
             <li>
-              <strong className="text-[var(--arc-text)]">Dados d6 y Maestría:</strong> 1 = 1 fallo · 5 = +1
-              éxito · 6 = +2 éxitos. Para la maestría del hechizo el negativo (1) no resta: los éxitos
-              se acumulan de 10 en 10 y mejoran el dado de daño +1 categoría hasta 2 veces (1d4 → 1d6 →
-              1d8).
+              <strong className="text-[var(--arc-text)]">Dados d6 y Maestría:</strong> 1 = 1 fallo ·
+              5 = +1 éxito · 6 = +2 éxitos. Para la maestría del hechizo el negativo (1) no resta:
+              los éxitos se acumulan de 10 en 10 y mejoran el dado de daño +1 categoría hasta 2 veces
+              (1d4 → 1d6 → 1d8).
             </li>
             <li>
-              <strong className="text-[var(--arc-text)]">Daño Mágico vs Físico:</strong> todos los hechizos
-              hacen daño mágico aunque vayan con Físico. Las armas comunes hacen daño físico, y al
-              imbuirlas pasan a hacer daño mágico, sirven para 1 solo ataque y luego se desintegran
-              sin importar si aciertan.
+              <strong className="text-[var(--arc-text)]">Daño Mágico vs Físico:</strong> todos los
+              hechizos hacen daño mágico aunque vayan con Físico. Las armas comunes hacen daño físico,
+              y al imbuirlas pasan a hacer daño mágico, sirven para 1 solo ataque y luego se
+              desintegran sin importar si aciertan.
             </li>
             <li>
-              <strong className="text-[var(--arc-text)]">Catalizadores mágicos:</strong> al imbuirse hacen
-              daño meramente mágico (1 mano: 1d6 + Inf + Man · Arco: 1d6 + Inf + Man · Grande: 2d6 +
-              Man + Inf). El Catalizador Escudo se expande según el maná usado y reduce en 1 el costo
-              de maná de hechizos de protección.
+              <strong className="text-[var(--arc-text)]">Catalizadores mágicos:</strong> al imbuirse
+              hacen daño meramente mágico (1 mano: 1d6 + Inf + Man · Arco: 1d6 + Inf + Man · Grande:
+              2d6 + Man + Inf). El Catalizador Escudo se expande según el maná usado y reduce en 1 el
+              costo de maná de hechizos de protección.
             </li>
             <li>
-              <strong className="text-[var(--arc-text)]">Casteo siempre funciona:</strong> declarar el casteo
-              gasta 1 acción importante y prepara el hechizo (o activa efectos como Luz de Mago / Curar
-              Heridas sin tirada de casteo).
+              <strong className="text-[var(--arc-text)]">Casteo siempre funciona:</strong> declarar el
+              casteo gasta 1 acción importante y prepara el hechizo (o activa efectos como Luz de Mago
+              / Curar Heridas sin tirada de casteo).
             </li>
             <li>
-              <strong className="text-[var(--arc-text)]">Defensa ante cualquier ataque:</strong> aunque el
-              ataque saque neto negativo (ej. -1), pasa a defensa. El defensor evita el daño sacando más
-              que el ataque (ej. 0 o más); si empata o saca menos, el daño se calcula salvo efectos que
-              lo reduzcan o anulen.
+              <strong className="text-[var(--arc-text)]">Defensa ante cualquier ataque:</strong> aunque
+              el ataque saque neto negativo (ej. -1), pasa a defensa. El defensor evita el daño sacando
+              más que el ataque (ej. 0 o más); si empata o saca menos, el daño se calcula salvo
+              efectos que lo reduzcan o anulen.
             </li>
             <li>
-              <strong className="text-[var(--arc-text)]">Empate (Ataque == Defensa):</strong> el ataque tiene
-              éxito; se aplica el efecto del hechizo y se realiza una tirada adicional de dados para
-              verificar los daños.
+              <strong className="text-[var(--arc-text)]">Empate (Ataque == Defensa):</strong> el
+              ataque tiene éxito; se aplica el efecto del hechizo y se realiza una tirada adicional
+              de dados para verificar los daños.
             </li>
             <li>
               <strong className="text-[var(--arc-text)]">Maná en 0 / PV en 0:</strong> 0 maná ={' '}
@@ -509,9 +615,9 @@ export function FormulaAndBackup({
               (Muerto).
             </li>
             <li>
-              <strong className="text-[var(--arc-text)]">Estados alterados:</strong> se resuelven siempre
-              mediante tirada de <em>Influencia</em> del lanzador contra <em>Influencia</em> del
-              objetivo.
+              <strong className="text-[var(--arc-text)]">Estados alterados:</strong> se resuelven
+              siempre mediante tirada de <em>Influencia</em> del lanzador contra <em>Influencia</em>{' '}
+              del objetivo.
             </li>
           </ul>
         </section>
@@ -530,7 +636,7 @@ export function FormulaAndBackup({
               <em>Impacto Canalizado</em> de 1d4 y variante física) y sus hechizos quedan aislados.
             </li>
             <li>
-              Luego pulsan <strong>Exportar PJ (.json)</strong> o <strong>Copiar código</strong> en{' '}
+              Luego pulsan <strong>Exportar PJ (.txt)</strong> o <strong>Copiar código</strong> en{' '}
               <em>Personajes y PNJs</em> y te lo envían para importarlos en tu mesa.
             </li>
           </ol>
@@ -551,11 +657,14 @@ export function FormulaAndBackup({
 
         <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-3">
           <h2 className="font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)] border-b border-[var(--arc-border)] pb-2.5">
-            Copias de seguridad completas (JSON)
+            Copias de seguridad completas (.txt)
           </h2>
           <p className="text-[13px] text-[var(--arc-muted)] leading-relaxed">
-            Todos los hechizos, maestrías, personajes, PNJs, temas y orden de cajas se guardan automáticamente en
-            este navegador.
+            Todos los hechizos, maestrías, personajes, PNJs, temas y orden de cajas se guardan
+            automáticamente en este navegador. Exportá o restaurá tu respaldo en{' '}
+            <strong className="text-[var(--arc-text)]">.txt</strong> (también admite{' '}
+            <strong className="text-[var(--arc-text)]">.json</strong> o códigos{' '}
+            <span className="font-mono-num">ARCANE1:...</span>).
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -564,7 +673,7 @@ export function FormulaAndBackup({
               className="min-h-[40px] flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
             >
               <Download className="h-4 w-4" />
-              Exportar copia JSON
+              Exportar copia (.txt)
             </button>
             {onExportCustomSpells && (
               <button
@@ -578,12 +687,13 @@ export function FormulaAndBackup({
                 title={
                   customSpellCount === 0
                     ? 'Creá al menos un hechizo propio para exportar'
-                    : `Descargar ${customSpellCount} hechizo(s) propio(s) en JSON`
+                    : `Descargar ${customSpellCount} hechizo(s) propio(s) en .txt`
                 }
                 className="min-h-[40px] flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--arc-raised)] px-4 text-xs font-semibold text-[var(--arc-accent)] hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-all"
               >
                 <Download className="h-4 w-4" />
-                Exportar hechizos propios <span className="font-mono-num">({customSpellCount})</span>
+                Exportar hechizos propios{' '}
+                <span className="font-mono-num">({customSpellCount})</span>
               </button>
             )}
             <button
@@ -592,16 +702,51 @@ export function FormulaAndBackup({
               className="min-h-[40px] flex-1 sm:flex-none inline-flex items-center justify-center gap-2 rounded-lg bg-transparent px-4 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] whitespace-nowrap shrink-0 transition-colors"
             >
               <Upload className="h-4 w-4" />
-              Importar JSON
+              Importar respaldo
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept=".json,application/json"
+              accept=".txt,.json,text/plain,application/json"
               onChange={handleFileChange}
               hidden
             />
           </div>
+
+          {pendingImport && (
+            <div className="rounded-lg border border-[var(--arc-accent)]/60 bg-[var(--arc-surface-alt)] p-3 space-y-2.5 text-xs">
+              <div className="space-y-0.5">
+                <p className="font-semibold text-[var(--arc-accent)]">
+                  ¿Reemplazar los datos actuales con esta copia de seguridad?
+                </p>
+                <p className="text-[var(--arc-text)]">
+                  Archivo: <strong className="font-mono-num">{pendingImport.fileName}</strong> ·{' '}
+                  {pendingImport.summary}
+                </p>
+                <p className="text-[var(--arc-muted)]">
+                  Esta acción sobrescribirá los personajes, hechizos y configuraciones actuales.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleConfirmImport}
+                  className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Confirmar restauración
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingImport(null)}
+                  className="min-h-[36px] rounded-lg px-3 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
           {backupMsg && (
             <p className={`text-xs ${backupError ? 'text-[#e88a70]' : 'text-[#a4d67e]'}`}>
               {backupMsg}
@@ -617,8 +762,9 @@ export function FormulaAndBackup({
               Restablecer aplicación
             </h2>
             <p className="text-[13px] text-[#cbb893] mt-1 leading-relaxed">
-              Borra todos los datos introducidos y deja la app limpia (Mago en 0 pts / Nivel 1, Maniquí de pruebas y
-              fórmula base por nivel). Podés revertir el borrado si te arrepentís.
+              Borra todos los datos introducidos y deja la app limpia (Mago en 0 pts / Nivel 1,
+              Maniquí de pruebas y fórmula base por nivel). Podés revertir el borrado si te
+              arrepentís.
             </p>
           </div>
 
