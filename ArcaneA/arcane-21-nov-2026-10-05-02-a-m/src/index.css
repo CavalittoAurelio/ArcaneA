@@ -174,8 +174,10 @@
   }
 
 /* --- Exportación de Ficha / PDF para impresión --- */
-.arc-print-sheet {
-  display: none !important;
+@layer utilities {
+  .arc-print-sheet {
+    display: none !important;
+  }
 }
 
 @media print {
