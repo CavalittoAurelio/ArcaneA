@@ -8637,7 +8637,7 @@ export default function App() {
         isActiveDown ? 'grayscale brightness-90 contrast-95' : ''
       }`}
     >
-      <header className="border-b border-[var(--arc-border)] bg-[var(--arc-header)]">
+      <header className="arc-no-print border-b border-[var(--arc-border)] bg-[var(--arc-header)]">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 sm:py-4">
           <div className="inline-flex items-baseline gap-2 whitespace-nowrap shrink-0">
             <BookOpen className="h-5 w-5 self-center text-[var(--arc-action)]" aria-hidden="true" />
@@ -8704,9 +8704,9 @@ export default function App() {
 
       {/* Barra de personaje actuando con distinción PJ vs PNJ y ajuste rápido de fórmula */}
       <div
-        className={`border-b ${
-          activeIsPJ ? 'border-[#3a5736] bg-[#151e14]' : 'border-[#6b362b] bg-[#211412]'
-        }`}
+      className={`arc-no-print border-b ${
+      activeIsPJ ? 'border-[#3a5736] bg-[#151e14]' : 'border-[#6b362b] bg-[#211412]'
+      }`}
       >
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2.5 sm:gap-4 px-4 sm:px-6 py-2.5 sm:py-3 text-xs">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
