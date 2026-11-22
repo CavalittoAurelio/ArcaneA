@@ -179,6 +179,9 @@
     display: none !important;
   }
 }
+.arc-print-sheet {
+  display: none !important;
+}
 
 @media print {
   body {
