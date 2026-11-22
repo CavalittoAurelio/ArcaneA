@@ -56,3 +56,150 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* --- Animaciones sutiles e indicadores visuales de estado en combate --- */
+@keyframes arc-status-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.92);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(0) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes arc-stun-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.32);
+  }
+  50% {
+    box-shadow: 0 0 12px 1px rgba(234, 179, 8, 0.22);
+  }
+}
+
+@keyframes arc-frozen-shimmer {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(88, 188, 232, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 12px 1px rgba(125, 211, 252, 0.26);
+  }
+}
+
+@keyframes arc-burn-ember {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 108, 53, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 12px 1px rgba(251, 146, 60, 0.25);
+  }
+}
+
+@keyframes arc-shock-spark {
+  0%,
+  92%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.28);
+  }
+  95% {
+    box-shadow: 0 0 14px 2px rgba(253, 224, 71, 0.45);
+  }
+}
+
+@keyframes arc-down-fade {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.arc-status-enter {
+  animation: arc-status-pop 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.arc-status-stun {
+  animation: arc-status-pop 280ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    arc-stun-pulse 2.6s ease-in-out infinite;
+}
+
+.arc-status-frozen {
+  animation: arc-status-pop 280ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    arc-frozen-shimmer 3s ease-in-out infinite;
+}
+
+.arc-status-burn {
+  animation: arc-status-pop 280ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    arc-burn-ember 2.4s ease-in-out infinite;
+}
+
+.arc-status-shock {
+  animation: arc-status-pop 280ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    arc-shock-spark 2.8s ease-in-out infinite;
+}
+
+.arc-card-unconscious {
+  animation: arc-down-fade 360ms ease-out both;
+  border-color: rgba(180, 115, 62, 0.65);
+  background-image: linear-gradient(180deg, rgba(46, 30, 18, 0.55), rgba(20, 14, 10, 0.85));
+}
+
+.arc-card-dead {
+  animation: arc-down-fade 420ms ease-out both;
+  border-color: rgba(168, 48, 48, 0.72);
+  background-image: linear-gradient(180deg, rgba(48, 16, 18, 0.6), rgba(18, 10, 11, 0.9));
+  filter: grayscale(0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-status-enter,
+  .arc-status-stun,
+  .arc-status-frozen,
+  .arc-status-burn,
+  .arc-status-shock,
+  .arc-card-unconscious,
+  .arc-card-dead {
+    animation: none !important;
+  }
+  /* --- Exportación de Ficha / PDF para impresión --- */
+.arc-print-sheet {
+  display: none;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #141414 !important;
+  }
+
+  .arc-no-print {
+    display: none !important;
+  }
+
+  .arc-print-sheet {
+    display: block !important;
+    background: #ffffff !important;
+    color: #141414 !important;
+    padding: 16px;
+  }
+
+  .arc-print-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #d4d4d8 !important;
+    background: #fafafa !important;
+    color: #141414 !important;
+  }
+  }
+} 

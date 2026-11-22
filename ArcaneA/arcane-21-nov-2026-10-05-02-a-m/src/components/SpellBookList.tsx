@@ -10,6 +10,7 @@ import {
   Download,
   Edit3,
   Eye,
+  Filter,
   Flame,
   GripVertical,
   LayoutGrid,
@@ -20,6 +21,7 @@ import {
   RotateCcw,
   Search,
   Share2,
+  SlidersHorizontal,
   Star,
   Tag,
   Square,
@@ -28,10 +30,14 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import type { Character, FormulaConfig, Spell, SpellEffectType } from '../types/rpg';
+import type { Character, DieType, FormulaConfig, Spell, SpellEffectType } from '../types/rpg';
 import {
+  DIE_TYPES,
+  ELEMENTAL_STATUS_META,
   STAT_NAMES,
+  SYNERGY_LABELS,
   characterHasNatureCanalizado,
+  detectSpellSynergy,
   formatCollateralValue,
   formatSpellDependencyLine,
   formatTurnDuration,
@@ -50,6 +56,9 @@ import {
   spellSupportsMastery,
   type SpellCategory,
 } from '../utils/dice';
+import { KNOWLEDGE_TREE_SPELLS } from '../utils/knowledgeTrees';
+
+const KNOWLEDGE_TREE_SPELL_IDS = new Set(KNOWLEDGE_TREE_SPELLS.map((s) => s.id));
 import { SpellCategoryIcon } from './SpellCategoryIcon';
 import { SpellInspector } from './SpellInspector';
 
@@ -89,8 +98,8 @@ interface SpellBookListProps {
 
 type SpellFilterValue = 'all' | SpellCategory;
 type SpellOriginFilter = 'all' | 'base' | 'custom';
-type ManaFilterValue = 'all' | 'low' | 'mid' | 'high';
 type NatureFilterValue = 'all' | 'magico' | 'fisico';
+type DieFilterValue = 'all' | DieType;
 type ViewDensity = 'detailed' | 'compact';
 
 const FILTER_OPTIONS: Array<{ value: SpellFilterValue; label: string }> = [
@@ -173,6 +182,144 @@ const TYPE_LABELS: Record<SpellEffectType, string> = {
   effect: 'Efecto',
 };
 
+function normalizeFuzzyText(raw: string): string {
+  return raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function boundedLevenshtein(a: string, b: string, maxDist: number): number {
+  const lenA = a.length;
+  const lenB = b.length;
+  if (Math.abs(lenA - lenB) > maxDist) return maxDist + 1;
+  if (lenA === 0) return lenB;
+  if (lenB === 0) return lenA;
+
+  let prev = Array.from({ length: lenB + 1 }, (_, i) => i);
+  for (let i = 1; i <= lenA; i++) {
+    const curr = [i];
+    let rowMin = i;
+    for (let j = 1; j <= lenB; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const val = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + cost);
+      curr.push(val);
+      if (val < rowMin) rowMin = val;
+    }
+    if (rowMin > maxDist) return maxDist + 1;
+    prev = curr;
+  }
+  return prev[lenB];
+}
+
+function isOrderedSubsequence(needle: string, haystack: string): boolean {
+  if (needle.length < 3) return false;
+  let ni = 0;
+  let firstMatch = -1;
+  let lastMatch = -1;
+  for (let hi = 0; hi < haystack.length && ni < needle.length; hi++) {
+    if (haystack[hi] === needle[ni]) {
+      if (firstMatch === -1) firstMatch = hi;
+      lastMatch = hi;
+      ni++;
+    }
+  }
+  if (ni < needle.length) return false;
+  return lastMatch - firstMatch <= needle.length * 3;
+}
+
+/**
+ * Puntúa coincidencia difusa (0 = no coincide; > 0 = mayor relevancia).
+ * Soporta acentos omitidos, coincidencias parciales, subsecuencias y typos leves.
+ */
+function scoreFuzzySpellMatch(query: string, spellName: string, extraText: string): number {
+  const normQ = normalizeFuzzyText(query);
+  if (!normQ) return 1;
+
+  const normName = normalizeFuzzyText(spellName);
+  const normExtra = normalizeFuzzyText(extraText);
+  const fullCorpus = `${normName} ${normExtra}`.trim();
+
+  if (normName === normQ) return 120;
+  if (normName.startsWith(normQ)) return 100;
+  if (normName.includes(normQ)) return 85;
+  if (normExtra.includes(normQ)) return 65;
+
+  const queryTokens = normQ.split(' ').filter(Boolean);
+  const corpusWords = fullCorpus.split(' ').filter(Boolean);
+  const nameWords = normName.split(' ').filter(Boolean);
+
+  let totalScore = 0;
+  for (const token of queryTokens) {
+    if (normName.includes(token)) {
+      totalScore += 32;
+      continue;
+    }
+    if (normExtra.includes(token)) {
+      totalScore += 20;
+      continue;
+    }
+
+    if (token.length >= 4) {
+      const allowedDist = token.length >= 7 ? 2 : 1;
+      let bestWordScore = 0;
+
+      for (const w of nameWords) {
+        if (w.length < 3) continue;
+        const dist = boundedLevenshtein(token, w, allowedDist);
+        if (dist <= allowedDist) {
+          bestWordScore = Math.max(bestWordScore, 26 - dist * 7);
+        }
+      }
+
+      if (bestWordScore === 0) {
+        for (const w of corpusWords) {
+          if (w.length < 3) continue;
+          const dist = boundedLevenshtein(token, w, allowedDist);
+          if (dist <= allowedDist) {
+            bestWordScore = Math.max(bestWordScore, 16 - dist * 5);
+          }
+        }
+      }
+
+      if (bestWordScore > 0) {
+        totalScore += bestWordScore;
+        continue;
+      }
+    }
+
+    if (isOrderedSubsequence(token, normName)) {
+      totalScore += 14;
+      continue;
+    }
+
+    return 0;
+  }
+
+  return totalScore;
+}
+
+function getSpellAppliedStatusLabels(spell: Spell): string[] {
+  const labels = new Set<string>();
+  for (const st of spell.statuses || []) {
+    if (st.trim()) labels.add(st.trim());
+  }
+  if (spell.elementalStatus?.kind) {
+    labels.add(ELEMENTAL_STATUS_META[spell.elementalStatus.kind].name);
+  }
+  if (isFireDamageSpell(spell)) {
+    labels.add(ELEMENTAL_STATUS_META.burn.name);
+  }
+  const syn = detectSpellSynergy(spell);
+  if (syn !== 'none') {
+    labels.add(SYNERGY_LABELS[syn]);
+  }
+  return Array.from(labels);
+}
+
 export function SpellBookList({
   spells,
   activeCharacter,
@@ -205,11 +352,17 @@ export function SpellBookList({
   const [searchQuery, setSearchQuery] = useState('');
   const [originFilter, setOriginFilter] = useState<SpellOriginFilter>('all');
   const [filter, setFilter] = useState<SpellFilterValue>('all');
-  const [manaFilter, setManaFilter] = useState<ManaFilterValue>('all');
+  const [manaMinInput, setManaMinInput] = useState('');
+  const [manaMaxInput, setManaMaxInput] = useState('');
+  const [dieFilter, setDieFilter] = useState<DieFilterValue>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [natureFilter, setNatureFilter] = useState<NatureFilterValue>('all');
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [showSummaryCategories, setShowSummaryCategories] = useState(false);
   const [viewDensity, setViewDensity] = useState<ViewDensity>('detailed');
   const [scope, setScope] = useState<'known' | 'library'>('known');
   const [showOtherOwners, setShowOtherOwners] = useState(false);
+  const [showMobileTools, setShowMobileTools] = useState(false);
   const [reorderMode, setReorderMode] = useState(false);
   const [selectExportMode, setSelectExportMode] = useState(false);
   const [selectedSpellIds, setSelectedSpellIds] = useState<string[]>([]);
@@ -250,7 +403,7 @@ export function SpellBookList({
   const libraryForActive = useMemo(
     () =>
       spells.filter((s) => {
-        if (s.isAdaptableTemplate) return false;
+        if (s.isAdaptableTemplate || KNOWLEDGE_TREE_SPELL_IDS.has(s.id)) return false;
         if (
           !showOtherOwners &&
           s.id === 'basic_ataque_canalizado' &&
@@ -301,24 +454,24 @@ export function SpellBookList({
       return compareDefault(a, b);
     };
 
-    const result = spells
-      .filter((s) => {
-        if (scope === 'known') return knownIds.has(s.id);
-        if (
-          !showOtherOwners &&
-          s.id === 'basic_ataque_canalizado' &&
-          hasNatureCanalizado &&
-          !knownIds.has(s.id)
-        ) {
-          return false;
-        }
-        return (
-          showOtherOwners ||
-          s.isBasic ||
-          !s.ownerCharacterId ||
-          s.ownerCharacterId === activeCharacter?.id
-        );
-      });
+    const result = spells.filter((s) => {
+      if (scope === 'known') return knownIds.has(s.id);
+      if (s.isAdaptableTemplate || KNOWLEDGE_TREE_SPELL_IDS.has(s.id)) return false;
+      if (
+        !showOtherOwners &&
+        s.id === 'basic_ataque_canalizado' &&
+        hasNatureCanalizado &&
+        !knownIds.has(s.id)
+      ) {
+        return false;
+      }
+      return (
+        showOtherOwners ||
+        s.isBasic ||
+        !s.ownerCharacterId ||
+        s.ownerCharacterId === activeCharacter?.id
+      );
+    });
 
     return result.sort((a, b) => {
       if (sortMode === 'custom') return compareWithCustom(a, b);
@@ -327,7 +480,8 @@ export function SpellBookList({
         return favoriteDiff || a.name.localeCompare(b.name);
       }
       if (sortMode === 'category') {
-        const categoryDiff = CATEGORY_ORDER.indexOf(getSpellCategory(a)) - CATEGORY_ORDER.indexOf(getSpellCategory(b));
+        const categoryDiff =
+          CATEGORY_ORDER.indexOf(getSpellCategory(a)) - CATEGORY_ORDER.indexOf(getSpellCategory(b));
         return categoryDiff || a.name.localeCompare(b.name);
       }
       if (sortMode === 'mana') {
@@ -337,15 +491,44 @@ export function SpellBookList({
         return manaDiff || a.name.localeCompare(b.name);
       }
       if (sortMode === 'nature') {
-        const natureA = a.effectType === 'damage' ? getEffectiveSpellDamageKind(a) : isSpellMagical(a) ? 'magico' : 'fisico';
-        const natureB = b.effectType === 'damage' ? getEffectiveSpellDamageKind(b) : isSpellMagical(b) ? 'magico' : 'fisico';
+        const natureA =
+          a.effectType === 'damage'
+            ? getEffectiveSpellDamageKind(a)
+            : isSpellMagical(a)
+              ? 'magico'
+              : 'fisico';
+        const natureB =
+          b.effectType === 'damage'
+            ? getEffectiveSpellDamageKind(b)
+            : isSpellMagical(b)
+              ? 'magico'
+              : 'fisico';
         return natureA.localeCompare(natureB) || a.name.localeCompare(b.name);
       }
       return a.name.localeCompare(b.name);
     });
-  }, [spells, scope, knownIds, showOtherOwners, activeCharacter, hasNatureCanalizado, orderIndexMap, sortMode, favoriteIds]);
+  }, [
+    spells,
+    scope,
+    knownIds,
+    showOtherOwners,
+    activeCharacter,
+    hasNatureCanalizado,
+    orderIndexMap,
+    sortMode,
+    favoriteIds,
+  ]);
 
-  // Resumen del grimorio aprendido (siempre refleja el estado del personaje activo)
+  const availableStatusesInScope = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const sp of scopeSpells) {
+      for (const lbl of getSpellAppliedStatusLabels(sp)) {
+        map.set(lbl, (map.get(lbl) || 0) + 1);
+      }
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [scopeSpells]);
+
   const grimorioSummary = useMemo(() => {
     const knownList = spells.filter((s) => knownIds.has(s.id));
     const counts: Record<SpellCategory, number> = {
@@ -387,81 +570,125 @@ export function SpellBookList({
   const baseCount = scopeSpells.filter((s) => s.isBasic).length;
   const customCount = scopeSpells.length - baseCount;
 
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const parsedManaMin =
+    manaMinInput.trim() !== '' && !Number.isNaN(Number(manaMinInput))
+      ? Math.max(0, Math.floor(Number(manaMinInput)))
+      : null;
+  const parsedManaMax =
+    manaMaxInput.trim() !== '' && !Number.isNaN(Number(manaMaxInput))
+      ? Math.max(0, Math.floor(Number(manaMaxInput)))
+      : null;
 
   const visibleSpells = useMemo(() => {
-    return scopeSpells.filter((s) => {
-      if (originFilter === 'base' && !s.isBasic) return false;
-      if (originFilter === 'custom' && s.isBasic) return false;
+    const scored: Array<{ spell: Spell; score: number }> = [];
 
-      if (filter !== 'all' && getSpellCategory(s) !== filter) return false;
+    for (const s of scopeSpells) {
+      if (originFilter === 'base' && !s.isBasic) continue;
+      if (originFilter === 'custom' && s.isBasic) continue;
+
+      if (filter !== 'all' && getSpellCategory(s) !== filter) continue;
 
       const effectiveCost = getEffectiveDefenseManaCost(activeCharacter, s).cost;
-      if (manaFilter === 'low' && effectiveCost > 1) return false;
-      if (manaFilter === 'mid' && effectiveCost !== 2) return false;
-      if (manaFilter === 'high' && effectiveCost < 3) return false;
+      if (parsedManaMin !== null && effectiveCost < parsedManaMin) continue;
+      if (parsedManaMax !== null && effectiveCost > parsedManaMax) continue;
+
+      if (dieFilter !== 'all') {
+        const mastery = activeCharacter
+          ? getSpellMasteryStatus(activeCharacter.spellMastery?.[s.id] || 0, formula)
+          : undefined;
+        const effectiveDice =
+          s.effectType === 'damage' && mastery
+            ? getEffectiveSpellDamageDice(s, mastery)
+            : s.damage?.dice || [];
+        const hasDamageDie = effectiveDice.some((d) => d.type === dieFilter && d.count > 0);
+        const hasTickDie = s.elementalStatus?.tickDie === dieFilter;
+        const hasCollateralDie = Boolean(
+          s.collateral?.dice?.some((d) => d.type === dieFilter && d.count > 0)
+        );
+        if (!hasDamageDie && !hasTickDie && !hasCollateralDie) continue;
+      }
+
+      if (statusFilter !== 'all') {
+        const appliedLabels = getSpellAppliedStatusLabels(s);
+        if (!appliedLabels.includes(statusFilter)) continue;
+      }
 
       if (natureFilter !== 'all') {
         const magical =
           s.effectType === 'damage'
             ? getEffectiveSpellDamageKind(s) === 'magico'
             : isSpellMagical(s);
-        if (natureFilter === 'magico' && !magical) return false;
-        if (natureFilter === 'fisico' && magical) return false;
+        if (natureFilter === 'magico' && !magical) continue;
+        if (natureFilter === 'fisico' && magical) continue;
       }
 
-      if (favoritesOnly && !favoriteIds.has(s.id)) return false;
+      if (favoritesOnly && !favoriteIds.has(s.id)) continue;
       if (
         selectedPersonalTag &&
         !(activeCharacter?.personalSpellTags?.[s.id] || []).includes(selectedPersonalTag)
       ) {
-        return false;
+        continue;
       }
 
-      if (normalizedQuery) {
-        const haystack = [
-          s.name,
+      if (searchQuery.trim()) {
+        const extraCorpus = [
           s.effectDescription,
           s.damage?.notes || '',
           ...(s.orders || []),
-          ...(s.statuses || []),
+          ...getSpellAppliedStatusLabels(s),
           s.armorConfig?.element || '',
           s.dependency?.enabled ? s.dependency.requiredName : '',
-        ]
-          .join(' ')
-          .toLowerCase();
-        if (!haystack.includes(normalizedQuery)) return false;
+        ].join(' ');
+        const matchScore = scoreFuzzySpellMatch(searchQuery, s.name, extraCorpus);
+        if (matchScore <= 0) continue;
+        scored.push({ spell: s, score: matchScore });
+      } else {
+        scored.push({ spell: s, score: 1 });
       }
+    }
 
-      return true;
-    });
+    if (searchQuery.trim()) {
+      scored.sort((a, b) => b.score - a.score);
+    }
+
+    return scored.map((entry) => entry.spell);
   }, [
     scopeSpells,
     originFilter,
     filter,
-    manaFilter,
+    parsedManaMin,
+    parsedManaMax,
+    dieFilter,
+    statusFilter,
     natureFilter,
-    normalizedQuery,
+    searchQuery,
     activeCharacter,
+    formula,
     favoritesOnly,
     favoriteIds,
     selectedPersonalTag,
   ]);
 
-  const hasActiveFilters =
-    normalizedQuery.length > 0 ||
-    originFilter !== 'all' ||
-    filter !== 'all' ||
-    manaFilter !== 'all' ||
-    natureFilter !== 'all' ||
-    favoritesOnly ||
-    selectedPersonalTag !== '';
+  const activeAdvancedFilterCount =
+    (originFilter !== 'all' ? 1 : 0) +
+    (filter !== 'all' ? 1 : 0) +
+    (parsedManaMin !== null || parsedManaMax !== null ? 1 : 0) +
+    (dieFilter !== 'all' ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (natureFilter !== 'all' ? 1 : 0) +
+    (favoritesOnly ? 1 : 0) +
+    (selectedPersonalTag !== '' ? 1 : 0);
+
+  const hasActiveFilters = searchQuery.trim().length > 0 || activeAdvancedFilterCount > 0;
 
   const clearAllFilters = () => {
     setSearchQuery('');
     setOriginFilter('all');
     setFilter('all');
-    setManaFilter('all');
+    setManaMinInput('');
+    setManaMaxInput('');
+    setDieFilter('all');
+    setStatusFilter('all');
     setNatureFilter('all');
     setFavoritesOnly(false);
     setSelectedPersonalTag('');
@@ -495,7 +722,8 @@ export function SpellBookList({
 
   const createPersonalTag = () => {
     const tag = newPersonalTag.trim();
-    if (!tag || personalTagNames.some((name) => name.toLocaleLowerCase() === tag.toLocaleLowerCase())) return;
+    if (!tag || personalTagNames.some((name) => name.toLocaleLowerCase() === tag.toLocaleLowerCase()))
+      return;
     updateActiveCharacter((character) => ({
       ...character,
       personalSpellTagNames: [...(character.personalSpellTagNames || []), tag],
@@ -505,7 +733,13 @@ export function SpellBookList({
 
   const renamePersonalTag = (previousName: string) => {
     const nextName = renamedPersonalTag.trim();
-    if (!nextName || personalTagNames.some((name) => name !== previousName && name.toLocaleLowerCase() === nextName.toLocaleLowerCase())) return;
+    if (
+      !nextName ||
+      personalTagNames.some(
+        (name) => name !== previousName && name.toLocaleLowerCase() === nextName.toLocaleLowerCase()
+      )
+    )
+      return;
     updateActiveCharacter((character) => ({
       ...character,
       personalSpellTagNames: (character.personalSpellTagNames || []).map((name) =>
@@ -545,73 +779,81 @@ export function SpellBookList({
     const editorOpenForSpell = tagEditorSpellId === spell.id;
 
     return (
-      <div className="flex flex-wrap items-center gap-0.5">
+      <div className="flex flex-wrap items-center gap-1">
         {assignedTags.map((tag) => (
-          <span key={tag} className="rounded-full border border-[var(--arc-border)] bg-[var(--arc-surface)] px-1.5 py-0.5 text-[10px] text-[var(--arc-muted)]">
+          <span
+            key={tag}
+            className="rounded-full border border-[var(--arc-border)] bg-[var(--arc-surface)] px-2 py-0.5 text-[11px] text-[var(--arc-muted)]"
+          >
             {tag}
           </span>
         ))}
-        <div className="relative flex shrink-0 items-center gap-0.5">
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            toggleFavorite(spell.id);
-          }}
-          aria-label={isFavorite ? `Quitar ${spell.name} de favoritos` : `Marcar ${spell.name} como favorito`}
-          aria-pressed={isFavorite}
-          title={isFavorite ? 'Quitar de favoritos' : 'Marcar como favorito'}
-          className={`inline-flex min-h-[28px] w-7 items-center justify-center rounded-md ${
-            isFavorite
-              ? 'text-[var(--arc-accent)]'
-              : 'text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
-          }`}
-        >
-          <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
-        </button>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            setTagEditorSpellId(editorOpenForSpell ? null : spell.id);
-          }}
-          aria-label={`Organizar etiquetas de ${spell.name}`}
-          aria-expanded={editorOpenForSpell}
-          className={`inline-flex min-h-[28px] items-center justify-center gap-1 rounded-md px-1.5 text-xs ${
-            assignedTags.length > 0
-              ? 'text-[var(--arc-accent)]'
-              : 'text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
-          }`}
-        >
-          <Tag className="h-3.5 w-3.5" />
-          {assignedTags.length > 0 && <span>{assignedTags.length}</span>}
-        </button>
-        {editorOpenForSpell && (
-          <div
-            onClick={(event) => event.stopPropagation()}
-            className="absolute right-0 top-8 z-30 min-w-40 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] p-2 shadow-xl"
+        <div className="relative flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleFavorite(spell.id);
+            }}
+            aria-label={
+              isFavorite ? `Quitar ${spell.name} de favoritos` : `Marcar ${spell.name} como favorito`
+            }
+            aria-pressed={isFavorite}
+            title={isFavorite ? 'Quitar de favoritos' : 'Marcar como favorito'}
+            className={`inline-flex min-h-[34px] w-8 items-center justify-center rounded-md ${
+              isFavorite
+                ? 'text-[var(--arc-accent)]'
+                : 'text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
+            }`}
           >
-            {personalTagNames.length === 0 ? (
-              <p className="max-w-40 text-xs text-[var(--arc-muted)]">
-                Creá etiquetas en la barra de organización.
-              </p>
-            ) : (
-              <div className="max-h-40 space-y-1 overflow-y-auto">
-                {personalTagNames.map((tag) => (
-                  <label key={tag} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]">
-                    <input
-                      type="checkbox"
-                      checked={assignedTags.includes(tag)}
-                      onChange={() => toggleSpellTag(spell.id, tag)}
-                      className="h-3.5 w-3.5 accent-[var(--arc-accent)]"
-                    />
-                    <span className="max-w-40 truncate">{tag}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+            <Star className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setTagEditorSpellId(editorOpenForSpell ? null : spell.id);
+            }}
+            aria-label={`Organizar etiquetas de ${spell.name}`}
+            aria-expanded={editorOpenForSpell}
+            className={`inline-flex min-h-[34px] items-center justify-center gap-1 rounded-md px-2 text-xs ${
+              assignedTags.length > 0
+                ? 'text-[var(--arc-accent)]'
+                : 'text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
+            }`}
+          >
+            <Tag className="h-3.5 w-3.5" />
+            {assignedTags.length > 0 && <span>{assignedTags.length}</span>}
+          </button>
+          {editorOpenForSpell && (
+            <div
+              onClick={(event) => event.stopPropagation()}
+              className="absolute right-0 top-9 z-30 min-w-44 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] p-2 shadow-xl"
+            >
+              {personalTagNames.length === 0 ? (
+                <p className="max-w-44 text-xs text-[var(--arc-muted)]">
+                  Creá etiquetas en el panel de filtros.
+                </p>
+              ) : (
+                <div className="max-h-40 space-y-1 overflow-y-auto">
+                  {personalTagNames.map((tag) => (
+                    <label
+                      key={tag}
+                      className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1.5 text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={assignedTags.includes(tag)}
+                        onChange={() => toggleSpellTag(spell.id, tag)}
+                        className="h-4 w-4 accent-[var(--arc-accent)]"
+                      />
+                      <span className="max-w-40 truncate">{tag}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -667,52 +909,78 @@ export function SpellBookList({
 
   const gridClass =
     viewDensity === 'compact'
-      ? 'grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(min(100%,280px),1fr))]'
+      ? 'grid gap-2.5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fit,minmax(280px,1fr))]'
       : editorOpen
         ? 'grid gap-3.5 grid-cols-1'
-        : 'grid gap-3.5 md:grid-cols-2';
+        : 'grid gap-3.5 grid-cols-1 md:grid-cols-2';
+
+  const isManaPresetActive = (minVal: string, maxVal: string) =>
+    manaMinInput === minVal && manaMaxInput === maxVal;
 
   return (
-    <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
+    <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-5 space-y-3.5 sm:space-y-4">
       {/* Cabecera del Grimorio */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--arc-border)] pb-3.5">
-        <div>
-          <h2 className="font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)]">
-            Grimorio de {activeCharacter?.name || 'Personaje'}
-          </h2>
-          <p className="text-[13px] text-[var(--arc-muted)] mt-0.5">
-            {scope === 'known'
-              ? `Mostrando ${visibleSpells.length} de ${knownIds.size} hechizo(s) aprendido(s)`
-              : `Biblioteca (${visibleSpells.length} de ${libraryForActive.length} disponibles)`}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5">
-          <div className="flex p-0.5 rounded-lg bg-[var(--arc-input)]">
-            <button
-              type="button"
-              onClick={() => setScope('known')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
-                scope === 'known'
-                  ? 'bg-[var(--arc-raised)] text-[var(--arc-text)]'
-                  : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-              }`}
-            >
-              Aprendidos <span className="font-mono-num">({knownIds.size})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setScope('library')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
-                scope === 'library'
-                  ? 'bg-[var(--arc-raised)] text-[var(--arc-text)]'
-                  : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-              }`}
-            >
-              Biblioteca <span className="font-mono-num">({libraryForActive.length})</span>
-            </button>
+      <div className="flex flex-col gap-3 border-b border-[var(--arc-border)] pb-3.5">
+        <div className="flex flex-wrap items-start justify-between gap-2.5">
+          <div className="min-w-0">
+            <h2 className="font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)] truncate">
+              Grimorio de {activeCharacter?.name || 'Personaje'}
+            </h2>
+            <p className="text-xs sm:text-[13px] text-[var(--arc-muted)] mt-0.5">
+              {scope === 'known'
+                ? `Mostrando ${visibleSpells.length} de ${knownIds.size} hechizo(s) aprendido(s)`
+                : `Biblioteca (${visibleSpells.length} de ${libraryForActive.length} disponibles)`}
+            </p>
           </div>
 
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex p-0.5 rounded-lg bg-[var(--arc-input)]">
+              <button
+                type="button"
+                onClick={() => setScope('known')}
+                className={`min-h-[36px] px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
+                  scope === 'known'
+                    ? 'bg-[var(--arc-raised)] text-[var(--arc-text)]'
+                    : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                }`}
+              >
+                Aprendidos <span className="font-mono-num">({knownIds.size})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setScope('library')}
+                className={`min-h-[36px] px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
+                  scope === 'library'
+                    ? 'bg-[var(--arc-raised)] text-[var(--arc-text)]'
+                    : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                }`}
+              >
+                Biblioteca <span className="font-mono-num">({libraryForActive.length})</span>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMobileTools((v) => !v)}
+              aria-expanded={showMobileTools}
+              className={`sm:hidden min-h-[36px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                showMobileTools
+                  ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                  : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-text)]'
+              }`}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Opciones
+            </button>
+          </div>
+        </div>
+
+        {/* Barra de herramientas */}
+        <div
+          className={`${
+            showMobileTools ? 'flex' : 'hidden sm:flex'
+          } flex-wrap items-center gap-1.5`}
+        >
           <div
             className="flex p-0.5 rounded-lg bg-[var(--arc-input)]"
             role="group"
@@ -722,7 +990,7 @@ export function SpellBookList({
               type="button"
               onClick={() => setViewDensity('detailed')}
               title="Vista detallada con toda la ficha y maestría"
-              className={`min-h-[32px] inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
+              className={`min-h-[34px] inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
                 viewDensity === 'detailed'
                   ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                   : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -735,7 +1003,7 @@ export function SpellBookList({
               type="button"
               onClick={() => setViewDensity('compact')}
               title="Vista compacta para explorar muchos hechizos"
-              className={`min-h-[32px] inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
+              className={`min-h-[34px] inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
                 viewDensity === 'compact'
                   ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                   : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -762,7 +1030,7 @@ export function SpellBookList({
             className={`min-h-[36px] inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
               reorderMode
                 ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
-                : 'bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
+                : 'bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
             }`}
           >
             <ArrowUpDown className="h-3.5 w-3.5" />
@@ -791,7 +1059,7 @@ export function SpellBookList({
               title={
                 customExportCount === 0
                   ? 'Creá al menos un hechizo propio para compartir'
-                  : `Descargar ${customExportCount} hechizo(s) propio(s) en JSON`
+                  : `Descargar ${customExportCount} hechizo(s) propio(s) en .txt`
               }
               className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-raised)] px-3 py-1.5 text-xs font-semibold text-[var(--arc-accent)] hover:brightness-110 disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-all"
             >
@@ -814,11 +1082,11 @@ export function SpellBookList({
                   return next;
                 });
               }}
-              title="Elegir manualmente qué hechizos exportar en JSON"
+              title="Elegir manualmente qué hechizos exportar en .txt"
               className={`min-h-[36px] inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                 selectExportMode
                   ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
-                  : 'bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
+                  : 'bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
               }`}
             >
               <Share2 className="h-3.5 w-3.5" />
@@ -831,8 +1099,8 @@ export function SpellBookList({
               <button
                 type="button"
                 onClick={() => importFileRef.current?.click()}
-                title="Importar archivo JSON de hechizos propios"
-                className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+                title="Importar archivo .txt o .json de hechizos propios"
+                className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-input)] sm:bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
               >
                 <Upload className="h-3.5 w-3.5" />
                 Importar
@@ -840,7 +1108,7 @@ export function SpellBookList({
               <input
                 ref={importFileRef}
                 type="file"
-                accept=".json,application/json"
+                accept=".txt,.json,text/plain,application/json"
                 hidden
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -860,7 +1128,7 @@ export function SpellBookList({
           <button
             type="button"
             onClick={onRestoreBasics}
-            className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+            className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-input)] sm:bg-transparent px-2.5 py-1.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Restaurar básicos
@@ -868,11 +1136,11 @@ export function SpellBookList({
         </div>
       </div>
 
-      {/* Panel resumen del Grimorio */}
+      {/* Panel resumen compacto del Grimorio */}
       {activeCharacter && (
-        <div className="rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-3.5 py-3 space-y-2.5">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-xs">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-3 sm:px-3.5 py-2.5 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs">
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
               <span className="text-[var(--arc-muted)]">
                 Aprendidos:{' '}
                 <strong className="font-mono-num text-[var(--arc-text)]">
@@ -893,54 +1161,72 @@ export function SpellBookList({
               </span>
               <span className="inline-flex items-center gap-1 text-[var(--arc-muted)]">
                 <Award className="h-3.5 w-3.5 text-[var(--arc-accent)]" />
-                Con maestría:{' '}
+                Maestría:{' '}
                 <strong className="font-mono-num text-[var(--arc-text)]">
                   {grimorioSummary.masteryActive}
                 </strong>
                 {grimorioSummary.masteryNearLevelUp > 0 && (
                   <span className="text-[var(--arc-cat-buff-accent)] font-semibold">
-                    ({grimorioSummary.masteryNearLevelUp} cerca de subir)
+                    ({grimorioSummary.masteryNearLevelUp} cerca)
                   </span>
                 )}
               </span>
             </div>
 
-            {onNewSpell && !editorOpen && (
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 type="button"
-                onClick={onNewSpell}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--arc-accent)] hover:underline whitespace-nowrap shrink-0"
+                onClick={() => setShowSummaryCategories((v) => !v)}
+                aria-expanded={showSummaryCategories}
+                className="min-h-[28px] inline-flex items-center gap-1 rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap transition-colors"
               >
-                <Plus className="h-3.5 w-3.5" />
-                Crear hechizo nuevo
+                <span>Desglose</span>
+                <ChevronDown
+                  className={`h-3.5 w-3.5 transition-transform ${
+                    showSummaryCategories ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
-            )}
+
+              {onNewSpell && !editorOpen && (
+                <button
+                  type="button"
+                  onClick={onNewSpell}
+                  className="min-h-[28px] inline-flex items-center gap-1 text-xs font-semibold text-[var(--arc-accent)] hover:underline whitespace-nowrap shrink-0"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Crear hechizo
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            {CATEGORY_ORDER.map((cat) => {
-              const meta = CATEGORY_META[cat];
-              const count = grimorioSummary.counts[cat];
-              const isSelected = filter === cat;
-              return (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setFilter((curr) => (curr === cat ? 'all' : cat))}
-                  style={{
-                    backgroundColor: isSelected ? meta.bg : 'transparent',
-                    borderColor: isSelected ? meta.border : 'var(--arc-border)',
-                    color: count > 0 || isSelected ? meta.accent : 'var(--arc-muted)',
-                  }}
-                  className="min-h-[28px] inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors hover:brightness-110"
-                >
-                  <SpellCategoryIcon category={cat} className="h-3.5 w-3.5" />
-                  <span>{meta.shortLabel}</span>
-                  <span className="font-mono-num opacity-90">{count}</span>
-                </button>
-              );
-            })}
-          </div>
+          {showSummaryCategories && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pt-1.5 border-t border-[var(--arc-border)]/60 pb-0.5 sm:flex-wrap sm:overflow-visible">
+              {CATEGORY_ORDER.map((cat) => {
+                const meta = CATEGORY_META[cat];
+                const count = grimorioSummary.counts[cat];
+                const isSelected = filter === cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setFilter((curr) => (curr === cat ? 'all' : cat))}
+                    style={{
+                      backgroundColor: isSelected ? meta.bg : 'transparent',
+                      borderColor: isSelected ? meta.border : 'var(--arc-border)',
+                      color: count > 0 || isSelected ? meta.accent : 'var(--arc-muted)',
+                    }}
+                    className="min-h-[30px] inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors hover:brightness-110"
+                  >
+                    <SpellCategoryIcon category={cat} className="h-3.5 w-3.5" />
+                    <span>{meta.shortLabel}</span>
+                    <span className="font-mono-num opacity-90">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -956,7 +1242,7 @@ export function SpellBookList({
           <button
             type="button"
             onClick={() => setTransferNotice(null)}
-            className="min-h-[28px] rounded-md px-2 text-xs font-medium opacity-80 hover:bg-black/15 whitespace-nowrap shrink-0 transition-colors"
+            className="min-h-[32px] rounded-md px-2 text-xs font-medium opacity-80 hover:bg-black/15 whitespace-nowrap shrink-0 transition-colors"
           >
             Cerrar
           </button>
@@ -977,7 +1263,7 @@ export function SpellBookList({
             <button
               type="button"
               onClick={onRevertSpellMastery}
-              className="min-h-[30px] inline-flex items-center gap-1.5 rounded-md bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[34px] inline-flex items-center gap-1.5 rounded-md bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] whitespace-nowrap shrink-0 transition-colors"
             >
               <RotateCcw className="h-3.5 w-3.5" />
               Revertir maestría
@@ -986,7 +1272,7 @@ export function SpellBookList({
               <button
                 type="button"
                 onClick={onDismissMasteryReset}
-                className="min-h-[30px] rounded-md px-2 text-xs font-medium text-[var(--arc-cat-buff-text)] opacity-80 hover:bg-black/15 whitespace-nowrap shrink-0 transition-colors"
+                className="min-h-[34px] rounded-md px-2 text-xs font-medium text-[var(--arc-cat-buff-text)] opacity-80 hover:bg-black/15 whitespace-nowrap shrink-0 transition-colors"
               >
                 Cerrar
               </button>
@@ -1011,7 +1297,7 @@ export function SpellBookList({
                   ...new Set([...prev, ...visibleSpells.map((s) => s.id)]),
                 ])
               }
-              className="min-h-[28px] rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[32px] rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
             >
               Marcar visibles ({visibleSpells.length})
             </button>
@@ -1020,7 +1306,7 @@ export function SpellBookList({
               onClick={() =>
                 setSelectedSpellIds(scopeSpells.filter((s) => !s.isBasic).map((s) => s.id))
               }
-              className="min-h-[28px] rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[32px] rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
             >
               Solo propios ({customCount})
             </button>
@@ -1028,7 +1314,7 @@ export function SpellBookList({
               <button
                 type="button"
                 onClick={() => setSelectedSpellIds([])}
-                className="min-h-[28px] rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+                className="min-h-[32px] rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
               >
                 Limpiar
               </button>
@@ -1047,7 +1333,7 @@ export function SpellBookList({
                   setSelectedSpellIds([]);
                 }
               }}
-              className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-45 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
               Compartir seleccionados{' '}
@@ -1059,7 +1345,7 @@ export function SpellBookList({
                 setSelectExportMode(false);
                 setSelectedSpellIds([]);
               }}
-              className="min-h-[34px] rounded-lg px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[36px] rounded-lg px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
             >
               Cancelar
             </button>
@@ -1076,7 +1362,7 @@ export function SpellBookList({
           <button
             type="button"
             onClick={() => setReorderMode(false)}
-            className="text-xs font-semibold text-[var(--arc-accent)] hover:underline whitespace-nowrap shrink-0"
+            className="min-h-[30px] text-xs font-semibold text-[var(--arc-accent)] hover:underline whitespace-nowrap shrink-0"
           >
             Finalizar orden
           </button>
@@ -1084,36 +1370,38 @@ export function SpellBookList({
       )}
 
       {scope === 'known' && favoriteIds.size > 0 && (
-        <div className="rounded-lg border border-[var(--arc-accent)]/30 bg-[var(--arc-surface-alt)] px-3 py-2.5">
+        <div className="rounded-lg border border-[var(--arc-accent)]/30 bg-[var(--arc-surface-alt)] px-3 py-2">
           <div className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--arc-accent)]">
             <Star className="h-3.5 w-3.5 fill-current" />
             Acceso rápido
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {scopeSpells.filter((spell) => favoriteIds.has(spell.id)).map((spell) => (
-              <button
-                key={spell.id}
-                type="button"
-                onClick={() => {
-                  setScope('known');
-                  setFavoritesOnly(false);
-                  setSelectedPersonalTag('');
-                  setSearchQuery(spell.name);
-                }}
-                className="max-w-[200px] shrink-0 truncate rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface)] px-2.5 py-1 text-xs font-medium text-[var(--arc-text)] hover:border-[var(--arc-accent)]"
-                title={`Mostrar ${spell.name}`}
-              >
-                {spell.name}
-              </button>
-            ))}
+            {scopeSpells
+              .filter((spell) => favoriteIds.has(spell.id))
+              .map((spell) => (
+                <button
+                  key={spell.id}
+                  type="button"
+                  onClick={() => {
+                    setScope('known');
+                    setFavoritesOnly(false);
+                    setSelectedPersonalTag('');
+                    setSearchQuery(spell.name);
+                  }}
+                  className="min-h-[30px] max-w-[200px] shrink-0 truncate rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface)] px-2.5 py-1 text-xs font-medium text-[var(--arc-text)] hover:border-[var(--arc-accent)]"
+                  title={`Mostrar ${spell.name}`}
+                >
+                  {spell.name}
+                </button>
+              ))}
           </div>
         </div>
       )}
 
-      {/* Buscador instantáneo + filtros de origen, categoría, maná y tipo */}
+      {/* Buscador difuso + barra compactable de Filtros Avanzados */}
       <div className="space-y-2.5">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="relative flex-1 min-w-[210px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--arc-muted)]"
               aria-hidden="true"
@@ -1122,263 +1410,521 @@ export function SpellBookList({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar hechizo por nombre, orden, estado o efecto..."
+              placeholder="Búsqueda difusa (nombre, orden, estado, efecto)..."
               aria-label="Buscar hechizo"
-              className="w-full min-h-[38px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] pl-9 pr-8 text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)] focus:outline-none focus:border-[var(--arc-accent)]"
+              className="w-full min-h-[38px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] pl-9 pr-9 text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)] focus:outline-none focus:border-[var(--arc-accent)]"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
                 aria-label="Limpiar búsqueda"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--arc-muted)] hover:text-[var(--arc-text)]"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-[var(--arc-muted)] hover:text-[var(--arc-text)]"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
 
-          <div
-            className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-[var(--arc-input)]"
-            role="group"
-            aria-label="Filtrar hechizos por origen"
+          <button
+            type="button"
+            onClick={() => setFiltersExpanded((v) => !v)}
+            aria-expanded={filtersExpanded}
+            className={`min-h-[38px] inline-flex items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+              filtersExpanded || activeAdvancedFilterCount > 0
+                ? 'border-[var(--arc-accent)]/70 bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-text)] hover:bg-[var(--arc-raised)]'
+            }`}
           >
-            {(
-              [
-                { value: 'all', label: 'Todos', count: scopeSpells.length },
-                { value: 'base', label: 'Base', count: baseCount },
-                { value: 'custom', label: 'Propios', count: customCount },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setOriginFilter(opt.value)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
-                  originFilter === opt.value
-                    ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
-                    : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-                }`}
-              >
-                {opt.label}{' '}
-                <span className="font-mono-num opacity-80">({opt.count})</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-[var(--arc-input)]">
-            {FILTER_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setFilter(opt.value)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md whitespace-nowrap shrink-0 transition-colors ${
-                  filter === opt.value
-                    ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)] font-semibold'
-                    : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-                }`}
-              >
-                {opt.value !== 'all' && (
-                  <SpellCategoryIcon category={opt.value} className="h-3.5 w-3.5" />
-                )}
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div
-            className="inline-flex items-center gap-1 p-1 rounded-lg bg-[var(--arc-input)]"
-            role="group"
-            aria-label="Filtrar por coste de maná"
-          >
-            {(
-              [
-                { value: 'all', label: 'Maná: Todo' },
-                { value: 'low', label: '0–1' },
-                { value: 'mid', label: '2' },
-                { value: 'high', label: '3+' },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setManaFilter(opt.value)}
-                className={`px-2 py-1 text-xs font-mono-num rounded-md whitespace-nowrap shrink-0 transition-colors ${
-                  manaFilter === opt.value
-                    ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)] font-semibold'
-                    : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <div
-            className="inline-flex items-center gap-1 p-1 rounded-lg bg-[var(--arc-input)]"
-            role="group"
-            aria-label="Filtrar por tipo mágico o físico"
-          >
-            {(
-              [
-                { value: 'all', label: 'Tipo: Todo' },
-                { value: 'magico', label: 'Mágico' },
-                { value: 'fisico', label: 'Físico' },
-              ] as const
-            ).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setNatureFilter(opt.value)}
-                className={`px-2 py-1 text-xs rounded-md whitespace-nowrap shrink-0 transition-colors ${
-                  natureFilter === opt.value
-                    ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)] font-semibold'
-                    : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+            <Filter className="h-3.5 w-3.5" />
+            <span>Filtros</span>
+            {activeAdvancedFilterCount > 0 && (
+              <span className="font-mono-num rounded-full bg-[var(--arc-accent)] px-1.5 py-0.2 text-[11px] font-bold text-[#15100b]">
+                {activeAdvancedFilterCount}
+              </span>
+            )}
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${
+                filtersExpanded ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
 
           {hasActiveFilters && (
             <button
               type="button"
               onClick={clearAllFilters}
-              className="min-h-[30px] inline-flex items-center gap-1 rounded-md px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[38px] inline-flex items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
             >
               <X className="h-3.5 w-3.5" />
-              Limpiar filtros
+              Limpiar
             </button>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--arc-border)] pt-2">
-          <button
-            type="button"
-            onClick={() => setFavoritesOnly((value) => !value)}
-            className={`min-h-[30px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold ${
-              favoritesOnly
-                ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
-                : 'text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
-            }`}
-          >
-            <Star className={`h-3.5 w-3.5 ${favoritesOnly ? 'fill-current' : ''}`} />
-            Favoritos ({scopeSpells.filter((spell) => favoriteIds.has(spell.id)).length})
-          </button>
-          <label className="inline-flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
-            <span>Orden:</span>
-            <select
-              aria-label="Ordenar hechizos del grimorio"
-              value={sortMode}
-              onChange={(event) =>
-                updateActiveCharacter((character) => ({
-                  ...character,
-                  spellSortMode: event.target.value as Character['spellSortMode'],
-                }))
-              }
-              className="min-h-[30px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
-            >
-              <option value="custom">Personalizado</option>
-              <option value="name">Alfabético</option>
-              <option value="category">Categoría</option>
-              <option value="mana">Costo de maná</option>
-              <option value="nature">Mágico / Físico</option>
-              <option value="favorites">Favoritos primero</option>
-            </select>
-          </label>
-
-          {personalTagNames.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => setSelectedPersonalTag(selectedPersonalTag === tag ? '' : tag)}
-              className={`min-h-[28px] inline-flex items-center gap-1 rounded-full border px-2.5 text-xs ${
-                selectedPersonalTag === tag
-                  ? 'border-[var(--arc-accent)] bg-[var(--arc-accent)]/10 text-[var(--arc-accent)]'
-                  : 'border-[var(--arc-border)] text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-              }`}
-            >
-              <Tag className="h-3 w-3" />
-              {tag}
-            </button>
-          ))}
-          <div className="ml-auto flex items-center gap-1">
-            <input
-              value={newPersonalTag}
-              onChange={(event) => setNewPersonalTag(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') createPersonalTag();
-              }}
-              aria-label="Crear etiqueta personal"
-              placeholder="Nueva etiqueta..."
-              className="min-h-[30px] w-32 rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)]"
-            />
-            <button
-              type="button"
-              onClick={createPersonalTag}
-              disabled={!newPersonalTag.trim()}
-              aria-label="Agregar etiqueta"
-              className="min-h-[30px] w-7 rounded-md text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] disabled:opacity-40"
-            >
-              <Plus className="mx-auto h-3.5 w-3.5" />
-            </button>
+        {/* Resumen rápido de filtros activos cuando el panel está compactado */}
+        {!filtersExpanded && activeAdvancedFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            {originFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 text-[var(--arc-text)]">
+                Origen: {originFilter === 'base' ? 'Base' : 'Propios'}
+                <button
+                  type="button"
+                  onClick={() => setOriginFilter('all')}
+                  aria-label="Quitar filtro de origen"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {filter !== 'all' && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 text-[var(--arc-text)]">
+                Categoría: {CATEGORY_META[filter].label}
+                <button
+                  type="button"
+                  onClick={() => setFilter('all')}
+                  aria-label="Quitar filtro de categoría"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {(parsedManaMin !== null || parsedManaMax !== null) && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 font-mono-num text-[var(--arc-text)]">
+                Maná: {parsedManaMin ?? 0}–{parsedManaMax ?? '∞'}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManaMinInput('');
+                    setManaMaxInput('');
+                  }}
+                  aria-label="Quitar filtro de maná"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {dieFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 font-mono-num text-[var(--arc-text)]">
+                Dado: {dieFilter}
+                <button
+                  type="button"
+                  onClick={() => setDieFilter('all')}
+                  aria-label="Quitar filtro de dado"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {statusFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 text-[var(--arc-text)]">
+                Estado: {statusFilter}
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  aria-label="Quitar filtro de estado"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {natureFilter !== 'all' && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 text-[var(--arc-text)]">
+                Tipo: {natureFilter === 'magico' ? 'Mágico' : 'Físico'}
+                <button
+                  type="button"
+                  onClick={() => setNatureFilter('all')}
+                  aria-label="Quitar filtro de naturaleza"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {favoritesOnly && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 text-[var(--arc-accent)]">
+                Solo favoritos
+                <button
+                  type="button"
+                  onClick={() => setFavoritesOnly(false)}
+                  aria-label="Quitar filtro de favoritos"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
+            {selectedPersonalTag && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] px-2 py-0.5 text-[var(--arc-text)]">
+                Etiqueta: {selectedPersonalTag}
+                <button
+                  type="button"
+                  onClick={() => setSelectedPersonalTag('')}
+                  aria-label="Quitar filtro de etiqueta"
+                  className="text-[var(--arc-muted)] hover:text-white"
+                >
+                  ×
+                </button>
+              </span>
+            )}
           </div>
-        </div>
+        )}
 
-        {personalTagNames.length > 0 && (
-          <details className="text-xs text-[var(--arc-muted)]">
-            <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-[var(--arc-raised)]">
-              <Tag className="h-3 w-3" />
-              Administrar etiquetas
-            </summary>
-            <div className="mt-1 flex flex-wrap gap-1.5 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-2">
-              {personalTagNames.map((tag) => (
-                <div key={tag} className="flex items-center gap-1 rounded-full border border-[var(--arc-border)] px-2 py-1">
-                  {renamingPersonalTag === tag ? (
-                    <>
-                      <input
-                        autoFocus
-                        value={renamedPersonalTag}
-                        onChange={(event) => setRenamedPersonalTag(event.target.value)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter') renamePersonalTag(tag);
-                          if (event.key === 'Escape') setRenamingPersonalTag(null);
-                        }}
-                        className="w-24 bg-transparent text-xs text-[var(--arc-text)] outline-none"
-                      />
-                      <button type="button" onClick={() => renamePersonalTag(tag)} className="text-[var(--arc-accent)]">Guardar</button>
-                    </>
-                  ) : (
-                    <>
-                      <span>{tag}</span>
+        {/* Panel desplegable de Filtros Avanzados */}
+        {filtersExpanded && (
+          <div className="rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-3 space-y-3">
+            {/* Fila 1: Categoría + Origen */}
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2">
+              <div className="flex items-center gap-1 p-1 rounded-lg bg-[var(--arc-input)] overflow-x-auto sm:flex-wrap sm:overflow-visible">
+                {FILTER_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setFilter(opt.value)}
+                    className={`min-h-[30px] inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md whitespace-nowrap shrink-0 transition-colors ${
+                      filter === opt.value
+                        ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)] font-semibold'
+                        : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                    }`}
+                  >
+                    {opt.value !== 'all' && (
+                      <SpellCategoryIcon category={opt.value} className="h-3.5 w-3.5" />
+                    )}
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                className="grid grid-cols-3 sm:inline-flex items-center gap-1 p-1 rounded-lg bg-[var(--arc-input)]"
+                role="group"
+                aria-label="Filtrar hechizos por origen"
+              >
+                {(
+                  [
+                    { value: 'all', label: 'Todos', count: scopeSpells.length },
+                    { value: 'base', label: 'Base', count: baseCount },
+                    { value: 'custom', label: 'Propios', count: customCount },
+                  ] as const
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setOriginFilter(opt.value)}
+                    className={`min-h-[30px] px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap text-center transition-colors ${
+                      originFilter === opt.value
+                        ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                        : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                    }`}
+                  >
+                    {opt.label}{' '}
+                    <span className="font-mono-num opacity-80">({opt.count})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fila 2: Rango de Maná + Tipo de Dado + Efecto de Estado + Naturaleza */}
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Rango exacto de maná */}
+              <div className="space-y-1">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--arc-muted)]">
+                  Rango de maná
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="number"
+                    min={0}
+                    max={99}
+                    value={manaMinInput}
+                    onChange={(e) => setManaMinInput(e.target.value)}
+                    placeholder="Mín"
+                    aria-label="Maná mínimo"
+                    className="font-mono-num w-full min-h-[34px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-center text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)]"
+                  />
+                  <span className="text-xs text-[var(--arc-muted)]">—</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={99}
+                    value={manaMaxInput}
+                    onChange={(e) => setManaMaxInput(e.target.value)}
+                    placeholder="Máx"
+                    aria-label="Maná máximo"
+                    className="font-mono-num w-full min-h-[34px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-center text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)]"
+                  />
+                </div>
+                <div className="flex items-center gap-1 pt-0.5">
+                  {(
+                    [
+                      { label: '0–1', min: '0', max: '1' },
+                      { label: '2', min: '2', max: '2' },
+                      { label: '3+', min: '3', max: '' },
+                    ] as const
+                  ).map((preset) => {
+                    const active = isManaPresetActive(preset.min, preset.max);
+                    return (
                       <button
+                        key={preset.label}
                         type="button"
                         onClick={() => {
-                          setRenamingPersonalTag(tag);
-                          setRenamedPersonalTag(tag);
+                          if (active) {
+                            setManaMinInput('');
+                            setManaMaxInput('');
+                          } else {
+                            setManaMinInput(preset.min);
+                            setManaMaxInput(preset.max);
+                          }
                         }}
-                        aria-label={`Renombrar ${tag}`}
-                        className="text-[var(--arc-muted)] hover:text-[var(--arc-text)]"
+                        className={`flex-1 min-h-[24px] rounded font-mono-num text-[11px] font-semibold transition-colors ${
+                          active
+                            ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                            : 'bg-[var(--arc-input)] text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                        }`}
                       >
-                        <Edit3 className="h-3 w-3" />
+                        {preset.label}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => deletePersonalTag(tag)}
-                        aria-label={`Eliminar ${tag}`}
-                        className="text-[var(--arc-muted)] hover:text-[#e88a70]"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </>
-                  )}
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
+
+              {/* Tipo de dado */}
+              <div className="space-y-1">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--arc-muted)]">
+                  Tipo de dado
+                </span>
+                <div className="grid grid-cols-6 gap-1 rounded-lg bg-[var(--arc-input)] p-1">
+                  <button
+                    type="button"
+                    onClick={() => setDieFilter('all')}
+                    className={`min-h-[28px] rounded text-[11px] font-semibold transition-colors ${
+                      dieFilter === 'all'
+                        ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                        : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {DIE_TYPES.map((dt) => (
+                    <button
+                      key={dt}
+                      type="button"
+                      onClick={() => setDieFilter((curr) => (curr === dt ? 'all' : dt))}
+                      className={`min-h-[28px] rounded font-mono-num text-[11px] font-semibold transition-colors ${
+                        dieFilter === dt
+                          ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                          : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                      }`}
+                    >
+                      {dt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Efecto de estado / elemental / sinergia */}
+              <div className="space-y-1">
+                <label
+                  htmlFor="grimorio-status-filter"
+                  className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--arc-muted)]"
+                >
+                  Estado / Reacción
+                </label>
+                <select
+                  id="grimorio-status-filter"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full min-h-[34px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                >
+                  <option value="all">
+                    Todos los estados ({availableStatusesInScope.length})
+                  </option>
+                  {availableStatusesInScope.map(([lbl, count]) => (
+                    <option key={lbl} value={lbl}>
+                      {lbl} ({count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Naturaleza Mágico vs Físico */}
+              <div className="space-y-1">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-[var(--arc-muted)]">
+                  Naturaleza
+                </span>
+                <div
+                  className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-[var(--arc-input)]"
+                  role="group"
+                  aria-label="Filtrar por tipo mágico o físico"
+                >
+                  {(
+                    [
+                      { value: 'all', label: 'Todo' },
+                      { value: 'magico', label: 'Mágico' },
+                      { value: 'fisico', label: 'Físico' },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setNatureFilter(opt.value)}
+                      className={`min-h-[28px] px-2 text-xs rounded-md whitespace-nowrap transition-colors ${
+                        natureFilter === opt.value
+                          ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)] font-semibold'
+                          : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </details>
+
+            {/* Fila 3: Favoritos, Orden y Etiquetas personales */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-[var(--arc-border)]/70 pt-2.5">
+              <button
+                type="button"
+                onClick={() => setFavoritesOnly((value) => !value)}
+                className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold ${
+                  favoritesOnly
+                    ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
+                    : 'bg-[var(--arc-input)] text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                }`}
+              >
+                <Star className={`h-3.5 w-3.5 ${favoritesOnly ? 'fill-current' : ''}`} />
+                Favoritos ({scopeSpells.filter((spell) => favoriteIds.has(spell.id)).length})
+              </button>
+
+              <label className="inline-flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
+                <span>Orden:</span>
+                <select
+                  aria-label="Ordenar hechizos del grimorio"
+                  value={sortMode}
+                  onChange={(event) =>
+                    updateActiveCharacter((character) => ({
+                      ...character,
+                      spellSortMode: event.target.value as Character['spellSortMode'],
+                    }))
+                  }
+                  className="min-h-[32px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
+                >
+                  <option value="custom">Personalizado</option>
+                  <option value="name">Alfabético</option>
+                  <option value="category">Categoría</option>
+                  <option value="mana">Costo de maná</option>
+                  <option value="nature">Mágico / Físico</option>
+                  <option value="favorites">Favoritos primero</option>
+                </select>
+              </label>
+
+              {personalTagNames.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => setSelectedPersonalTag(selectedPersonalTag === tag ? '' : tag)}
+                  className={`min-h-[30px] inline-flex items-center gap-1 rounded-full border px-2.5 text-xs ${
+                    selectedPersonalTag === tag
+                      ? 'border-[var(--arc-accent)] bg-[var(--arc-accent)]/10 text-[var(--arc-accent)]'
+                      : 'border-[var(--arc-border)] text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                  }`}
+                >
+                  <Tag className="h-3 w-3" />
+                  {tag}
+                </button>
+              ))}
+
+              <div className="ml-auto flex items-center gap-1">
+                <input
+                  value={newPersonalTag}
+                  onChange={(event) => setNewPersonalTag(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') createPersonalTag();
+                  }}
+                  aria-label="Crear etiqueta personal"
+                  placeholder="Nueva etiqueta..."
+                  className="min-h-[32px] w-32 sm:w-36 rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)]"
+                />
+                <button
+                  type="button"
+                  onClick={createPersonalTag}
+                  disabled={!newPersonalTag.trim()}
+                  aria-label="Agregar etiqueta"
+                  className="min-h-[32px] w-8 rounded-md text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] disabled:opacity-40"
+                >
+                  <Plus className="mx-auto h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {personalTagNames.length > 0 && (
+              <details className="text-xs text-[var(--arc-muted)]">
+                <summary className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-1 hover:bg-[var(--arc-raised)]">
+                  <Tag className="h-3 w-3" />
+                  Administrar etiquetas
+                </summary>
+                <div className="mt-1 flex flex-wrap gap-1.5 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface)] p-2">
+                  {personalTagNames.map((tag) => (
+                    <div
+                      key={tag}
+                      className="flex items-center gap-1 rounded-full border border-[var(--arc-border)] px-2.5 py-1"
+                    >
+                      {renamingPersonalTag === tag ? (
+                        <>
+                          <input
+                            autoFocus
+                            value={renamedPersonalTag}
+                            onChange={(event) => setRenamedPersonalTag(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter') renamePersonalTag(tag);
+                              if (event.key === 'Escape') setRenamingPersonalTag(null);
+                            }}
+                            className="w-24 bg-transparent text-xs text-[var(--arc-text)] outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => renamePersonalTag(tag)}
+                            className="text-[var(--arc-accent)]"
+                          >
+                            Guardar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span>{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRenamingPersonalTag(tag);
+                              setRenamedPersonalTag(tag);
+                            }}
+                            aria-label={`Renombrar ${tag}`}
+                            className="text-[var(--arc-muted)] hover:text-[var(--arc-text)]"
+                          >
+                            <Edit3 className="h-3 w-3" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deletePersonalTag(tag)}
+                            aria-label={`Eliminar ${tag}`}
+                            className="text-[var(--arc-muted)] hover:text-[#e88a70]"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
         )}
       </div>
 
@@ -1394,14 +1940,14 @@ export function SpellBookList({
               type="checkbox"
               checked={showOtherOwners}
               onChange={(e) => setShowOtherOwners(e.target.checked)}
-              className="h-3.5 w-3.5 accent-[var(--arc-action)]"
+              className="h-4 w-4 accent-[var(--arc-action)]"
             />
             <span>Ver de otros jugadores</span>
           </label>
         </div>
       )}
 
-      {/* Lista de hechizos (grilla de 2 columnas en pantalla ancha) */}
+      {/* Lista de hechizos */}
       {visibleSpells.length === 0 ? (
         <div className="rounded-lg bg-[var(--arc-surface-alt)] p-6 text-center space-y-3">
           <p className="text-sm text-[var(--arc-muted)]">
@@ -1416,7 +1962,7 @@ export function SpellBookList({
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="min-h-[36px] rounded-lg bg-[var(--arc-raised)] px-3.5 text-xs font-semibold text-[var(--arc-accent)] hover:brightness-110 transition-all"
+                className="min-h-[38px] rounded-lg bg-[var(--arc-raised)] px-3.5 text-xs font-semibold text-[var(--arc-accent)] hover:brightness-110 transition-all"
               >
                 Limpiar filtros
               </button>
@@ -1426,7 +1972,7 @@ export function SpellBookList({
                 <button
                   type="button"
                   onClick={() => setScope('library')}
-                  className="min-h-[36px] rounded-lg px-3.5 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] transition-colors"
+                  className="min-h-[38px] rounded-lg px-3.5 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] transition-colors"
                 >
                   Abrir Biblioteca
                 </button>
@@ -1434,7 +1980,7 @@ export function SpellBookList({
                   <button
                     type="button"
                     onClick={onOpenCharacterBuilder}
-                    className="min-h-[36px] rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
+                    className="min-h-[38px] rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
                   >
                     Armar grimorio en Personajes
                   </button>
@@ -1599,7 +2145,7 @@ export function SpellBookList({
                         }
                       : undefined
                   }
-                  className={`relative rounded-xl border p-2.5 sm:p-3 space-y-2 flex flex-col transition-colors ${
+                  className={`relative rounded-xl border p-3 space-y-2 flex flex-col transition-colors ${
                     isMagical
                       ? 'border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)]'
                       : 'border-[var(--arc-phys-border)] bg-[var(--arc-phys-bg)]'
@@ -1612,7 +2158,9 @@ export function SpellBookList({
                       <div className="flex items-center justify-between gap-2 pb-1 border-b border-[var(--arc-border)] text-xs">
                         <span
                           className={`inline-flex items-center gap-1.5 font-semibold ${
-                            isSelectedForShare ? 'text-[var(--arc-accent)]' : 'text-[var(--arc-muted)]'
+                            isSelectedForShare
+                              ? 'text-[var(--arc-accent)]'
+                              : 'text-[var(--arc-muted)]'
                           }`}
                         >
                           {isSelectedForShare ? (
@@ -1636,7 +2184,7 @@ export function SpellBookList({
                             disabled={visibleIdx === 0}
                             onClick={() => handleMoveSpellStep(spell.id, -1)}
                             aria-label={`Subir ${spell.name}`}
-                            className="min-h-[26px] w-6 inline-flex items-center justify-center rounded text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
+                            className="min-h-[32px] w-7 inline-flex items-center justify-center rounded text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
                           >
                             <ArrowUp className="h-3.5 w-3.5" />
                           </button>
@@ -1645,7 +2193,7 @@ export function SpellBookList({
                             disabled={visibleIdx === visibleSpells.length - 1}
                             onClick={() => handleMoveSpellStep(spell.id, 1)}
                             aria-label={`Bajar ${spell.name}`}
-                            className="min-h-[26px] w-6 inline-flex items-center justify-center rounded text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
+                            className="min-h-[32px] w-7 inline-flex items-center justify-center rounded text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
                           >
                             <ArrowDown className="h-3.5 w-3.5" />
                           </button>
@@ -1671,7 +2219,7 @@ export function SpellBookList({
                         }}
                         aria-label={`Consultar ficha de ${spell.name}`}
                         title="Consultar ficha completa"
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -1700,8 +2248,16 @@ export function SpellBookList({
                             <SpellCategoryIcon category={category} className="h-3.5 w-3.5" />
                             {catMeta.label}
                           </span>
-                          <span className="text-[var(--arc-muted)]" aria-hidden="true">·</span>
-                          <span className={isMagical ? 'text-[var(--arc-magic-accent)] font-semibold' : 'text-[var(--arc-phys-accent)] font-semibold'}>
+                          <span className="text-[var(--arc-muted)]" aria-hidden="true">
+                            ·
+                          </span>
+                          <span
+                            className={
+                              isMagical
+                                ? 'text-[var(--arc-magic-accent)] font-semibold'
+                                : 'text-[var(--arc-phys-accent)] font-semibold'
+                            }
+                          >
                             {spell.effectType === 'damage'
                               ? spellDmgKind === 'magico'
                                 ? 'Mágico'
@@ -1716,24 +2272,27 @@ export function SpellBookList({
                         </div>
                       </div>
 
-                      {(spell.effectType === 'damage' || spell.effectType === 'heal') && diceDisplayText && (
-                        <div className="shrink-0 text-right">
-                          <div className={`font-mono-num text-xl font-bold leading-none tracking-tight ${
-                            spell.effectType === 'heal'
-                              ? 'text-[#8fd2a1]'
-                              : isMagical
-                                ? 'text-[var(--arc-magic-accent)]'
-                                : 'text-[var(--arc-phys-accent)]'
-                          }`}>
-                            {diceDisplayText}
-                          </div>
-                          {hasDieUpgrade && (
-                            <div className="mt-0.5 font-mono-num text-[10px] text-[var(--arc-muted)] line-through">
-                              {baseDiceText}
+                      {(spell.effectType === 'damage' || spell.effectType === 'heal') &&
+                        diceDisplayText && (
+                          <div className="shrink-0 text-right">
+                            <div
+                              className={`font-mono-num text-xl font-bold leading-none tracking-tight ${
+                                spell.effectType === 'heal'
+                                  ? 'text-[#8fd2a1]'
+                                  : isMagical
+                                    ? 'text-[var(--arc-magic-accent)]'
+                                    : 'text-[var(--arc-phys-accent)]'
+                              }`}
+                            >
+                              {diceDisplayText}
                             </div>
-                          )}
-                        </div>
-                      )}
+                            {hasDieUpgrade && (
+                              <div className="mt-0.5 font-mono-num text-[10px] text-[var(--arc-muted)] line-through">
+                                {baseDiceText}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                       <button
                         type="button"
@@ -1744,7 +2303,7 @@ export function SpellBookList({
                         title="Opciones del hechizo"
                         aria-label={`Opciones de ${spell.name}`}
                         aria-expanded={isCompactMenuOpen}
-                        className="absolute -right-0.5 -top-12 min-h-[28px] w-7 inline-flex items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
+                        className="absolute -right-0.5 -top-12 min-h-[32px] w-8 inline-flex items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </button>
@@ -1753,7 +2312,7 @@ export function SpellBookList({
                         <div
                           role="menu"
                           onClick={(e) => e.stopPropagation()}
-                          className="absolute right-0 top-8 z-20 w-36 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] p-1 shadow-xl"
+                          className="absolute right-0 top-8 z-20 w-40 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] p-1 shadow-xl"
                         >
                           <button
                             type="button"
@@ -1762,9 +2321,10 @@ export function SpellBookList({
                               setOpenCompactMenuSpellId(null);
                               onDuplicateSpell(spell);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
+                            className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
                           >
-                            <Copy className="h-3.5 w-3.5" />Duplicar
+                            <Copy className="h-3.5 w-3.5" />
+                            Duplicar
                           </button>
                           <button
                             type="button"
@@ -1773,9 +2333,10 @@ export function SpellBookList({
                               setOpenCompactMenuSpellId(null);
                               onEditSpell(spell);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
+                            className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
                           >
-                            <Edit3 className="h-3.5 w-3.5" />Editar
+                            <Edit3 className="h-3.5 w-3.5" />
+                            Editar
                           </button>
                           <button
                             type="button"
@@ -1784,9 +2345,10 @@ export function SpellBookList({
                               setOpenCompactMenuSpellId(null);
                               onDeleteSpell(spell.id);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-[#e88a70] hover:bg-[#361912]"
+                            className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[#e88a70] hover:bg-[#361912]"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />Eliminar
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Eliminar
                           </button>
                         </div>
                       )}
@@ -1799,15 +2361,22 @@ export function SpellBookList({
                     )}
 
                     {isCompactExpanded && (
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-[var(--arc-border)]/60 pt-2 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 border-t border-[var(--arc-border)]/60 pt-2 text-xs">
                         <div>
-                          <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">Duración</span>
+                          <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">
+                            Duración
+                          </span>
                           <span className="text-[var(--arc-text)]">
-                            {spell.duration || (parsedTurns ? `${formatTurnDuration(parsedTurns)} (auto)` : 'Instantáneo')}
+                            {spell.duration ||
+                              (parsedTurns
+                                ? `${formatTurnDuration(parsedTurns)} (auto)`
+                                : 'Instantáneo')}
                           </span>
                         </div>
                         <div>
-                          <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">Lanzamiento</span>
+                          <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">
+                            Lanzamiento
+                          </span>
                           <span className="text-[var(--arc-text)]">
                             {castRequirement === 'prepare'
                               ? 'Previo'
@@ -1818,35 +2387,51 @@ export function SpellBookList({
                         </div>
                         {spell.castStat !== 'none' && (
                           <div>
-                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">Dados de lanzamiento</span>
+                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">
+                              Dados de lanzamiento
+                            </span>
                             <span className="font-mono-num text-[var(--arc-text)]">
-                              {castDice}d6 · {spell.castStat === 'manual' ? 'Manual' : STAT_NAMES[spell.castStat]}
+                              {castDice}d6 ·{' '}
+                              {spell.castStat === 'manual' ? 'Manual' : STAT_NAMES[spell.castStat]}
                             </span>
                           </div>
                         )}
                         {spell.combatStats.length > 0 && (
                           <div>
-                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">Dados de combate</span>
+                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">
+                              Dados de combate
+                            </span>
                             <span className="font-mono-num text-[var(--arc-text)]">
-                              {combatDice}d6 · {spell.combatStats.map((k) => STAT_NAMES[k]).join(' + ')}
+                              {combatDice}d6 ·{' '}
+                              {spell.combatStats.map((k) => STAT_NAMES[k]).join(' + ')}
                             </span>
                           </div>
                         )}
                         {(spell.assuredSuccess > 0 || mastery.bonusAssured > 0) && (
                           <div>
-                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">Éxitos asegurados</span>
-                            <span className="font-mono-num text-[var(--arc-text)]">+{spell.assuredSuccess + mastery.bonusAssured}</span>
+                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">
+                              Éxitos asegurados
+                            </span>
+                            <span className="font-mono-num text-[var(--arc-text)]">
+                              +{spell.assuredSuccess + mastery.bonusAssured}
+                            </span>
                           </div>
                         )}
                         {spell.statuses.length > 0 && (
-                          <div className="col-span-2">
-                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">Estados / efectos</span>
-                            <span className="text-[var(--arc-text)]">{spell.statuses.join(', ')}</span>
+                          <div className="sm:col-span-2">
+                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">
+                              Estados / efectos
+                            </span>
+                            <span className="text-[var(--arc-text)]">
+                              {spell.statuses.join(', ')}
+                            </span>
                           </div>
                         )}
                         {rollSummaryLine && (
-                          <div className="col-span-2">
-                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">Resolución</span>
+                          <div className="sm:col-span-2">
+                            <span className="block text-[10px] uppercase tracking-wide text-[var(--arc-muted)]">
+                              Resolución
+                            </span>
                             <span className="text-[var(--arc-text)]">{rollSummaryLine}</span>
                           </div>
                         )}
@@ -1854,13 +2439,25 @@ export function SpellBookList({
                     )}
                   </div>
 
-                  <div className="mt-auto flex flex-wrap items-center justify-between gap-1.5 pt-1.5 border-t border-[var(--arc-border)]/60">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-1.5 pt-2 border-t border-[var(--arc-border)]/60">
                     {activeCharacter && supportsMastery ? (
                       <div className="inline-flex items-center gap-1 text-xs font-mono-num">
-                        <Award className={`h-3.5 w-3.5 ${isMagical ? 'text-[var(--arc-magic-accent)]' : 'text-[var(--arc-phys-accent)]'}`} />
-                        <span className="font-semibold text-[var(--arc-text)]">Nv.{mastery.level}</span>
+                        <Award
+                          className={`h-3.5 w-3.5 ${
+                            isMagical
+                              ? 'text-[var(--arc-magic-accent)]'
+                              : 'text-[var(--arc-phys-accent)]'
+                          }`}
+                        />
+                        <span className="font-semibold text-[var(--arc-text)]">
+                          Nv.{mastery.level}
+                        </span>
                         <span className="text-[var(--arc-muted)]">
-                          ({mastery.isMaxLevel ? mastery.successes : `${mastery.successes}/${mastery.nextThreshold}`})
+                          (
+                          {mastery.isMaxLevel
+                            ? mastery.successes
+                            : `${mastery.successes}/${mastery.nextThreshold}`}
+                          )
                         </span>
                         <button
                           type="button"
@@ -1869,7 +2466,7 @@ export function SpellBookList({
                             onAdjustSpellMastery(spell.id, -1);
                           }}
                           aria-label={`Restar 1 éxito de maestría a ${spell.name}`}
-                          className="min-h-[24px] w-5 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)]"
+                          className="min-h-[30px] w-7 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)]"
                         >
                           −
                         </button>
@@ -1880,7 +2477,7 @@ export function SpellBookList({
                             onAdjustSpellMastery(spell.id, 1);
                           }}
                           aria-label={`Sumar 1 éxito de maestría a ${spell.name}`}
-                          className="min-h-[24px] w-5 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)]"
+                          className="min-h-[30px] w-7 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)]"
                         >
                           +
                         </button>
@@ -1897,7 +2494,7 @@ export function SpellBookList({
                             e.stopPropagation();
                             onToggleKnown(spell.id);
                           }}
-                          className={`min-h-[28px] rounded-md px-2 text-xs font-semibold whitespace-nowrap ${
+                          className={`min-h-[32px] rounded-md px-2.5 text-xs font-semibold whitespace-nowrap ${
                             isKnown
                               ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
                               : 'bg-[var(--arc-raised)] text-[var(--arc-text)] hover:brightness-110'
@@ -1919,9 +2516,13 @@ export function SpellBookList({
                           setOpenCompactMenuSpellId(null);
                         }}
                         aria-expanded={isCompactExpanded}
-                        className="inline-flex min-h-[28px] items-center gap-1 rounded-md px-1.5 text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
+                        className="inline-flex min-h-[32px] items-center gap-1 rounded-md px-2 text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
                       >
-                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isCompactExpanded ? 'rotate-180' : ''}`} />
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 transition-transform ${
+                            isCompactExpanded ? 'rotate-180' : ''
+                          }`}
+                        />
                         {isCompactExpanded ? 'Cerrar' : 'Detalles'}
                       </button>
                     </div>
@@ -1944,7 +2545,7 @@ export function SpellBookList({
                     : undefined
                 }
                 style={{ borderTopColor: catMeta.accent }}
-                className={`rounded-xl border border-t-2 p-4 sm:p-5 space-y-3.5 flex flex-col justify-between transition-colors ${
+                className={`rounded-xl border border-t-2 p-3.5 sm:p-5 space-y-3.5 flex flex-col justify-between transition-colors ${
                   isMagical
                     ? 'border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)]'
                     : 'border-[var(--arc-phys-border)] bg-[var(--arc-phys-bg)]'
@@ -1984,7 +2585,7 @@ export function SpellBookList({
                           disabled={visibleIdx === 0}
                           onClick={() => handleMoveSpellStep(spell.id, -1)}
                           aria-label={`Subir ${spell.name}`}
-                          className="min-h-[30px] w-7 inline-flex items-center justify-center rounded-md text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
+                          className="min-h-[34px] w-8 inline-flex items-center justify-center rounded-md text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
                         >
                           <ArrowUp className="h-3.5 w-3.5" />
                         </button>
@@ -1993,7 +2594,7 @@ export function SpellBookList({
                           disabled={visibleIdx === visibleSpells.length - 1}
                           onClick={() => handleMoveSpellStep(spell.id, 1)}
                           aria-label={`Bajar ${spell.name}`}
-                          className="min-h-[30px] w-7 inline-flex items-center justify-center rounded-md text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
+                          className="min-h-[34px] w-8 inline-flex items-center justify-center rounded-md text-[var(--arc-text)] hover:bg-[var(--arc-raised)] disabled:opacity-35"
                         >
                           <ArrowDown className="h-3.5 w-3.5" />
                         </button>
@@ -2022,7 +2623,7 @@ export function SpellBookList({
                         <button
                           type="button"
                           onClick={() => onToggleKnown(spell.id)}
-                          className={`min-h-[30px] rounded-md px-2.5 py-1 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                          className={`min-h-[34px] rounded-md px-3 py-1 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                             isKnown
                               ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
                               : isMagical
@@ -2038,9 +2639,9 @@ export function SpellBookList({
                     <div className="flex items-start gap-2">
                       <h3
                         className={`min-w-0 flex-1 text-base sm:text-lg font-bold break-words leading-snug ${
-                        isMagical
-                          ? 'text-[var(--arc-magic-accent)]'
-                          : 'text-[var(--arc-phys-accent)]'
+                          isMagical
+                            ? 'text-[var(--arc-magic-accent)]'
+                            : 'text-[var(--arc-phys-accent)]'
                         }`}
                       >
                         {spell.name}
@@ -2050,7 +2651,7 @@ export function SpellBookList({
                         onClick={() => setInspectedSpell(spell)}
                         aria-label={`Consultar ficha de ${spell.name}`}
                         title="Consultar ficha completa"
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -2306,7 +2907,7 @@ export function SpellBookList({
                               onClick={() => onAdjustSpellMastery(spell.id, -1)}
                               title="Restar 1 éxito de maestría"
                               aria-label={`Restar 1 éxito de maestría a ${spell.name}`}
-                              className="min-h-[26px] w-6 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+                              className="min-h-[32px] w-7 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
                             >
                               −
                             </button>
@@ -2315,7 +2916,7 @@ export function SpellBookList({
                               onClick={() => onAdjustSpellMastery(spell.id, 1)}
                               title="Sumar 1 éxito de maestría"
                               aria-label={`Sumar 1 éxito de maestría a ${spell.name}`}
-                              className="min-h-[26px] w-6 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+                              className="min-h-[32px] w-7 rounded text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
                             >
                               +
                             </button>
@@ -2328,7 +2929,7 @@ export function SpellBookList({
                                   )
                                 }
                                 title="Reiniciar maestría de este hechizo a 0"
-                                className="ml-1 min-h-[26px] inline-flex items-center gap-1 rounded px-2 text-xs font-sans font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-atk-accent)] whitespace-nowrap shrink-0 transition-colors"
+                                className="ml-1 min-h-[32px] inline-flex items-center gap-1 rounded px-2 text-xs font-sans font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-atk-accent)] whitespace-nowrap shrink-0 transition-colors"
                               >
                                 <RotateCcw className="h-3 w-3" />
                                 Reiniciar
@@ -2339,7 +2940,7 @@ export function SpellBookList({
                                 type="button"
                                 onClick={onRevertSpellMastery}
                                 title={`Restaurar a Nv. ${lastMasteryReset.previousLevel} (${lastMasteryReset.previousSuccesses} éxitos)`}
-                                className="ml-1 min-h-[26px] inline-flex items-center gap-1 rounded bg-[var(--arc-cat-buff-bg)] border border-[var(--arc-cat-buff-border)] px-2 text-xs font-sans font-semibold text-[var(--arc-cat-buff-accent)] hover:brightness-110 whitespace-nowrap shrink-0 transition-all"
+                                className="ml-1 min-h-[32px] inline-flex items-center gap-1 rounded bg-[var(--arc-cat-buff-bg)] border border-[var(--arc-cat-buff-border)] px-2 text-xs font-sans font-semibold text-[var(--arc-cat-buff-accent)] hover:brightness-110 whitespace-nowrap shrink-0 transition-all"
                               >
                                 <RotateCcw className="h-3 w-3" />
                                 Revertir ({lastMasteryReset.previousSuccesses})
@@ -2373,14 +2974,14 @@ export function SpellBookList({
                                   onResetSpellMastery(spell.id);
                                   setConfirmResetSpellId(null);
                                 }}
-                                className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[#b84735] px-2.5 text-xs font-semibold text-white hover:bg-[#cc5440] whitespace-nowrap shrink-0 transition-colors"
+                                className="min-h-[34px] inline-flex items-center gap-1 rounded-md bg-[#b84735] px-2.5 text-xs font-semibold text-white hover:bg-[#cc5440] whitespace-nowrap shrink-0 transition-colors"
                               >
                                 Confirmar reinicio
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setConfirmResetSpellId(null)}
-                                className="min-h-[30px] rounded-md px-2 text-xs font-medium text-[var(--arc-atk-text)] opacity-85 hover:bg-black/20 whitespace-nowrap shrink-0 transition-colors"
+                                className="min-h-[34px] rounded-md px-2 text-xs font-medium text-[var(--arc-atk-text)] opacity-85 hover:bg-black/20 whitespace-nowrap shrink-0 transition-colors"
                               >
                                 Cancelar
                               </button>
@@ -2430,13 +3031,15 @@ export function SpellBookList({
                   )}
                 </div>
 
-                {/* Pie de gestión limpio (sin botones de combate) */}
-                <div className={`${blockDividerClass} flex flex-wrap items-center justify-between gap-2`}>
+                {/* Pie de gestión */}
+                <div
+                  className={`${blockDividerClass} flex flex-wrap items-center justify-between gap-2`}
+                >
                   <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => onEditSpell(spell)}
-                      className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-raised)] px-3 text-xs font-semibold text-[var(--arc-text)] hover:brightness-110 whitespace-nowrap shrink-0 transition-all"
+                      className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-raised)] px-3 text-xs font-semibold text-[var(--arc-text)] hover:brightness-110 whitespace-nowrap shrink-0 transition-all"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
                       Editar
@@ -2445,7 +3048,7 @@ export function SpellBookList({
                       type="button"
                       onClick={() => onDuplicateSpell(spell)}
                       title="Clonar este hechizo como plantilla nueva"
-                      className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-transparent px-3 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+                      className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-transparent px-3 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
                     >
                       <Copy className="h-3.5 w-3.5" />
                       Duplicar
@@ -2458,7 +3061,7 @@ export function SpellBookList({
                         type="button"
                         onClick={() => onToggleKnown(spell.id)}
                         title="Quitar de los hechizos aprendidos (sigue en Biblioteca)"
-                        className="min-h-[34px] rounded-lg px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+                        className="min-h-[36px] rounded-lg px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
                       >
                         Quitar
                       </button>
@@ -2468,7 +3071,7 @@ export function SpellBookList({
                       onClick={() => onDeleteSpell(spell.id)}
                       title="Eliminar hechizo permanentemente"
                       aria-label={`Eliminar ${spell.name}`}
-                      className="min-h-[34px] inline-flex items-center gap-1 rounded-lg bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[#361912] hover:text-[#e88a70] whitespace-nowrap shrink-0 transition-colors"
+                      className="min-h-[36px] inline-flex items-center gap-1 rounded-lg bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[#361912] hover:text-[#e88a70] whitespace-nowrap shrink-0 transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Eliminar

@@ -15,10 +15,20 @@ import {
   Swords,
   Zap,
 } from 'lucide-react';
-import type { Character, Combatant, FormulaConfig, Spell } from '../types/rpg';
+import type {
+  Character,
+  Combatant,
+  ElementalStatusKind,
+  FormulaConfig,
+  Spell,
+  SynergyReactionType,
+} from '../types/rpg';
 import {
+  ELEMENTAL_STATUS_META,
   SPELL_CATEGORY_LABELS,
+  SYNERGY_LABELS,
   type SpellCategory,
+  detectSpellSynergy,
   evaluateSpellDependency,
   formatSpellAreaSummary,
   formatSpellDependencyLine,
@@ -32,7 +42,14 @@ import {
   getSpellCastRequirement,
   getSpellCategory,
   getSpellMasteryStatus,
+  getStatusElementalKind,
+  getStatusStackTurns,
+  getSynergyConsumeCount,
+  isBleedingDamageSpell,
+  isElectricDamageSpell,
   isFireDamageSpell,
+  isIceDamageSpell,
+  isPoisonDamageSpell,
   isSonicSpell,
   isSpellMagical,
   spellAllowsDirectCastButton,
@@ -69,6 +86,87 @@ interface QuickCastPanelProps {
 
 type QuickOriginFilter = 'all' | 'custom' | 'base';
 type QuickRoleFilter = 'all' | SpellCategory;
+
+interface ActiveSynergyPreview {
+  reaction: SynergyReactionType;
+  label: string;
+  requiredKind: ElementalStatusKind;
+  stacksAvailable: number;
+  stacksConsumed: number;
+  bonusDiceText: string;
+  rowClass: string;
+  badgeClass: string;
+  buttonClass: string;
+  shortActionLabel: string;
+}
+
+const SYNERGY_VISUAL_STYLES: Record<
+  Exclude<SynergyReactionType, 'none'>,
+  {
+    requiredKind: ElementalStatusKind;
+    dieType: 'd4' | 'd6' | 'd8';
+    rowClass: string;
+    badgeClass: string;
+    buttonClass: string;
+    shortActionLabel: string;
+  }
+> = {
+  detonate_burn: {
+    requiredKind: 'burn',
+    dieType: 'd6',
+    rowClass:
+      'bg-gradient-to-r from-[#34160c] via-[#27130d] to-transparent ring-1 ring-inset ring-[#d96b38]/65',
+    badgeClass: 'border border-[#d96b38]/60 bg-[#421b0e] text-[#ffb085]',
+    buttonClass: 'bg-[#d95f2b] text-white hover:bg-[#eb6d38] shadow-sm',
+    shortActionLabel: 'Detonar',
+  },
+  siphon_poison: {
+    requiredKind: 'poison',
+    dieType: 'd4',
+    rowClass:
+      'bg-gradient-to-r from-[#122c1b] via-[#102216] to-transparent ring-1 ring-inset ring-[#47b872]/65',
+    badgeClass: 'border border-[#47b872]/60 bg-[#163621] text-[#8ef0b2]',
+    buttonClass: 'bg-[#2f9e5b] text-white hover:bg-[#38b369] shadow-sm',
+    shortActionLabel: 'Drenar',
+  },
+  shatter_frozen: {
+    requiredKind: 'frozen',
+    dieType: 'd8',
+    rowClass:
+      'bg-gradient-to-r from-[#102838] via-[#0e1f2c] to-transparent ring-1 ring-inset ring-[#58bce8]/65',
+    badgeClass: 'border border-[#58bce8]/60 bg-[#153447] text-[#9be2ff]',
+    buttonClass: 'bg-[#2b8fc2] text-white hover:bg-[#36a1d6] shadow-sm',
+    shortActionLabel: 'Fracturar',
+  },
+  overload_electrified: {
+    requiredKind: 'electrified',
+    dieType: 'd6',
+    rowClass:
+      'bg-gradient-to-r from-[#2c250d] via-[#211c0c] to-transparent ring-1 ring-inset ring-[#e3bd42]/65',
+    badgeClass: 'border border-[#e3bd42]/60 bg-[#3a3010] text-[#ffe17d]',
+    buttonClass: 'bg-[#c99b1e] text-[#171204] hover:bg-[#deae28] shadow-sm',
+    shortActionLabel: 'Sobrecargar',
+  },
+  hemorrhage_bleed: {
+    requiredKind: 'bleeding',
+    dieType: 'd6',
+    rowClass:
+      'bg-gradient-to-r from-[#341017] via-[#260d12] to-transparent ring-1 ring-inset ring-[#e0526a]/65',
+    badgeClass: 'border border-[#e0526a]/60 bg-[#42141d] text-[#ff99aa]',
+    buttonClass: 'bg-[#c73852] text-white hover:bg-[#db4460] shadow-sm',
+    shortActionLabel: 'Hemorragia',
+  },
+};
+
+function getSpellPrimerElement(spell: Spell): ElementalStatusKind | null {
+  if (spell.elementalStatus?.kind) return spell.elementalStatus.kind;
+  if (isFireDamageSpell(spell)) return 'burn';
+  if (isPoisonDamageSpell(spell)) return 'poison';
+  if (isIceDamageSpell(spell)) return 'frozen';
+  if (isElectricDamageSpell(spell)) return 'electrified';
+  if (isBleedingDamageSpell(spell)) return 'bleeding';
+  return null;
+}
 
 const ROLE_FILTER_OPTIONS: Array<{ value: QuickRoleFilter; label: string }> = [
   { value: 'all', label: 'Todos' },
@@ -220,6 +318,7 @@ export function QuickCastPanel({
   const [originFilter, setOriginFilter] = useState<QuickOriginFilter>('all');
   const [roleFilter, setRoleFilter] = useState<QuickRoleFilter>('all');
   const [onlyAffordable, setOnlyAffordable] = useState(false);
+  const [onlyReadySynergies, setOnlyReadySynergies] = useState(false);
   const [query, setQuery] = useState('');
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [personalTagFilter, setPersonalTagFilter] = useState('');
@@ -239,6 +338,61 @@ export function QuickCastPanel({
   );
   const preparedSpellIds = new Set(preparedSpellMap.keys());
   const potentialTargets = combatants.filter((cb) => cb.characterId !== activeCharacter?.id);
+
+  // Estado elemental activo en el objetivo seleccionado y antenas eléctricas en mesa
+  const selectedTargetCb = !irlMode
+    ? potentialTargets.find((cb) => cb.id === selectedTargetId) || potentialTargets[0]
+    : undefined;
+  const selectedTargetChar = selectedTargetCb
+    ? characters.find((c) => c.id === selectedTargetCb.characterId)
+    : undefined;
+
+  const targetElementalStacks = new Map<ElementalStatusKind, number>();
+  for (const st of selectedTargetCb?.activeStatuses || []) {
+    const kind = getStatusElementalKind(st);
+    if (!kind) continue;
+    const count = Math.max(1, getStatusStackTurns(st).length);
+    targetElementalStacks.set(kind, (targetElementalStacks.get(kind) || 0) + count);
+  }
+
+  const arenaElectrifiedCount = !irlMode
+    ? combatants.reduce((acc, cb) => {
+        const elecSt = (cb.activeStatuses || []).find(
+          (st) => getStatusElementalKind(st) === 'electrified'
+        );
+        return acc + (elecSt ? Math.max(1, getStatusStackTurns(elecSt).length) : 0);
+      }, 0)
+    : 0;
+
+  const getActiveSynergyPreview = (spell: Spell): ActiveSynergyPreview | null => {
+    if (irlMode || !selectedTargetCb) return null;
+    const reaction = detectSpellSynergy(spell);
+    if (reaction === 'none') return null;
+
+    const style = SYNERGY_VISUAL_STYLES[reaction];
+    const available =
+      reaction === 'overload_electrified'
+        ? arenaElectrifiedCount
+        : targetElementalStacks.get(style.requiredKind) || 0;
+
+    if (available <= 0) return null;
+
+    const consumed = getSynergyConsumeCount(available, spell.synergyConsumeStacks);
+    if (consumed <= 0) return null;
+
+    return {
+      reaction,
+      label: SYNERGY_LABELS[reaction],
+      requiredKind: style.requiredKind,
+      stacksAvailable: available,
+      stacksConsumed: consumed,
+      bonusDiceText: `+${consumed}${style.dieType}`,
+      rowClass: style.rowClass,
+      badgeClass: style.badgeClass,
+      buttonClass: style.buttonClass,
+      shortActionLabel: style.shortActionLabel,
+    };
+  };
 
   const orderIndexMap = new Map(spellOrder.map((id, idx) => [id, idx]));
 
@@ -276,6 +430,8 @@ export function QuickCastPanel({
     return cost <= currentMana;
   }).length;
 
+  const readySynergyCount = knownSpells.filter((s) => Boolean(getActiveSynergyPreview(s))).length;
+
   const normalizedQuery = query.trim().toLowerCase();
 
   const filteredSpells = knownSpells.filter((s) => {
@@ -294,6 +450,10 @@ export function QuickCastPanel({
     if (onlyAffordable) {
       const { cost } = getEffectiveMana(s);
       if (cost > currentMana) return false;
+    }
+
+    if (onlyReadySynergies && !getActiveSynergyPreview(s)) {
+      return false;
     }
 
     if (normalizedQuery && !s.name.toLowerCase().includes(normalizedQuery)) {
@@ -344,14 +504,23 @@ export function QuickCastPanel({
                 value={selectedTargetId}
                 onChange={(e) => onSelectTarget(e.target.value)}
                 aria-label="Objetivo de ataque rápido"
-                className="min-h-[36px] max-w-[200px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                className="min-h-[36px] max-w-[230px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
               >
                 {potentialTargets.map((cb) => {
                   const targetChar = characters.find((c) => c.id === cb.characterId);
                   if (!targetChar) return null;
+                  const elemTags = (cb.activeStatuses || [])
+                    .map((st) => {
+                      const k = getStatusElementalKind(st);
+                      if (!k) return null;
+                      const cnt = Math.max(1, getStatusStackTurns(st).length);
+                      return `${ELEMENTAL_STATUS_META[k].name} ×${cnt}`;
+                    })
+                    .filter((tag): tag is string => Boolean(tag));
                   return (
                     <option key={cb.id} value={cb.id}>
-                      Obj: {targetChar.name} (PV {targetChar.hp.current}/{targetChar.hp.max})
+                      Obj: {targetChar.name} (PV {targetChar.hp.current}/{targetChar.hp.max}
+                      {elemTags.length > 0 ? ` · ${elemTags.join(', ')}` : ''})
                     </option>
                   );
                 })}
@@ -389,6 +558,38 @@ export function QuickCastPanel({
           </div>
         )}
       </div>
+
+      {/* Indicador interactivo de estados elementales en el objetivo seleccionado */}
+      {!irlMode &&
+        selectedTargetChar &&
+        (targetElementalStacks.size > 0 || arenaElectrifiedCount > 0) && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] px-3 py-2 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold text-[var(--arc-accent)] inline-flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                En {selectedTargetChar.name}:
+              </span>
+              {Array.from(targetElementalStacks.entries()).map(([kind, count]) => (
+                <span
+                  key={kind}
+                  className="inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-raised)] px-2 py-0.5 text-[11px] font-semibold text-[var(--arc-text)] font-mono-num"
+                >
+                  {ELEMENTAL_STATUS_META[kind].name} ×{count}
+                </span>
+              ))}
+              {!targetElementalStacks.has('electrified') && arenaElectrifiedCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-[#e3bd42]/40 bg-[#2c250d] px-2 py-0.5 text-[11px] font-semibold text-[#ffe17d] font-mono-num">
+                  Antena Electrificada en mesa ×{arenaElectrifiedCount}
+                </span>
+              )}
+            </div>
+            {readySynergyCount > 0 && (
+              <span className="text-[11px] font-semibold text-[#9be2ff]">
+                {readySynergyCount} {readySynergyCount === 1 ? 'combo listo' : 'combos listos'} para detonar
+              </span>
+            )}
+          </div>
+        )}
 
       {activeCombatant && activeStatusEffects.summaryTags.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-[#723b26] bg-[#26140d] px-3 py-2 text-xs text-[#ffd2be]">
@@ -481,6 +682,22 @@ export function QuickCastPanel({
             >
               Solo con maná ({affordableCount})
             </button>
+
+            {(readySynergyCount > 0 || onlyReadySynergies) && (
+              <button
+                type="button"
+                onClick={() => setOnlyReadySynergies((v) => !v)}
+                className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                  onlyReadySynergies
+                    ? 'bg-[#d95f2b] text-white'
+                    : 'bg-[#2c1910] text-[#ffb085] ring-1 ring-[#d96b38]/50 hover:bg-[#3a2014]'
+                }`}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Combos ({readySynergyCount})
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setFavoritesOnly((value) => !value)}
@@ -560,9 +777,11 @@ export function QuickCastPanel({
             No hay hechizos que coincidan con este filtro.
           </p>
           <p className="text-xs text-[var(--arc-muted)]">
-            {onlyAffordable
-              ? `Maná actual de ${activeCharacter.name}: ${currentMana}/${activeCharacter.mana.max}. Desactivá "Solo con maná" para ver todos los conocidos.`
-              : 'Agregá hechizos conocidos desde el Grimorio o limpiá la búsqueda.'}
+            {onlyReadySynergies
+              ? 'Ningún hechizo conocido activa una reacción elemental sobre el objetivo actual. Desactivá "Combos" para ver todo el grimorio.'
+              : onlyAffordable
+                ? `Maná actual de ${activeCharacter.name}: ${currentMana}/${activeCharacter.mana.max}. Desactivá "Solo con maná" para ver todos los conocidos.`
+                : 'Agregá hechizos conocidos desde el Grimorio o limpiá la búsqueda.'}
           </p>
         </div>
       ) : (
@@ -638,6 +857,14 @@ export function QuickCastPanel({
               const hardBlockReason =
                 statusBlockReason || depCheck.missingReason || `Falta: ${depCheck.requiredName}`;
 
+              const synergyPreview = !hardBlocked ? getActiveSynergyPreview(spell) : null;
+              const primerElement =
+                !irlMode && selectedTargetCb && !synergyPreview
+                  ? getSpellPrimerElement(spell)
+                  : null;
+              const primerAlreadyOnTarget =
+                primerElement !== null && (targetElementalStacks.get(primerElement) || 0) > 0;
+
               const typeIsMagic = spell.effectType === 'damage' ? dmgKind === 'magico' : isMagical;
               const typeLabel = typeIsMagic
                 ? isSonic
@@ -686,7 +913,9 @@ export function QuickCastPanel({
                             ]
                           : []),
                         {
-                          label: 'Atacar',
+                          label: synergyPreview
+                            ? `${synergyPreview.shortActionLabel} (${synergyPreview.bonusDiceText})`
+                            : 'Atacar',
                           disabled: lacksMana || blockedByTurn,
                           reason: actionBlockedReason,
                           onClick: () => onAttackSpell(spell),
@@ -731,9 +960,11 @@ export function QuickCastPanel({
               return (
                 <li
                   key={spell.id}
-                  className={`px-3.5 py-2.5 transition-colors hover:bg-[var(--arc-surface)]/70 ${
-                    lacksMana || blockedByTurn || hardBlocked ? 'opacity-65' : ''
-                  }`}
+                  className={`px-3.5 py-2.5 transition-all ${
+                    synergyPreview
+                      ? synergyPreview.rowClass
+                      : 'hover:bg-[var(--arc-surface)]/70'
+                  } ${lacksMana || blockedByTurn || hardBlocked ? 'opacity-65' : ''}`}
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-12 items-center gap-2">
                     {/* Columna 1: Nombre + Categoría (emblema + color) + Tipo (Mágico/Físico) */}
@@ -829,6 +1060,33 @@ export function QuickCastPanel({
                           </>
                         )}
                       </div>
+
+                      {/* Insignia interactiva de Reacción Elemental lista */}
+                      {synergyPreview && (
+                        <div
+                          className={`mt-1.5 inline-flex flex-wrap items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-bold ${synergyPreview.badgeClass}`}
+                        >
+                          <Zap className="h-3 w-3 shrink-0" />
+                          <span>
+                            Combo: {synergyPreview.label} ({synergyPreview.bonusDiceText})
+                          </span>
+                          <span className="font-mono-num opacity-85">
+                            · consume {synergyPreview.stacksConsumed}/{synergyPreview.stacksAvailable}{' '}
+                            {ELEMENTAL_STATUS_META[synergyPreview.requiredKind].name}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Etiqueta de preparación elemental cuando el objetivo aún no tiene ese estado */}
+                      {primerElement && !primerAlreadyOnTarget && !hardBlocked && (
+                        <div className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--arc-muted)]">
+                          <Sparkles className="h-3 w-3 shrink-0 text-[var(--arc-accent)]" />
+                          <span>
+                            Prepara combo: {ELEMENTAL_STATUS_META[primerElement].name}
+                          </span>
+                        </div>
+                      )}
+
                       {blockedByStatus && (
                         <div className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[#ff9a76]">
                           <Lock className="h-3 w-3 shrink-0" />
@@ -854,17 +1112,24 @@ export function QuickCastPanel({
                     {/* Columna 2: Daño / Valor clave */}
                     <div className="sm:col-span-3 flex items-center justify-between sm:block">
                       <span className="text-xs text-[var(--arc-muted)] sm:hidden">Daño / Efecto</span>
-                      <span
-                        className={`font-mono-num text-sm font-bold ${
-                          spell.effectType === 'damage'
-                            ? 'text-[var(--arc-text)]'
-                            : spell.effectType === 'heal'
-                              ? 'text-[#8ee0a4]'
-                              : 'text-[var(--arc-muted)] font-medium text-xs'
-                        }`}
-                      >
-                        {damageText}
-                      </span>
+                      <div>
+                        <span
+                          className={`font-mono-num text-sm font-bold ${
+                            spell.effectType === 'damage'
+                              ? 'text-[var(--arc-text)]'
+                              : spell.effectType === 'heal'
+                                ? 'text-[#8ee0a4]'
+                                : 'text-[var(--arc-muted)] font-medium text-xs'
+                          }`}
+                        >
+                          {damageText}
+                        </span>
+                        {synergyPreview && (
+                          <div className="font-mono-num text-[11px] font-bold text-[#ffe17d]">
+                            {synergyPreview.bonusDiceText} reacción
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Columna 3: Costo de maná y dados de tirada */}
@@ -943,12 +1208,22 @@ export function QuickCastPanel({
                                     title={
                                       blockedByTurn
                                         ? 'Sin acciones restantes este turno — activá Hechizo Veloz o pasá el turno'
-                                        : undefined
+                                        : synergyPreview
+                                          ? `Activa ${synergyPreview.label} (${synergyPreview.bonusDiceText})`
+                                          : undefined
                                     }
-                                    className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                    className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors ${
+                                      synergyPreview
+                                        ? synergyPreview.buttonClass
+                                        : 'bg-[var(--arc-action)] text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)]'
+                                    }`}
                                   >
-                                    <Swords className="h-3.5 w-3.5" />
-                                    Atacar
+                                    {synergyPreview ? (
+                                      <Zap className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <Swords className="h-3.5 w-3.5" />
+                                    )}
+                                    {synergyPreview ? synergyPreview.shortActionLabel : 'Atacar'}
                                   </button>
                                 </>
                               )}
@@ -996,18 +1271,24 @@ export function QuickCastPanel({
                                       ? 'Ya activo este turno'
                                       : blockedByTurn
                                         ? 'Sin acciones restantes este turno'
-                                        : undefined
+                                        : synergyPreview
+                                          ? `Activa ${synergyPreview.label} (${synergyPreview.bonusDiceText})`
+                                          : undefined
                                 }
                                 className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                                   lacksMana || isTurnBuffLocked || blockedByTurn
                                     ? 'bg-[var(--arc-raised)] text-[var(--arc-muted)] opacity-50 cursor-not-allowed'
-                                    : effectSub === 'debuff'
-                                      ? 'bg-[#b85a3a] text-white hover:bg-[#cc6644]'
-                                      : 'bg-[var(--arc-action)] text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)]'
+                                    : synergyPreview
+                                      ? synergyPreview.buttonClass
+                                      : effectSub === 'debuff'
+                                        ? 'bg-[#b85a3a] text-white hover:bg-[#cc6644]'
+                                        : 'bg-[var(--arc-action)] text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)]'
                                 }`}
                               >
                                 {isElevarBlocked ? (
                                   <Lock className="h-3.5 w-3.5" />
+                                ) : synergyPreview ? (
+                                  <Zap className="h-3.5 w-3.5" />
                                 ) : spell.armorConfig?.isArmor ? (
                                   <ShieldPlus className="h-3.5 w-3.5" />
                                 ) : (
@@ -1017,9 +1298,11 @@ export function QuickCastPanel({
                                   ? 'Activo'
                                   : isElevarBlocked
                                     ? 'Bloqueado'
-                                    : effectSub === 'debuff'
-                                      ? 'Aplicar'
-                                      : 'Activar'}
+                                    : synergyPreview
+                                      ? synergyPreview.shortActionLabel
+                                      : effectSub === 'debuff'
+                                        ? 'Aplicar'
+                                        : 'Activar'}
                               </button>
                             )}
 
@@ -1030,11 +1313,25 @@ export function QuickCastPanel({
                                 type="button"
                                 disabled={lacksMana || blockedByTurn}
                                 onClick={() => onApplyStatusSpell(spell)}
-                                title={blockedByTurn ? 'Sin acciones restantes este turno' : undefined}
-                                className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[#b85a3a] px-3 text-xs font-semibold text-white hover:bg-[#cc6644] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                title={
+                                  blockedByTurn
+                                    ? 'Sin acciones restantes este turno'
+                                    : synergyPreview
+                                      ? `Activa ${synergyPreview.label} (${synergyPreview.bonusDiceText})`
+                                      : undefined
+                                }
+                                className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors ${
+                                  synergyPreview
+                                    ? synergyPreview.buttonClass
+                                    : 'bg-[#b85a3a] text-white hover:bg-[#cc6644]'
+                                }`}
                               >
-                                <Dices className="h-3.5 w-3.5" />
-                                Aplicar
+                                {synergyPreview ? (
+                                  <Zap className="h-3.5 w-3.5" />
+                                ) : (
+                                  <Dices className="h-3.5 w-3.5" />
+                                )}
+                                {synergyPreview ? synergyPreview.shortActionLabel : 'Aplicar'}
                               </button>
                             )}
                         </>

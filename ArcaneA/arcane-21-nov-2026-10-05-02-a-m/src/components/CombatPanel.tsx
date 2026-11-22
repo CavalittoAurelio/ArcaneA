@@ -12,10 +12,12 @@ import {
   ChevronUp,
   Dices,
   Droplets,
+  EyeOff,
   Flame,
   HeartPulse,
   Lock,
   Minus,
+  Moon,
   Pause,
   Play,
   Plus,
@@ -24,6 +26,7 @@ import {
   ShieldOff,
   ShieldPlus,
   SkipForward,
+  Skull,
   Snowflake,
   Sparkles,
   Swords,
@@ -3470,10 +3473,20 @@ export function CombatPanel({
               ? 'border-[#4a7545] bg-[#172216]'
               : 'border-[#824234] bg-[#251614]';
 
-            const isDown =
-              char.hp.current <= 0 ||
-              (!char.ignoreManaUnconsciousness && char.mana.max > 0 && char.mana.current <= 0) ||
-              char.condition !== 'active';
+            const isDead = char.condition === 'dead';
+            const isUnconscious =
+            !isDead &&
+            (char.condition !== 'active' ||
+            char.hp.current <= 0 ||
+            (!char.ignoreManaUnconsciousness && char.mana.max > 0 && char.mana.current <= 0));
+            const isDown = isDead || isUnconscious;
+            const downStateClass = isDead
+              ? 'arc-card-dead'
+              : isUnconscious
+                ? 'arc-card-unconscious'
+                : isDown
+                  ? 'grayscale opacity-75'
+                  : '';
             const isActiveAttacker = Boolean(
               pendingAttack && !pendingAttack.resolved && cb.id === pendingAttack.attackerCombatantId
             );
@@ -3506,9 +3519,7 @@ export function CombatPanel({
             return (
               <div
                 key={cb.id}
-                className={`rounded-xl border p-4 space-y-3 transition-all ${cardColors} ${activeRoleRing} ${
-                  isDown ? 'grayscale opacity-75' : ''
-                }`}
+                className={`rounded-xl border p-4 space-y-3 transition-all ${cardColors} ${activeRoleRing} ${downStateClass}`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -3530,6 +3541,18 @@ export function CombatPanel({
                         </span>
                       )}
                       <span className="text-base font-bold text-[#efe6d5]">{char.name}</span>
+                      {isDead && (
+                        <span className="arc-status-enter inline-flex items-center gap-1 rounded border border-[#a83030] bg-[#451316] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffb8be]">
+                          <Skull className="h-3 w-3 shrink-0" />
+                          Muerto
+                        </span>
+                      )}
+                      {isUnconscious && (
+                        <span className="arc-status-enter inline-flex items-center gap-1 rounded border border-[#b4733e] bg-[#3d2512] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffd6ad]">
+                          <Moon className="h-3 w-3 shrink-0" />
+                          Inconsciente
+                        </span>
+                      )}
                       {isActiveAttacker && (
                         <span className="inline-flex items-center gap-1 rounded bg-[var(--arc-atk-bg)] border border-[var(--arc-atk-border)] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--arc-atk-accent)]">
                           <Swords className="h-3 w-3 shrink-0" />
@@ -3542,9 +3565,11 @@ export function CombatPanel({
                           Defendiendo
                         </span>
                       )}
-                      <span className="text-xs text-[#b0a084]">
-                        · {conditionLabel(char.condition)}
-                      </span>
+                      {!isDead && !isUnconscious && (
+                        <span className="text-xs text-[#b0a084]">
+                          · {conditionLabel(char.condition)}
+                        </span>
+                      )}
                       {isActor && (
                         <span
                           className={`font-mono-num text-xs font-semibold ${
@@ -4002,26 +4027,41 @@ export function CombatPanel({
 
                         const chipColorClass = isElemental
                           ? elemKind === 'burn'
-                            ? 'bg-[#2c140c] text-[#ffc4a3]'
+                            ? 'bg-[#2c140c] text-[#ffc4a3] border border-[#d96b38]/45'
                             : elemKind === 'poison'
-                              ? 'bg-[#162614] text-[#c2f0ad]'
+                              ? 'bg-[#162614] text-[#c2f0ad] border border-[#47b872]/40'
                               : elemKind === 'frozen'
-                                ? 'bg-[#0f2330] text-[#b5e4ff]'
+                                ? 'bg-[#0f2330] text-[#b5e4ff] border border-[#58bce8]/50'
                                 : elemKind === 'electrified'
-                                  ? 'bg-[#29220a] text-[#ffe899]'
-                                  : 'bg-[#2d1015] text-[#ffb8c2]'
-                          : isCollateral
-                            ? 'bg-[#29170b] text-[#ffd7bd]'
-                            : isBuff
-                              ? 'bg-[#112418] text-[#bff0cb]'
-                              : isDebuff
-                                ? 'bg-[#2a1510] text-[#ffc9b8]'
-                                : 'bg-[#2a2112] text-[#f1d58a]';
+                                  ? 'bg-[#29220a] text-[#ffe899] border border-[#e3bd42]/45'
+                                  : 'bg-[#2d1015] text-[#ffb8c2] border border-[#e0526a]/45'
+                          : controlKey === 'aturdir'
+                            ? 'bg-[#33260b] text-[#ffe29a] border border-[#eab308]/50'
+                            : controlKey === 'cegar'
+                              ? 'bg-[#1e1a28] text-[#dcd3f2] border border-[#8b7ab8]/45'
+                              : isCollateral
+                                ? 'bg-[#29170b] text-[#ffd7bd]'
+                                : isBuff
+                                  ? 'bg-[#112418] text-[#bff0cb]'
+                                  : isDebuff
+                                    ? 'bg-[#2a1510] text-[#ffc9b8]'
+                                    : 'bg-[#2a2112] text-[#f1d58a]';
+
+                        const statusAnimClass =
+                          controlKey === 'aturdir'
+                            ? 'arc-status-stun'
+                            : elemKind === 'frozen'
+                              ? 'arc-status-frozen'
+                              : elemKind === 'burn'
+                                ? 'arc-status-burn'
+                                : elemKind === 'electrified'
+                                  ? 'arc-status-shock'
+                                  : 'arc-status-enter';
 
                         return (
                           <span
                             key={st.id}
-                            className={`inline-flex flex-wrap items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${chipColorClass}`}
+                            className={`inline-flex flex-wrap items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${chipColorClass} ${statusAnimClass}`}
                           >
                             {elemKind === 'burn' && <Flame className="h-3.5 w-3.5 text-[#ff8748]" />}
                             {elemKind === 'poison' && (
@@ -4035,6 +4075,12 @@ export function CombatPanel({
                             )}
                             {elemKind === 'bleeding' && (
                               <Droplets className="h-3.5 w-3.5 text-[#ff6b81]" />
+                            )}
+                            {controlKey === 'aturdir' && (
+                              <Zap className="h-3.5 w-3.5 text-[#facc15]" />
+                            )}
+                            {controlKey === 'cegar' && (
+                              <EyeOff className="h-3.5 w-3.5 text-[#c4b5fd]" />
                             )}
                             {!isElemental && isCollateral && (
                               <AlertTriangle className="h-3.5 w-3.5 text-[#ff9d5c]" />

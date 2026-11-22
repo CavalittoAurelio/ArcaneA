@@ -2691,7 +2691,23 @@ export default function App() {
     const depGate = checkSpellDependencyGate(spell, attacker, isTest, explicitTargetCombatantId);
     if (!depGate.ok) return;
 
-    const attackerCombatant = combatants.find((c) => c.characterId === attacker.id);
+    let attackerCombatant = combatants.find((c) => c.characterId === attacker.id);
+    let currentCombatantsList = combatants;
+    if (!isTest && !attackerCombatant && combatants.length > 0) {
+      const autoCb: Combatant = {
+        id: generateId('cb_'),
+        characterId: attacker.id,
+        initiative: 0,
+        preparedSpells: [],
+        activeStatuses: [],
+        attacksUsedThisTurn: 0,
+        actedThisRound: false,
+      };
+      attackerCombatant = autoCb;
+      currentCombatantsList = [...combatants, autoCb];
+      setCombatants(currentCombatantsList);
+    }
+
     const attackerEffects = !isTest
       ? getCombatantStatusEffects(attackerCombatant, attacker)
       : null;
@@ -2767,7 +2783,7 @@ export default function App() {
       const isSingleHit = !spell.duration || spell.duration.toLowerCase().includes('1 golpe');
       setCombatants((prev) =>
         prev.map((cb) => {
-          if (cb.id !== attackerCombatant.id) return cb;
+          if (cb.id !== attackerCombatant!.id) return cb;
           return {
             ...cb,
             attacksUsedThisTurn: !isTest
@@ -2788,8 +2804,8 @@ export default function App() {
 
     const desiredTargetId = explicitTargetCombatantId || selectedTargetId;
     const fallbackTargetCb =
-      combatants.find((cb) => cb.id === desiredTargetId && cb.characterId !== attacker.id) ||
-      combatants.find((cb) => cb.characterId !== attacker.id);
+      currentCombatantsList.find((cb) => cb.id === desiredTargetId && cb.characterId !== attacker.id) ||
+      currentCombatantsList.find((cb) => cb.characterId !== attacker.id);
 
     const currentMastery = getSpellMasteryStatus(attacker.spellMastery?.[spell.id] || 0, formula);
     const upgradedDice = getEffectiveSpellDamageDice(spell, currentMastery);
@@ -2806,7 +2822,7 @@ export default function App() {
     const areaRes = resolveSpellAreaTargets({
       spell: effectiveSpellForAttack,
       attackerCharacterId: attacker.id,
-      combatants,
+      combatants: currentCombatantsList,
       characters,
       primaryTargetId: desiredTargetId,
     });
@@ -2821,7 +2837,7 @@ export default function App() {
     const firstTargetId = finalAreaTargetIds[0];
     const remainingAreaIds = isAreaSpell ? finalAreaTargetIds.slice(1) : [];
     const targetCb = firstTargetId
-      ? combatants.find((cb) => cb.id === firstTargetId)
+      ? currentCombatantsList.find((cb) => cb.id === firstTargetId)
       : fallbackTargetCb;
 
     const targetChar = targetCb
@@ -2830,7 +2846,7 @@ export default function App() {
 
     const areaTargetNames = finalAreaTargetIds
       .map((id) => {
-        const cb = combatants.find((c) => c.id === id);
+        const cb = currentCombatantsList.find((c) => c.id === id);
         const ch = cb ? characters.find((x) => x.id === cb.characterId) : undefined;
         return ch?.name;
       })
@@ -2855,7 +2871,7 @@ export default function App() {
     };
 
     if (!isTest && attackerCombatant) {
-      if (combatants.length > 1) {
+      if (currentCombatantsList.length > 1) {
         setPendingAttack(pending);
         if (targetCb?.id) setSelectedTargetId(targetCb.id);
       }
@@ -3215,8 +3231,9 @@ export default function App() {
     reaction: SynergyReactionType,
     casterCharId?: string,
     sourceSpellName?: string,
-    consumeStacks?: number | 'all'
-  ): { triggered: boolean; note: string } => {
+    consumeStacks?: number | 'all',
+    suppressLog = false
+  ): { triggered: boolean; note: string; bonusDamage?: number; bonusPartText?: string } => {
     if (reaction === 'none') return { triggered: false, note: '' };
 
     const caster =
@@ -3279,21 +3296,28 @@ export default function App() {
         `detonación de ${usedStacks} carga(s) de Quemadura`,
         'magico'
       );
-      if (targetChar.hp.current > 0 && roll.total > 0) {
-        adjustHp(targetChar.id, -roll.total, isAttackLethal);
-      }
       updateOrRemoveElementalStacks(targetCombatantId, burnSt.id, remaining, true);
       const remNote = remaining.length > 0 ? ` (quedan ${remaining.length})` : ' (sin cargas restantes)';
       const note = ` 💥 ¡Sinergia: Detonar Quemadura! Se consume(n) ${usedStacks} carga(s)${remNote} en ${targetChar.name} → ${roll.total} de daño mágico explosivo (${usedStacks}d6).`;
-      pushLog({
-        kind: 'attack',
-        title: `💥 ${labelPrefix}Detonar Quemadura (${usedStacks}d6) → ${targetChar.name}`,
-        actorName: caster?.name,
-        isMagical: true,
-        damageRoll: { ...roll, isFireDamage: true },
-        summaryText: note.trim(),
-      });
-      return { triggered: true, note };
+      if (!suppressLog) {
+        if (targetChar.hp.current > 0 && roll.total > 0) {
+          adjustHp(targetChar.id, -roll.total, isAttackLethal);
+        }
+        pushLog({
+          kind: 'attack',
+          title: `💥 ${labelPrefix}Detonar Quemadura (${usedStacks}d6) → ${targetChar.name}`,
+          actorName: caster?.name,
+          isMagical: true,
+          damageRoll: { ...roll, isFireDamage: true },
+          summaryText: note.trim(),
+        });
+      }
+      return {
+        triggered: true,
+        note,
+        bonusDamage: roll.total,
+        bonusPartText: `💥 Detonar Quemadura ${usedStacks}d6 [${roll.total}]`,
+      };
     }
 
     if (reaction === 'siphon_poison') {
@@ -3313,9 +3337,6 @@ export default function App() {
       );
       const healHp = Math.max(1, Math.ceil(roll.total / 2));
       const healMana = usedStacks;
-      if (targetChar.hp.current > 0 && roll.total > 0) {
-        adjustHp(targetChar.id, -roll.total, isAttackLethal);
-      }
       if (caster && caster.id !== targetChar.id) {
         adjustHp(caster.id, healHp, false);
         adjustMana(caster.id, healMana);
@@ -3327,15 +3348,25 @@ export default function App() {
           ? ` ${caster.name} drena +${healHp} PV y +${healMana} Maná.`
           : '';
       const note = ` 🧪 ¡Sinergia: Sifón Tóxico! Se drena(n) ${usedStacks} carga(s)${remNote} de Envenenado en ${targetChar.name} → ${roll.total} de daño mágico (${usedStacks}d4).${drainTargetNote}`;
-      pushLog({
-        kind: 'attack',
-        title: `🧪 ${labelPrefix}Sifón de Envenenado (${usedStacks}d4) → ${targetChar.name}`,
-        actorName: caster?.name,
-        isMagical: true,
-        damageRoll: roll,
-        summaryText: note.trim(),
-      });
-      return { triggered: true, note };
+      if (!suppressLog) {
+        if (targetChar.hp.current > 0 && roll.total > 0) {
+          adjustHp(targetChar.id, -roll.total, isAttackLethal);
+        }
+        pushLog({
+          kind: 'attack',
+          title: `🧪 ${labelPrefix}Sifón de Envenenado (${usedStacks}d4) → ${targetChar.name}`,
+          actorName: caster?.name,
+          isMagical: true,
+          damageRoll: roll,
+          summaryText: note.trim(),
+        });
+      }
+      return {
+        triggered: true,
+        note,
+        bonusDamage: roll.total,
+        bonusPartText: `🧪 Sifón Tóxico ${usedStacks}d4 [${roll.total}]`,
+      };
     }
 
     if (reaction === 'shatter_frozen') {
@@ -3353,21 +3384,28 @@ export default function App() {
         `fractura de ${usedStacks} carga(s) de Congelado`,
         'fisico'
       );
-      if (targetChar.hp.current > 0 && roll.total > 0) {
-        adjustHp(targetChar.id, -roll.total, isAttackLethal);
-      }
       updateOrRemoveElementalStacks(targetCombatantId, frozenSt.id, remaining, false);
       const remNote = remaining.length > 0 ? ` (quedan ${remaining.length})` : ' (sin cargas restantes)';
       const note = ` ❄️ ¡Sinergia: Fractura Glacial! Se consume(n) ${usedStacks} carga(s)${remNote} de Congelado en ${targetChar.name} → ${roll.total} de daño (${usedStacks}d8).`;
-      pushLog({
-        kind: 'attack',
-        title: `❄️ ${labelPrefix}Fractura de Congelado (${usedStacks}d8) → ${targetChar.name}`,
-        actorName: caster?.name,
-        isMagical: false,
-        damageRoll: roll,
-        summaryText: note.trim(),
-      });
-      return { triggered: true, note };
+      if (!suppressLog) {
+        if (targetChar.hp.current > 0 && roll.total > 0) {
+          adjustHp(targetChar.id, -roll.total, isAttackLethal);
+        }
+        pushLog({
+          kind: 'attack',
+          title: `❄️ ${labelPrefix}Fractura de Congelado (${usedStacks}d8) → ${targetChar.name}`,
+          actorName: caster?.name,
+          isMagical: false,
+          damageRoll: roll,
+          summaryText: note.trim(),
+        });
+      }
+      return {
+        triggered: true,
+        note,
+        bonusDamage: roll.total,
+        bonusPartText: `❄️ Fractura Glacial ${usedStacks}d8 [${roll.total}]`,
+      };
     }
 
     if (reaction === 'overload_electrified') {
@@ -3455,21 +3493,28 @@ export default function App() {
         `hemorragia de ${usedStacks} carga(s) de Sangrando`,
         'fisico'
       );
-      if (targetChar.hp.current > 0 && roll.total > 0) {
-        adjustHp(targetChar.id, -roll.total, isAttackLethal);
-      }
       updateOrRemoveElementalStacks(targetCombatantId, bleedSt.id, remaining, false);
       const remNote = remaining.length > 0 ? ` (quedan ${remaining.length})` : ' (sin cargas restantes)';
       const note = ` 🩸 ¡Sinergia: Hemorragia! Se consume(n) ${usedStacks} carga(s)${remNote} de Sangrando en ${targetChar.name} → ${roll.total} de daño físico (${usedStacks}d6).`;
-      pushLog({
-        kind: 'attack',
-        title: `🩸 ${labelPrefix}Hemorragia (${usedStacks}d6) → ${targetChar.name}`,
-        actorName: caster?.name,
-        isMagical: false,
-        damageRoll: roll,
-        summaryText: note.trim(),
-      });
-      return { triggered: true, note };
+      if (!suppressLog) {
+        if (targetChar.hp.current > 0 && roll.total > 0) {
+          adjustHp(targetChar.id, -roll.total, isAttackLethal);
+        }
+        pushLog({
+          kind: 'attack',
+          title: `🩸 ${labelPrefix}Hemorragia (${usedStacks}d6) → ${targetChar.name}`,
+          actorName: caster?.name,
+          isMagical: false,
+          damageRoll: roll,
+          summaryText: note.trim(),
+        });
+      }
+      return {
+        triggered: true,
+        note,
+        bonusDamage: roll.total,
+        bonusPartText: `🩸 Hemorragia ${usedStacks}d6 [${roll.total}]`,
+      };
     }
 
     return { triggered: false, note: '' };
@@ -3526,12 +3571,15 @@ export default function App() {
     targetName: string,
     attackerName: string,
     attackerCharacterId?: string,
-    skipSynergyReaction = false
+    skipSynergyReaction = false,
+    mergeSynergyIntoHit = false
   ): {
     appliedBurnStacks: number;
     isFire: boolean;
     appliedStatuses: { kind: ElementalStatusKind; stacks: number }[];
     notes: string;
+    synergyBonusDamage: number;
+    synergyPartTexts: string[];
   } => {
     const appliedStatuses: { kind: ElementalStatusKind; stacks: number }[] = [];
     const appliedKinds = new Set<ElementalStatusKind>();
@@ -3719,16 +3767,25 @@ export default function App() {
 
     // 4. Reacción de Sinergia automática (consume 1 carga por defecto salvo que el hechizo indique otra cantidad)
     const detectedSynergy = detectSpellSynergy(spell);
+    let synergyBonusDamage = 0;
+    const synergyPartTexts: string[] = [];
     if (!skipSynergyReaction && detectedSynergy !== 'none') {
       const synRes = executeSynergyReaction(
         targetCombatantId,
         detectedSynergy,
         attackerCharacterId,
         spell.name,
-        spell.synergyConsumeStacks
+        spell.synergyConsumeStacks,
+        mergeSynergyIntoHit && detectedSynergy !== 'overload_electrified'
       );
       if (synRes.triggered) {
         notesParts.push(synRes.note);
+        if (synRes.bonusDamage && synRes.bonusDamage > 0) {
+          synergyBonusDamage += synRes.bonusDamage;
+        }
+        if (synRes.bonusPartText) {
+          synergyPartTexts.push(synRes.bonusPartText);
+        }
       }
     }
 
@@ -3737,6 +3794,8 @@ export default function App() {
       isFire,
       appliedStatuses,
       notes: notesParts.join(''),
+      synergyBonusDamage,
+      synergyPartTexts,
     };
   };
 
@@ -4142,11 +4201,7 @@ export default function App() {
         defEffects.incomingAutoCrit,
         defEffects.incomingAutoCritReasons.join(', ')
       );
-      const appliedDmg = Math.max(0, rawSummary.total);
-
-      if (appliedDmg > 0) {
-        adjustHp(defender.id, -appliedDmg, pendingAttack.isLethal);
-      }
+      const baseDmg = Math.max(0, rawSummary.total);
 
       const hitEndedIds = (targetCb.activeStatuses || [])
         .filter((st) => st.endsOnHit)
@@ -4172,17 +4227,26 @@ export default function App() {
         defender.name,
         pendingAttack.attackerName,
         pendingAttack.attackerCharacterId,
-        isGlobalOverload && overloadReactionAttempted
+        isGlobalOverload && overloadReactionAttempted,
+        true
       );
       if (isGlobalOverload) overloadReactionAttempted = true;
+
+      const appliedDmg = baseDmg + elemRes.synergyBonusDamage;
+      if (appliedDmg > 0) {
+        adjustHp(defender.id, -appliedDmg, pendingAttack.isLethal);
+      }
+
       const critTag = defEffects.incomingAutoCrit ? ' [CRÍTICO]' : '';
+      const synTag =
+        elemRes.synergyBonusDamage > 0 ? ` [+${elemRes.synergyBonusDamage} sinergia]` : '';
       const statusTag =
         elemRes.appliedStatuses.length > 0
           ? ` (+${elemRes.appliedStatuses
               .map((s) => `${ELEMENTAL_STATUS_META[s.kind].name} ×${s.stacks}`)
               .join(', ')})`
           : '';
-      hitSummaries.push(`${defender.name}: -${appliedDmg} PV${critTag}${statusTag}`);
+      hitSummaries.push(`${defender.name}: -${appliedDmg} PV${critTag}${synTag}${statusTag}`);
     }
 
     pushLog({
@@ -4608,10 +4672,15 @@ export default function App() {
       detectSpellSynergy(pendingAttack.spell) === 'overload_electrified' &&
         (pendingAttack.areaResolvedTargets || []).some(
           (resolved) => resolved.outcome === 'hit'
-        )
+        ),
+      true
     );
+
+    const combinedTotal = dmg.total + elemRes.synergyBonusDamage;
     const finalDmg: DamageRollSummary = {
       ...dmg,
+      parts: [...dmg.parts, ...elemRes.synergyPartTexts],
+      total: combinedTotal,
       isFireDamage: elemRes.isFire,
       burnStacksApplied: elemRes.appliedBurnStacks > 0 ? elemRes.appliedBurnStacks : undefined,
       elementalStatusesApplied:
@@ -7251,16 +7320,29 @@ export default function App() {
 
   const decodeShareCode = (raw: string): string => {
     const trimmed = raw.trim();
-    if (!trimmed.startsWith('ARCANE1:')) return trimmed;
-    const base64 = trimmed.slice('ARCANE1:'.length).trim();
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return new TextDecoder().decode(bytes);
-  };
 
+    // 1. Buscar un bloque ARCANE1:... en cualquier línea (soporta cabeceras legibles en .txt o texto extra de WhatsApp)
+    const arcaneLineMatch = trimmed.match(/ARCANE1:[A-Za-z0-9+/=]+/);
+    if (arcaneLineMatch) {
+      const base64 = arcaneLineMatch[0].slice('ARCANE1:'.length).trim();
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new TextDecoder().decode(bytes);
+    }
+
+    // 2. Si no tiene prefijo ARCANE1:, pero es un .txt con cabecera y un bloque JSON { ... } adentro, extraer el JSON
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace > 0 && lastBrace > firstBrace) {
+      return trimmed.slice(firstBrace, lastBrace + 1);
+    }
+
+    // 3. Fallback: devolver el texto limpio tal cual (JSON estándar)
+    return trimmed;
+  };
   const buildCharacterSharePayload = (charId: string) => {
     const char = characters.find((c) => c.id === charId);
     if (!char) return null;
@@ -7288,11 +7370,13 @@ export default function App() {
         .toLowerCase()
         .replace(/[^a-z0-9]+/gi, '-')
         .replace(/^-|-$/g, '') || 'mago';
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const header = `=== ARCANE GRIMORIO · PERSONAJE: ${payload.character.name.toUpperCase()} ===\n`;
+    const body = encodeShareCode(JSON.stringify(payload));
+    const blob = new Blob([header + body], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `arcane-pj-${slug}.json`;
+    a.download = `arcane-pj-${slug}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -7621,8 +7705,8 @@ export default function App() {
     const dateStamp = new Date().toISOString().slice(0, 10);
     const fileName =
       mode === 'selected'
-        ? `arcane-hechizos-seleccion-${slug}-${dateStamp}.json`
-        : `arcane-hechizos-${slug}-${dateStamp}.json`;
+        ? `arcane-hechizos-seleccion-${slug}-${dateStamp}.txt`
+        : `arcane-hechizos-${slug}-${dateStamp}.txt`;
 
     const payload = {
       app: 'Arcane Grimorio y Combate',
@@ -7636,8 +7720,10 @@ export default function App() {
       customStatuses: customStatuses.filter((st) => usedStatuses.has(st)),
     };
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: 'application/json;charset=utf-8',
+    const header = `=== ARCANE GRIMORIO · ${charName.toUpperCase()} (${targetSpells.length} hechizo/s) ===\n`;
+    const body = encodeShareCode(JSON.stringify(payload));
+    const blob = new Blob([header + body], {
+      type: 'text/plain;charset=utf-8',
     });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -8987,7 +9073,7 @@ export default function App() {
           />
         )}
 
-{activeTab === 'quickcast' && (
+        {activeTab === 'quickcast' && (
           <div className="space-y-4">
             {/* Barra de personalización del tablero de Combate */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3">

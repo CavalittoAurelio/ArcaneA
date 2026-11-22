@@ -8,6 +8,7 @@ import {
   Lock,
   Minus,
   Plus,
+  Printer,
   RotateCcw,
   ScrollText,
   Search,
@@ -45,6 +46,7 @@ import {
   getCharacterStatDice,
   getCharacterStatPoints,
   getEffectiveEffectSubType,
+  getEffectiveSpellDamageDice,
   getMageStarterBasicIds,
   getSpellMasteryStatus,
   getStatLevelStatus,
@@ -54,7 +56,10 @@ import {
   rollSingleDie,
   spellSupportsMastery,
 } from '../utils/dice';
+import { KNOWLEDGE_TREE_SPELLS } from '../utils/knowledgeTrees';
 import { getSpellGoalProgress } from '../utils/progression';
+
+const KNOWLEDGE_TREE_SPELL_IDS = new Set(KNOWLEDGE_TREE_SPELLS.map((s) => s.id));
 
 export interface CreateCharacterOptions {
   name: string;
@@ -155,7 +160,6 @@ export function CharacterRoster({
   const [importError, setImportError] = useState(false);
   const importFileRef = useRef<HTMLInputElement>(null);
 
-  // Interfaz de "Subir de nivel" (+5 Maná máx., +1 Nivel PJ, 5 pts de estadística y 1d4 PV máx. si sube nivel de Físico)
   const [levelUpCharId, setLevelUpCharId] = useState<string | null>(null);
   const [levelUpAlloc, setLevelUpAlloc] = useState<Record<StatKey, number>>({
     fisico: 0,
@@ -165,12 +169,10 @@ export function CharacterRoster({
   const [levelUpRestoreMana, setLevelUpRestoreMana] = useState(true);
   const [levelUpFeedback, setLevelUpFeedback] = useState<string>('');
 
-  // Interfaz de "Banquete" (+5 PV totales y +5 Maná totales) con historial no modificable
   const [banquetCharId, setBanquetCharId] = useState<string | null>(null);
   const [banquetNote, setBanquetNote] = useState('');
   const [banquetRestoreCurrent, setBanquetRestoreCurrent] = useState(true);
 
-  // Panel desplegable del historial de progresión (100% solo lectura)
   const [showProgressionHistory, setShowProgressionHistory] = useState(false);
 
   const active = characters.find((c) => c.id === activeCharacterId) || characters[0];
@@ -253,7 +255,6 @@ export function CharacterRoster({
       influencia: calcStatLevelFromPoints(nextPoints.influencia, formula),
     };
 
-    // Si el nivel de Físico sube, tirar 1d4 automático por cada nivel ganado para PV totales
     const fisicoLevelsGained = Math.max(0, nextStats.fisico - prevFisicoLvl);
     const hpDiceRolls: number[] = [];
     for (let i = 0; i < fisicoLevelsGained; i++) {
@@ -392,10 +393,14 @@ export function CharacterRoster({
     active.mana.max > 0 ? Math.max(0, Math.min(100, (active.mana.current / active.mana.max) * 100)) : 0;
 
   const knownSet = new Set(active.knownSpells);
+  const knownSpellsList = spells.filter((s) => knownSet.has(s.id));
   const hasNatureCanalizado = characterHasNatureCanalizado(active, spells);
   const query = spellSearch.trim().toLowerCase();
   const filteredSpells = spells
     .filter((s) => {
+      if (KNOWLEDGE_TREE_SPELL_IDS.has(s.id) || s.isAdaptableTemplate) {
+        return false;
+      }
       if (
         !showOtherPlayersSpells &&
         s.id === 'basic_ataque_canalizado' &&
@@ -436,6 +441,10 @@ export function CharacterRoster({
     }
   };
 
+  const handlePrintSheet = () => {
+    window.print();
+  };
+
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -461,9 +470,107 @@ export function CharacterRoster({
 
   return (
     <div className="space-y-5">
+      {/* Hoja imprimible / Guardar como PDF para el personaje activo */}
+      <div className="arc-print-sheet space-y-4">
+        <div className="border-b-2 border-zinc-800 pb-3 flex items-baseline justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900">{active.name}</h1>
+            <p className="text-xs text-zinc-600">
+              {active.kind === 'mage' ? 'Mago / PJ' : 'PNJ / Enemigo'} · Nivel {activeLevel}
+              {active.nature ? ` · Naturaleza: ${active.nature}` : ''} · Estado:{' '}
+              {conditionLabel(active.condition)}
+            </p>
+          </div>
+          <div className="text-right text-xs font-mono text-zinc-700">
+            <div>
+              PV: {active.hp.current} / {active.hp.max}
+            </div>
+            <div>
+              Maná: {active.mana.current} / {active.mana.max}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          {STAT_KEYS.map((k) => {
+            const pts = getCharacterStatPoints(active, k, formula);
+            const st = getStatLevelStatus(pts, formula);
+            const dice = getCharacterStatDice(active, k, formula);
+            return (
+              <div key={k} className="arc-print-card rounded p-2">
+                <div className="font-bold uppercase text-zinc-700">{STAT_NAMES[k]}</div>
+                <div className="font-mono text-sm font-bold text-zinc-900">
+                  Nv.{st.level} ({dice}d6) · {pts} pts
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {(active.notes || active.resistances) && (
+          <div className="text-xs text-zinc-700 space-y-1">
+            {active.notes && (
+              <p>
+                <strong>Notas:</strong> {active.notes}
+              </p>
+            )}
+            {active.resistances && (
+              <p>
+                <strong>Resistencias:</strong> {active.resistances}
+              </p>
+            )}
+          </div>
+        )}
+
+        {active.weapons && active.weapons.length > 0 && (
+          <div className="space-y-1">
+            <h2 className="text-sm font-bold uppercase text-zinc-800 border-b border-zinc-300 pb-1">
+              Armas y Escudos
+            </h2>
+            <ul className="text-xs text-zinc-800 space-y-0.5">
+              {active.weapons.map((w) => (
+                <li key={w.id}>
+                  <strong>{w.name}</strong>
+                  {w.destroyed ? ' (Destruida)' : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <h2 className="text-sm font-bold uppercase text-zinc-800 border-b border-zinc-300 pb-1">
+            Grimorio ({knownSpellsList.length})
+          </h2>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            {knownSpellsList.map((sp) => {
+              const mastery = getSpellMasteryStatus(active.spellMastery?.[sp.id] || 0, formula);
+              const diceTxt = getEffectiveSpellDamageDice(sp, mastery)
+                .map((d) => `${d.count}${d.type}`)
+                .join(' + ');
+              return (
+                <div key={sp.id} className="arc-print-card rounded p-2 space-y-0.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-bold text-zinc-900">{sp.name}</span>
+                    <span className="font-mono text-zinc-700">{sp.manaCost}m</span>
+                  </div>
+                  <div className="font-mono text-[11px] text-zinc-600">
+                    {TYPE_LABELS[sp.effectType]}
+                    {diceTxt ? ` · ${diceTxt}` : ''}
+                    {spellSupportsMastery(sp) ? ` · Maestría Nv.${mastery.level}` : ''}
+                  </div>
+                  {sp.effectDescription && (
+                    <p className="text-[11px] text-zinc-700 leading-snug">{sp.effectDescription}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Ficha compacta en 2 columnas: Perfil activo (izq) + Armar grimorio (der) */}
-      <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-4 space-y-3.5">
-        {/* Cabecera compacta de una sola fila */}
+      <section className="arc-no-print rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-4 space-y-3.5">
         <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-[var(--arc-border)] pb-2.5">
           <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 min-w-0">
             <h2 className="font-display text-base sm:text-lg font-bold text-[var(--arc-accent)] truncate">
@@ -533,8 +640,18 @@ export function CharacterRoster({
 
             <button
               type="button"
+              onClick={handlePrintSheet}
+              title="Abrir vista de impresión o guardar ficha y grimorio en PDF"
+              className="min-h-[34px] inline-flex items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-[var(--arc-text)] hover:bg-[var(--arc-raised)] whitespace-nowrap shrink-0 transition-colors"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Ficha / PDF
+            </button>
+
+            <button
+              type="button"
               onClick={() => onExportCharacter(active.id)}
-              title="Descargar archivo JSON solo de este personaje y sus hechizos"
+              title="Descargar archivo .txt solo de este personaje y sus hechizos"
               className="min-h-[34px] inline-flex items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
@@ -568,7 +685,6 @@ export function CharacterRoster({
           </div>
         </div>
 
-        {/* Confirmación breve tras subir de nivel o banquete */}
         {levelUpFeedback && !showLevelUp && !showBanquet && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#4a7545] bg-[#172216] px-3 py-2 text-xs text-[#cdeba9]">
             <div className="flex items-center gap-2">
@@ -585,7 +701,6 @@ export function CharacterRoster({
           </div>
         )}
 
-        {/* Interfaz compacta de Banquete (+5 PV máx. y +5 Maná máx. con registro inmutable) */}
         {showBanquet && (
           <div className="rounded-xl border border-[#5a4a2a] bg-[var(--arc-surface-alt)] p-3.5 space-y-2.5">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-2">
@@ -641,7 +756,6 @@ export function CharacterRoster({
           </div>
         )}
 
-        {/* Interfaz compacta de asignación: Subir de nivel (+1 Nivel PJ, +5 Maná máx., 5 pts y 1d4 PV si sube Físico) */}
         {showLevelUp && (
           <div className="rounded-xl border border-[var(--arc-magic-border)] bg-[var(--arc-surface-alt)] p-3.5 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-2">
@@ -808,11 +922,8 @@ export function CharacterRoster({
           </div>
         )}
 
-        {/* Layout principal en 2 columnas: Izquierda = Perfil comprimido | Derecha = Armar grimorio */}
         <div className="grid gap-4 xl:grid-cols-12 items-start">
-          {/* COLUMNA IZQUIERDA — Ficha comprimida del personaje */}
           <div className="xl:col-span-6 space-y-3 xl:border-r xl:border-[var(--arc-border)] xl:pr-4">
-            {/* Línea compacta de naturaleza (solo magos) */}
             {active.kind === 'mage' && (
               <div className="rounded-lg bg-[var(--arc-surface-alt)] px-3 py-2 space-y-2">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -964,7 +1075,6 @@ export function CharacterRoster({
               </div>
             )}
 
-            {/* Nombre, Notas y Resistencias en grilla compacta */}
             <div className="grid gap-2 sm:grid-cols-3">
               <div>
                 <label
@@ -1015,9 +1125,7 @@ export function CharacterRoster({
               </div>
             </div>
 
-            {/* PV y Maná compactos lado a lado */}
             <div className="grid gap-3 sm:grid-cols-2 border-t border-[var(--arc-border)] pt-2.5">
-              {/* Salud */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-1">
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#efe6d5]">
@@ -1073,7 +1181,6 @@ export function CharacterRoster({
                 </div>
               </div>
 
-              {/* Maná */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-1">
                   <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#efe6d5] truncate">
@@ -1162,7 +1269,6 @@ export function CharacterRoster({
               </div>
             </div>
 
-            {/* Estadísticas en 3 filas horizontales densas */}
             <div className="border-t border-[var(--arc-border)] pt-2.5 divide-y divide-[var(--arc-border)]/60">
               {STAT_KEYS.map((key) => {
                 const points = getCharacterStatPoints(active, key, formula);
@@ -1315,7 +1421,6 @@ export function CharacterRoster({
               })}
             </div>
 
-            {/* Historial de progresión (100% solo lectura / no modificable) */}
             <div className="border-t border-[var(--arc-border)] pt-2.5 space-y-2">
               <button
                 type="button"
@@ -1381,7 +1486,6 @@ export function CharacterRoster({
             </div>
           </div>
 
-          {/* COLUMNA DERECHA — Armar grimorio del personaje */}
           <div className="xl:col-span-6 space-y-2.5 border-t border-[var(--arc-border)] pt-3 xl:border-t-0 xl:pt-0">
             {(() => {
               const goalIds = [...new Set(active.archiveGoalIds || [])];
@@ -1413,9 +1517,7 @@ export function CharacterRoster({
                       const target = progress.path[0];
                       const missing = [
                         ...target.prerequisites,
-                        ...target.prerequisites.flatMap((node) =>
-                          node.prerequisites
-                        ),
+                        ...target.prerequisites.flatMap((node) => node.prerequisites),
                       ].filter((node) => node.status !== 'completed');
                       return (
                         <article
@@ -1632,7 +1734,7 @@ export function CharacterRoster({
       </section>
 
       {/* Roster de Magos y PNJs/Enemigos */}
-      <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-5 space-y-4">
+      <section className="arc-no-print rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--arc-border)] pb-3">
           <div>
             <h3 className="font-display text-base font-bold text-[var(--arc-accent)]">
@@ -1650,7 +1752,7 @@ export function CharacterRoster({
               className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
             >
               <Upload className="h-3.5 w-3.5" />
-              Importar jugador (.json)
+              Importar jugador (.txt / .json)
             </button>
             <button
               type="button"
@@ -1662,7 +1764,7 @@ export function CharacterRoster({
             <input
               ref={importFileRef}
               type="file"
-              accept=".json,application/json"
+              accept=".txt,.json,text/plain,application/json"
               onChange={handleImportFile}
               hidden
             />
