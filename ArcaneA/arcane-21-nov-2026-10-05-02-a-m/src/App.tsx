@@ -687,6 +687,7 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+  try {
     const payload: PersistedState = {
       characters,
       activeCharacterId,
@@ -705,6 +706,9 @@ export default function App() {
       knowledgeTreeSettings,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch (err) {
+    console.warn('No se pudo guardar el estado en localStorage:', err);
+  }
   }, [
     characters,
     activeCharacterId,
