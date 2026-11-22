@@ -48,11 +48,16 @@ function summarizeBackupContent(raw: string): string | null {
   if (!trimmed) return null;
 
   let jsonCandidate = trimmed;
-  const arcaneMatch = trimmed.match(/ARCANE1:[A-Za-z0-9+/=]+/);
+  const arcaneMatch = trimmed.match(/ARCANE1:[A-Za-z0-9+/_=-]+/);
   if (arcaneMatch) {
     try {
-      const base64 = arcaneMatch[0].slice('ARCANE1:'.length).trim();
-      const binary = atob(base64);
+      const encoded = arcaneMatch[0].slice('ARCANE1:'.length).trim();
+      const standardBase64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = standardBase64.padEnd(
+        standardBase64.length + ((4 - (standardBase64.length % 4)) % 4),
+        '='
+      );
+      const binary = atob(padded);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) {
         bytes[i] = binary.charCodeAt(i);
@@ -66,19 +71,56 @@ function summarizeBackupContent(raw: string): string | null {
     const lastBrace = trimmed.lastIndexOf('}');
     if (firstBrace >= 0 && lastBrace > firstBrace) {
       jsonCandidate = trimmed.slice(firstBrace, lastBrace + 1);
+    } else {
+      const firstBracket = trimmed.indexOf('[');
+      const lastBracket = trimmed.lastIndexOf(']');
+      if (firstBracket >= 0 && lastBracket > firstBracket) {
+        jsonCandidate = trimmed.slice(firstBracket, lastBracket + 1);
+      }
     }
   }
 
   try {
-    const parsed = JSON.parse(jsonCandidate) as {
-      characters?: unknown[];
-      spells?: unknown[];
-      round?: unknown;
-    };
-    const charCount = Array.isArray(parsed?.characters) ? parsed.characters.length : null;
-    const spellCount = Array.isArray(parsed?.spells) ? parsed.spells.length : null;
+    const parsed = JSON.parse(jsonCandidate) as
+      | Array<{ name?: unknown }>
+      | {
+          format?: string;
+          data?: {
+            characters?: unknown[];
+            spells?: unknown[];
+            round?: unknown;
+          };
+          characters?: unknown[];
+          spells?: Array<{ name?: unknown }>;
+          round?: unknown;
+        };
+
+    const spellArray = Array.isArray(parsed)
+      ? parsed
+      : parsed?.format === 'arcane_spells_pack_v1' && Array.isArray(parsed?.spells)
+        ? parsed.spells
+        : null;
+
+    if (spellArray && spellArray.length > 0) {
+      const names = spellArray
+        .map((s) => (typeof s?.name === 'string' ? s.name.trim() : ''))
+        .filter(Boolean);
+      const previewNames =
+        names.length <= 4
+          ? names.join(', ')
+          : `${names.slice(0, 4).join(', ')} y ${names.length - 4} más`;
+      return `Paquete de ${spellArray.length} hechizo(s) propio(s)${
+        previewNames ? ` (${previewNames})` : ''
+      }`;
+    }
+
+    if (Array.isArray(parsed)) return null;
+
+    const source = parsed?.data && typeof parsed.data === 'object' ? parsed.data : parsed;
+    const charCount = Array.isArray(source?.characters) ? source.characters.length : null;
+    const spellCount = Array.isArray(source?.spells) ? source.spells.length : null;
     const roundNum =
-      typeof parsed?.round === 'number' && parsed.round >= 1 ? Math.floor(parsed.round) : null;
+      typeof source?.round === 'number' && source.round >= 1 ? Math.floor(source.round) : null;
 
     if (charCount === null && spellCount === null) {
       return null;

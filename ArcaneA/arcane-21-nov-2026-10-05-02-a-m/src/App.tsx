@@ -7761,9 +7761,9 @@ export default function App() {
     return exportSpellsPack(selectedSpells, 'selected');
   };
 
-  const handleImportPlayerSpells = (rawText: string): { ok: boolean; message: string } => {
+ const handleImportPlayerSpells = (rawText: string): { ok: boolean; message: string } => {
     try {
-      const jsonText = decodeShareCode(rawText);
+      const jsonText = extractBackupJsonText(rawText);
       const parsed = JSON.parse(jsonText) as
         | {
             format?: string;
@@ -7772,7 +7772,6 @@ export default function App() {
             customStatuses?: string[];
           }
         | Partial<Spell>[];
-
       const rawSpells: Partial<Spell>[] = Array.isArray(parsed)
         ? parsed
         : Array.isArray(parsed?.spells)
@@ -7901,7 +7900,45 @@ export default function App() {
       };
     }
   };
+  const customSpellsToExport = useMemo(
+  () => spells.filter((s) => !s.isBasic),
+  [spells]
+);
 
+const handleExportCustomSpells = (): { ok: boolean; count: number; message: string } => {
+  if (customSpellsToExport.length === 0) {
+    return {
+      ok: false,
+      count: 0,
+      message: 'No hay hechizos propios creados para exportar.',
+    };
+  }
+  const packPayload = {
+    app: 'Arcane Grimorio y Combate',
+    format: 'arcane_spells_pack_v1',
+    exportedAt: new Date().toISOString(),
+    spells: customSpellsToExport.map(({ id: _id, ownerCharacterId: _owner, ...rest }) => rest),
+    customOrders,
+    customStatuses,
+  };
+  const encoded = encodeShareCode(JSON.stringify(packPayload));
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const header = `=== ARCANE GRIMORIO · HECHIZOS PROPIOS (${customSpellsToExport.length}) · ${stamp} ===\n`;
+  const blob = new Blob([header + encoded], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `arcane-hechizos-propios-${stamp}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1200);
+  return {
+    ok: true,
+    count: customSpellsToExport.length,
+    message: `Se exportaron ${customSpellsToExport.length} hechizo(s) propio(s) en .txt.`,
+  };
+};
   const handleResetAllData = () => {
     const snapshot: PersistedState = {
       characters: JSON.parse(JSON.stringify(characters)),
@@ -7988,13 +8025,67 @@ export default function App() {
     setShowRevertBanner(false);
   };
 
-  const handleExportBackup = () =>
-    JSON.stringify(
-      {
-        app: 'Arcane Grimorio y Combate',
-        formatVersion: 2,
-        exportedAt: new Date().toISOString(),
-        data: {
+  const handleExportBackup = () => {
+  const backupPayload = {
+    app: 'Arcane Grimorio y Combate',
+    formatVersion: 2,
+    exportedAt: new Date().toISOString(),
+    data: {
+      characters,
+      activeCharacterId,
+      spells,
+      customOrders,
+      customStatuses,
+      formula,
+      manaMode,
+      round,
+      combatants,
+      currentTurnCombatantId: resolvedCurrentTurnCombatantId,
+      autoPassTurn,
+      arenaLayout,
+      theme,
+      globalSpellOrder,
+      knowledgeTreeSettings,
+    },
+  };
+  return encodeShareCode(JSON.stringify(backupPayload));
+};
+  const extractBackupJsonText = (rawInput: string): string => {
+  const trimmed = rawInput.trim();
+  const arcaneMatch = trimmed.match(/ARCANE1:[A-Za-z0-9+/=]+/);
+  if (arcaneMatch) {
+    const decoded = decodeShareCode(arcaneMatch[0]);
+    if (typeof decoded === 'string') {
+      return decoded;
+    }
+    if (decoded && typeof decoded === 'object') {
+      return JSON.stringify(decoded);
+    }
+  }
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+  return trimmed;
+};
+
+const handleImportBackup = (jsonText: string): { ok: boolean; message: string } => {
+  try {
+    const normalizedText = extractBackupJsonText(jsonText);
+    const parsed = JSON.parse(normalizedText);
+
+    if (parsed?.format === 'arcane_character_v1' && parsed?.character) {
+      return handleImportCharacter(normalizedText);
+    }
+    if (parsed?.format === 'arcane_spells_pack_v1' && Array.isArray(parsed?.spells)) {
+      return handleImportPlayerSpells(normalizedText);
+    }
+
+    const data = parsed?.data || parsed;
+    if (Array.isArray(data.characters) && data.characters.length > 0) {
+      try {
+        const currentSnapshot: PersistedState = {
           characters,
           activeCharacterId,
           spells,
@@ -8010,158 +8101,151 @@ export default function App() {
           theme,
           globalSpellOrder,
           knowledgeTreeSettings,
-        },
-      },
-      null,
-      2
-    );
-
-  const handleImportBackup = (jsonText: string): { ok: boolean; message: string } => {
-    try {
-      const parsed = JSON.parse(jsonText);
-      if (parsed?.format === 'arcane_character_v1' && parsed?.character) {
-        return handleImportCharacter(jsonText);
-      }
-      if (parsed?.format === 'arcane_spells_pack_v1' && Array.isArray(parsed?.spells)) {
-        return handleImportPlayerSpells(jsonText);
-      }
-      const data = parsed?.data || parsed;
-      if (Array.isArray(data.characters) && data.characters.length > 0) {
-        const importedFormula = data.formula ? normalizeFormula(data.formula) : formula;
-        if (data.formula) setFormula(importedFormula);
-        const importedCharacters: Character[] = data.characters.map((ch: Character) => {
-          const pts = ch.statPoints || {
-            fisico: getCharacterStatPoints(ch, 'fisico', importedFormula),
-            manipulacion: getCharacterStatPoints(ch, 'manipulacion', importedFormula),
-            influencia: getCharacterStatPoints(ch, 'influencia', importedFormula),
-          };
-          return {
-            ...ch,
-            statPoints: pts,
-            stats: {
-              fisico: calcStatLevelFromPoints(pts.fisico, importedFormula),
-              manipulacion: calcStatLevelFromPoints(pts.manipulacion, importedFormula),
-              influencia: calcStatLevelFromPoints(pts.influencia, importedFormula),
-            },
-            spellMastery:
-              ch.spellMastery && typeof ch.spellMastery === 'object' ? ch.spellMastery : {},
-            knowledgeMastery:
-              ch.knowledgeMastery && typeof ch.knowledgeMastery === 'object'
-                ? Object.fromEntries(
-                    Object.entries(ch.knowledgeMastery).map(([id, level]) => [
-                      id,
-                      Math.max(0, Math.min(3, Math.floor(level || 0))),
-                    ])
-                  )
-                : {},
-            discoveredKnowledgeDisciplines: Array.isArray(ch.discoveredKnowledgeDisciplines)
-              ? [...new Set(ch.discoveredKnowledgeDisciplines)]
-              : [],
-            weapons: Array.isArray(ch.weapons) ? ch.weapons : [],
-            characterLevel:
-              typeof ch.characterLevel === 'number' && ch.characterLevel >= 1
-                ? Math.floor(ch.characterLevel)
-                : 1,
-            progressionHistory: Array.isArray(ch.progressionHistory) ? ch.progressionHistory : [],
-          };
-        });
-        const importedSpellsFromBackup: Spell[] = Array.isArray(data.spells)
-          ? data.spells.map((s: Spell) => ({
-              ...s,
-              statuses: Array.isArray(s.statuses) ? s.statuses : [],
-            }))
-          : spells;
-        const importedSpellIds = new Set(importedSpellsFromBackup.map((spell) => spell.id));
-        const importedSpells = [
-          ...importedSpellsFromBackup,
-          ...BUILTIN_SPELLS.filter((spell) => !importedSpellIds.has(spell.id)),
-        ];
-        const sanitizedBackup = sanitizeSignatureSpellsState(importedSpells, importedCharacters);
-        const backupSpellIds = new Set(sanitizedBackup.spells.map((spell) => spell.id));
-        const backupCharacters = sanitizedBackup.characters.map((character) => ({
-          ...character,
-          favoriteSpellIds: (character.favoriteSpellIds || []).filter((id) => backupSpellIds.has(id)),
-          personalSpellTags: Object.fromEntries(
-            Object.entries(character.personalSpellTags || {}).filter(([id]) => backupSpellIds.has(id))
-          ),
-          personalSpellTagNames: [...new Set(character.personalSpellTagNames || [])],
-          spellSortMode: ['custom', 'name', 'category', 'mana', 'nature', 'favorites'].includes(
-            character.spellSortMode || ''
-          )
-            ? character.spellSortMode
-            : 'custom',
-        }));
-        setCharacters(backupCharacters);
-        setActiveCharacterId(data.activeCharacterId || sanitizedBackup.characters[0].id);
-        if (Array.isArray(data.spells)) {
-          setSpells(sanitizedBackup.spells);
-        }
-        if (Array.isArray(data.customOrders)) setCustomOrders(data.customOrders);
-        if (Array.isArray(data.customStatuses)) setCustomStatuses(data.customStatuses);
-        if (data.manaMode) setManaMode(data.manaMode);
-        if (typeof data.round === 'number') setRound(data.round);
-        if (Array.isArray(data.combatants)) {
-          setCombatants(
-            data.combatants.map((cb: Combatant) => ({
-              ...cb,
-              preparedSpells: Array.isArray(cb.preparedSpells) ? cb.preparedSpells : [],
-              activeStatuses: Array.isArray(cb.activeStatuses) ? cb.activeStatuses : [],
-              actedThisRound: Boolean(cb.actedThisRound),
-            }))
-          );
-        }
-        if (typeof data.currentTurnCombatantId === 'string') {
-          setCurrentTurnCombatantId(data.currentTurnCombatantId);
-        }
-        if (typeof data.autoPassTurn === 'boolean') {
-          setAutoPassTurn(data.autoPassTurn);
-        }
-        if (data.arenaLayout) setArenaLayout(normalizeArenaLayout(data.arenaLayout));
-        if (data.theme) setTheme(normalizeThemeConfig(data.theme));
-        if (Array.isArray(data.globalSpellOrder)) setGlobalSpellOrder(data.globalSpellOrder);
-        setKnowledgeTreeSettings(
-          normalizeKnowledgeTreeSettings(data.knowledgeTreeSettings)
-        );
-        return { ok: true, message: 'Copia importada correctamente.' };
-      }
-      if (Array.isArray(data.arcane_spells_v3)) {
-        const importedSpells: Spell[] = data.arcane_spells_v3.map(
-          (old: Record<string, unknown>) => ({
-            id: String(old.id || generateId('sp_')),
-            name: String(old.name || 'Importado'),
-            manaCost: Number(old.manaCost || 0),
-            orders: Array.isArray(old.orders) ? (old.orders as string[]) : [],
-            statuses: Array.isArray(old.statuses) ? (old.statuses as string[]) : [],
-            castStat: (old.castStat as Spell['castStat']) || 'none',
-            manualCastDice: Number(old.manualCastDice || 0),
-            assuredSuccess: Number(old.assuredSuccess || 0),
-            combatStats: Array.isArray(old.attackStats)
-              ? (old.attackStats as StatKey[])
-              : [],
-            damageMode: (old.damageMode as Spell['damageMode']) || 'auto',
-            effectType: (old.effectType as Spell['effectType']) || 'effect',
-            damage: (old.damage as Spell['damage']) || { dice: [], bonus: 0, notes: '' },
-            effectDescription: String(old.effectDescription || ''),
-            duration: String(old.duration || ''),
-            isBasic: Boolean(old.isBasic),
-          })
-        );
-        setSpells((prev) => {
-          const map = new Map(prev.map((s) => [s.id, s]));
-          importedSpells.forEach((s) => map.set(s.id, s));
-          return Array.from(map.values());
-        });
-        return {
-          ok: true,
-          message: `Se importaron ${importedSpells.length} hechizos desde copia clásica.`,
         };
+        localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(currentSnapshot));
+      } catch {
+        // ignorar si no se puede guardar el snapshot previo
       }
-      return { ok: false, message: 'Formato JSON no reconocido.' };
-    } catch {
-      return { ok: false, message: 'No se pudo leer el archivo JSON.' };
-    }
-  };
 
+      const importedFormula = data.formula ? normalizeFormula(data.formula) : formula;
+      if (data.formula) setFormula(importedFormula);
+
+      const importedCharacters: Character[] = data.characters.map((ch: Character) => {
+        const pts = ch.statPoints || {
+          fisico: getCharacterStatPoints(ch, 'fisico', importedFormula),
+          manipulacion: getCharacterStatPoints(ch, 'manipulacion', importedFormula),
+          influencia: getCharacterStatPoints(ch, 'influencia', importedFormula),
+        };
+        return {
+          ...ch,
+          statPoints: pts,
+          stats: {
+            fisico: calcStatLevelFromPoints(pts.fisico, importedFormula),
+            manipulacion: calcStatLevelFromPoints(pts.manipulacion, importedFormula),
+            influencia: calcStatLevelFromPoints(pts.influencia, importedFormula),
+          },
+          spellMastery:
+            ch.spellMastery && typeof ch.spellMastery === 'object' ? ch.spellMastery : {},
+          knowledgeMastery:
+            ch.knowledgeMastery && typeof ch.knowledgeMastery === 'object'
+              ? Object.fromEntries(
+                  Object.entries(ch.knowledgeMastery).map(([id, level]) => [
+                    id,
+                    Math.max(0, Math.min(3, Math.floor(level || 0))),
+                  ])
+                )
+              : {},
+          discoveredKnowledgeDisciplines: Array.isArray(ch.discoveredKnowledgeDisciplines)
+            ? [...new Set(ch.discoveredKnowledgeDisciplines)]
+            : [],
+          weapons: Array.isArray(ch.weapons) ? ch.weapons : [],
+          characterLevel:
+            typeof ch.characterLevel === 'number' && ch.characterLevel >= 1
+              ? Math.floor(ch.characterLevel)
+              : 1,
+          progressionHistory: Array.isArray(ch.progressionHistory) ? ch.progressionHistory : [],
+        };
+      });
+
+      const importedSpellsFromBackup: Spell[] = Array.isArray(data.spells)
+        ? data.spells.map((s: Spell) => ({
+            ...s,
+            statuses: Array.isArray(s.statuses) ? s.statuses : [],
+          }))
+        : spells;
+      const importedSpellIds = new Set(importedSpellsFromBackup.map((spell) => spell.id));
+      const importedSpells = [
+        ...importedSpellsFromBackup,
+        ...BUILTIN_SPELLS.filter((spell) => !importedSpellIds.has(spell.id)),
+      ];
+
+      const sanitizedBackup = sanitizeSignatureSpellsState(importedSpells, importedCharacters);
+      const backupSpellIds = new Set(sanitizedBackup.spells.map((spell) => spell.id));
+      const backupCharacters = sanitizedBackup.characters.map((character) => ({
+        ...character,
+        favoriteSpellIds: (character.favoriteSpellIds || []).filter((id) => backupSpellIds.has(id)),
+        personalSpellTags: Object.fromEntries(
+          Object.entries(character.personalSpellTags || {}).filter(([id]) => backupSpellIds.has(id))
+        ),
+        personalSpellTagNames: [...new Set(character.personalSpellTagNames || [])],
+        spellSortMode: ['custom', 'name', 'category', 'mana', 'nature', 'favorites'].includes(
+          character.spellSortMode || ''
+        )
+          ? character.spellSortMode
+          : 'custom',
+      }));
+
+      setCharacters(backupCharacters);
+      setActiveCharacterId(data.activeCharacterId || sanitizedBackup.characters[0].id);
+      if (Array.isArray(data.spells)) {
+        setSpells(sanitizedBackup.spells);
+      }
+      if (Array.isArray(data.customOrders)) setCustomOrders(data.customOrders);
+      if (Array.isArray(data.customStatuses)) setCustomStatuses(data.customStatuses);
+      if (data.manaMode) setManaMode(data.manaMode);
+      if (typeof data.round === 'number') setRound(data.round);
+      if (Array.isArray(data.combatants)) {
+        setCombatants(
+          data.combatants.map((cb: Combatant) => ({
+            ...cb,
+            preparedSpells: Array.isArray(cb.preparedSpells) ? cb.preparedSpells : [],
+            activeStatuses: Array.isArray(cb.activeStatuses) ? cb.activeStatuses : [],
+            actedThisRound: Boolean(cb.actedThisRound),
+          }))
+        );
+      }
+      if (typeof data.currentTurnCombatantId === 'string') {
+        setCurrentTurnCombatantId(data.currentTurnCombatantId);
+      }
+      if (typeof data.autoPassTurn === 'boolean') {
+        setAutoPassTurn(data.autoPassTurn);
+      }
+      if (data.arenaLayout) setArenaLayout(normalizeArenaLayout(data.arenaLayout));
+      if (data.theme) setTheme(normalizeThemeConfig(data.theme));
+      if (Array.isArray(data.globalSpellOrder)) setGlobalSpellOrder(data.globalSpellOrder);
+      setKnowledgeTreeSettings(normalizeKnowledgeTreeSettings(data.knowledgeTreeSettings));
+
+      return { ok: true, message: 'Copia importada correctamente.' };
+    }
+
+    if (Array.isArray(data.arcane_spells_v3)) {
+      const importedSpells: Spell[] = data.arcane_spells_v3.map(
+        (old: Record<string, unknown>) => ({
+          id: String(old.id || generateId('sp_')),
+          name: String(old.name || 'Importado'),
+          manaCost: Number(old.manaCost || 0),
+          orders: Array.isArray(old.orders) ? (old.orders as string[]) : [],
+          statuses: Array.isArray(old.statuses) ? (old.statuses as string[]) : [],
+          castStat: (old.castStat as Spell['castStat']) || 'none',
+          manualCastDice: Number(old.manualCastDice || 0),
+          assuredSuccess: Number(old.assuredSuccess || 0),
+          combatStats: Array.isArray(old.attackStats)
+            ? (old.attackStats as StatKey[])
+            : [],
+          damageMode: (old.damageMode as Spell['damageMode']) || 'auto',
+          effectType: (old.effectType as Spell['effectType']) || 'effect',
+          damage: (old.damage as Spell['damage']) || { dice: [], bonus: 0, notes: '' },
+          effectDescription: String(old.effectDescription || ''),
+          duration: String(old.duration || ''),
+          isBasic: Boolean(old.isBasic),
+        })
+      );
+      setSpells((prev) => {
+        const map = new Map(prev.map((s) => [s.id, s]));
+        importedSpells.forEach((s) => map.set(s.id, s));
+        return Array.from(map.values());
+      });
+      return {
+        ok: true,
+        message: `Se importaron ${importedSpells.length} hechizos desde copia clásica.`,
+      };
+    }
+
+    return { ok: false, message: 'Formato de copia de seguridad no reconocido.' };
+  } catch {
+    return { ok: false, message: 'No se pudo leer el archivo o código de respaldo.' };
+  }
+};
   const activeIsPJ = activeCharacter?.kind === 'mage';
   const activeCombatantForVisual = combatants.find(
     (cb) => cb.characterId === activeCharacter?.id
@@ -9212,8 +9296,8 @@ export default function App() {
             onChangeFormula={handleChangeFormula}
             onExportBackup={handleExportBackup}
             onImportBackup={handleImportBackup}
-            customSpellCount={getPlayerCreatedSpells(activeCharacter).length}
-            onExportCustomSpells={handleExportPlayerSpells}
+            customSpellCount={customSpellsToExport.length}
+            onExportCustomSpells={handleExportCustomSpells}
             canRevertReset={undoSnapshot !== null}
             onResetAllData={handleResetAllData}
             onRevertReset={handleRevertReset}
