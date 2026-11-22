@@ -172,15 +172,13 @@
   .arc-card-dead {
     animation: none !important;
   }
+}
 
 /* --- Exportación de Ficha / PDF para impresión --- */
 @layer utilities {
   .arc-print-sheet {
     display: none !important;
   }
-}
-.arc-print-sheet {
-  display: none !important;
 }
 
 @media print {
@@ -208,4 +206,3 @@
     color: #141414 !important;
   }
 }
-} 
