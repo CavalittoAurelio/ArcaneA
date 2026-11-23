@@ -128,6 +128,8 @@ import {
   sortCombatantsByInitiative,
   spellConsumesTurnAction,
   spellSupportsMastery,
+  MUSICIAN_INSTRUMENTS,
+  buildMusicianWordSpells,
 } from './utils/dice';
 import {
   DEFAULT_KNOWLEDGE_TREE_SETTINGS,
@@ -1012,8 +1014,51 @@ export default function App() {
   ) => {
     const target = characters.find((c) => c.id === charId);
     if (!target) return;
+const handleApplyNatureToCharacter = (
+  charId: string,
+  options: Omit<CreateCharacterOptions, 'name' | 'kind'> & {
+    keepPreviousCanalizado?: boolean;
+  }
+) => {
+  const target = characters.find((c) => c.id === charId);
+  if (!target) return;
 
-    const sig = buildMageSignatureSpells({
+  if (options.natureId === 'musico') {
+    const instId = options.musicianInstrument || 'voz';
+    const instPreset = MUSICIAN_INSTRUMENTS[instId] || MUSICIAN_INSTRUMENTS.voz;
+    const wordSpells = buildMusicianWordSpells({
+      charId,
+      instrument: instId,
+    });
+
+    setSpells((prev) => [
+      ...prev.filter(
+        (s) => !(s.ownerCharacterId === charId && s.name.startsWith('Palabra: «'))
+      ),
+      ...wordSpells,
+    ]);
+    setCharacters((prev) =>
+      prev.map((c) => {
+        if (c.id !== charId) return c;
+        const prevWordIds = new Set(
+          spells
+            .filter((s) => s.ownerCharacterId === charId && s.name.startsWith('Palabra: «'))
+            .map((s) => s.id)
+        );
+        const keptKnown = c.knownSpells.filter((id) => !prevWordIds.has(id));
+        return {
+          ...c,
+          nature: `Músico / Bardo (${instPreset.label})`,
+          musicianInstrument: instId,
+          notes: `Músico · ${instPreset.label} (${instPreset.family})`,
+          knownSpells: [...new Set([...wordSpells.map((s: Spell) => s.id), ...keptKnown])],
+        };
+      })
+    );
+    return;
+  }
+
+  const sig = buildMageSignatureSpells({
       charId,
       natureId: options.natureId,
       customNatureLabel: options.customNature,
@@ -9383,4 +9428,4 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
     </div>
   
   );
-}
+}}

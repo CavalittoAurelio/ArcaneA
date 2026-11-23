@@ -149,6 +149,8 @@ const [newCustomPhysicalName, setNewCustomPhysicalName] = useState('');
     useState<MusicianInstrumentId>('voz');
   const [showAdaptNature, setShowAdaptNature] = useState(false);
   const [adaptNatureId, setAdaptNatureId] = useState('fuego');
+  const [adaptMusicianInstrument, setAdaptMusicianInstrument] =
+    useState<MusicianInstrumentId>('voz');
   const [adaptCustomNature, setAdaptCustomNature] = useState('');
   const [adaptPhysicalVariant, setAdaptPhysicalVariant] =
     useState<MagePhysicalVariant>('golpe_fisico');
@@ -1034,6 +1036,32 @@ const handleCreate = () => {
                         className="w-full min-h-[34px] rounded-md border border-[#433324] bg-[#120d09] px-2.5 text-xs text-[#efe6d5]"
                       />
                     )}
+                    {adaptNatureId === 'musico' && (
+  <div className="sm:col-span-2 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface)] p-2 space-y-1">
+    <label className="block text-[11px] font-semibold text-[#b0a084]">
+      Instrumento / Voz de Músico
+    </label>
+    <select
+      value={adaptMusicianInstrument}
+      onChange={(e) =>
+        setAdaptMusicianInstrument(e.target.value as MusicianInstrumentId)
+      }
+      className="w-full min-h-[34px] rounded-md border border-[#433324] bg-[#120d09] px-2 text-xs text-[#efe6d5]"
+    >
+      {Object.values(MUSICIAN_INSTRUMENTS).map((inst) => (
+        <option key={inst.id} value={inst.id}>
+          {inst.label} ({inst.family})
+        </option>
+      ))}
+    </select>
+    <p className="text-[11px] text-[var(--arc-muted)] leading-snug">
+      <strong className="text-[var(--arc-accent)]">
+        {MUSICIAN_INSTRUMENTS[adaptMusicianInstrument].bonusText}
+      </strong>{' '}
+      · {MUSICIAN_INSTRUMENTS[adaptMusicianInstrument].description}
+    </p>
+  </div>
+)}
 
                     {(() => {
                       const sel = MAGE_NATURES.find((n) => n.id === adaptNatureId);
@@ -1061,17 +1089,19 @@ const handleCreate = () => {
                     <div className="sm:col-span-2">
                       <button
                         type="button"
-                        onClick={() => {
-                          onApplyNatureToCharacter(active.id, {
-                            natureId: adaptNatureId,
-                            customNature: adaptCustomNature,
-                            physicalVariant: adaptPhysicalVariant,
-                            customPhysicalName: adaptCustomPhysicalName,
-                            keepPreviousCanalizado: adaptKeepPreviousCanalizado,
-                          });
-                          setAdaptKeepPreviousCanalizado(false);
-                          setShowAdaptNature(false);
-                        }}
+                       onClick={() => {
+  onApplyNatureToCharacter(active.id, {
+    natureId: adaptNatureId,
+    customNature: adaptCustomNature,
+    physicalVariant: adaptPhysicalVariant,
+    customPhysicalName: adaptCustomPhysicalName,
+    musicianInstrument: adaptMusicianInstrument,
+    keepPreviousCanalizado: adaptKeepPreviousCanalizado,
+  });
+  setAdaptKeepPreviousCanalizado(false);
+  setShowAdaptNature(false);
+}}
+                         
                         className="min-h-[34px] rounded-md bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
                       >
                         Aplicar a {active.name}
