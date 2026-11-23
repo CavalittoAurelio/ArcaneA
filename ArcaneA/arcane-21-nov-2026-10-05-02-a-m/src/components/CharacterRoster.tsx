@@ -375,11 +375,14 @@ const [newCustomPhysicalName, setNewCustomPhysicalName] = useState('');
     }
   };
 
-  const handleCreate = () => {
-    const trimmed = newName.trim() || (newKind === 'mage' ? 'Mago' : 'PNJ');
+const handleCreate = () => {
+    const isMusician = newKind === 'mage' && newNatureId === 'musico';
+    const trimmed =
+      newName.trim() || (newKind === 'mage' ? (isMusician ? 'Músico' : 'Mago') : 'PNJ');
     onCreateCharacter({
       name: trimmed,
       kind: newKind,
+      musicianInstrument: newMusicianInstrument,
       natureId: newNatureId,
       customNature: newCustomNature,
       physicalVariant: newPhysicalVariant,
@@ -1842,78 +1845,105 @@ const [newCustomPhysicalName, setNewCustomPhysicalName] = useState('');
           </div>
 
           {newKind === 'mage' && (
-            <div className="grid gap-2.5 sm:grid-cols-2 border-t border-[var(--arc-border)] pt-3">
-              <div>
-                <label className="block text-xs font-semibold text-[#b0a084] mb-1">
-                  Elemento / Naturaleza para Impacto Canalizado (1d4 a distancia)
-                </label>
-                <select
-                  value={newNatureId}
-                  onChange={(e) => handleSelectNewNature(e.target.value)}
-                  className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-2.5 text-xs text-[#efe6d5]"
-                >
-                  {MAGE_NATURE_CATEGORIES.map((cat) => (
-                    <optgroup key={cat.id} label={cat.label}>
-                      {MAGE_NATURES.filter((n) => n.category === cat.id).map((nat) => (
-                        <option key={nat.id} value={nat.id}>
-                          {nat.label}
-                        </option>
-                      ))}
-                    </optgroup>
-                  ))}
-                </select>
-                {(() => {
-                  const sel = MAGE_NATURES.find((n) => n.id === newNatureId);
-                  if (!sel || sel.affinityOrders.length === 0) return null;
-                  return (
-                    <p className="mt-1 text-[11px] text-[var(--arc-muted)] leading-snug">
-                      Órdenes afines:{' '}
-                      <span className="text-[var(--arc-ink)]">
-                        {sel.affinityOrders.join(' · ')}
-                      </span>
-                    </p>
-                  );
-                })()}
-              </div>
+  <div className="grid gap-2.5 sm:grid-cols-2 border-t border-[var(--arc-border)] pt-3">
+    <div>
+      <label className="block text-xs font-semibold text-[#b0a084] mb-1">
+        Elemento / Naturaleza para Impacto Canalizado (1d4 a distancia)
+      </label>
+      <select
+        value={newNatureId}
+        onChange={(e) => handleSelectNewNature(e.target.value)}
+        className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-2.5 text-xs text-[#efe6d5]"
+      >
+        {MAGE_NATURE_CATEGORIES.map((cat) => (
+          <optgroup key={cat.id} label={cat.label}>
+            {MAGE_NATURES.filter((n) => n.category === cat.id).map((nat) => (
+              <option key={nat.id} value={nat.id}>
+                {nat.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {(() => {
+        const sel = MAGE_NATURES.find((n) => n.id === newNatureId);
+        if (!sel || sel.affinityOrders.length === 0) return null;
+        return (
+          <p className="mt-1 text-[11px] text-[var(--arc-muted)] leading-snug">
+            Órdenes afines:{' '}
+            <span className="text-[var(--arc-ink)]">
+              {sel.affinityOrders.join(' · ')}
+            </span>
+          </p>
+        );
+      })()}
+    </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-[#b0a084] mb-1">
-                  Ataque físico base (reemplaza Golpe Físico si es bestial/físico)
-                </label>
-                <select
-                  value={newPhysicalVariant}
-                  onChange={(e) => setNewPhysicalVariant(e.target.value as MagePhysicalVariant)}
-                  className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-2.5 text-xs text-[#efe6d5]"
-                >
-                  {Object.entries(PHYSICAL_VARIANTS).map(([key, info]) => (
-                    <option key={key} value={key}>
-                      {info.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+    <div>
+      <label className="block text-xs font-semibold text-[#b0a084] mb-1">
+        Ataque físico base (reemplaza Golpe Físico si es bestial/físico)
+      </label>
+      <select
+        value={newPhysicalVariant}
+        onChange={(e) => setNewPhysicalVariant(e.target.value as MagePhysicalVariant)}
+        className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-2.5 text-xs text-[#efe6d5]"
+      >
+        {Object.entries(PHYSICAL_VARIANTS).map(([key, info]) => (
+          <option key={key} value={key}>
+            {info.label}
+          </option>
+        ))}
+      </select>
+    </div>
 
-              {newNatureId === 'personalizada' && (
-                <input
-                  type="text"
-                  value={newCustomNature}
-                  onChange={(e) => setNewCustomNature(e.target.value)}
-                  placeholder="Tu elemento/naturaleza (ej: Sangre, Veneno, Tiempo)..."
-                  className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-3 text-xs text-[#efe6d5]"
-                />
-              )}
+    {newNatureId === 'personalizada' && (
+      <input
+        type="text"
+        value={newCustomNature}
+        onChange={(e) => setNewCustomNature(e.target.value)}
+        placeholder="Tu elemento/naturaleza (ej: Sangre, Veneno, Tiempo)..."
+        className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-3 text-xs text-[#efe6d5]"
+      />
+    )}
 
-              {newPhysicalVariant === 'personalizado' && (
-                <input
-                  type="text"
-                  value={newCustomPhysicalName}
-                  onChange={(e) => setNewCustomPhysicalName(e.target.value)}
-                  placeholder="Nombre del ataque físico base (ej: Cornada, Coletazo)..."
-                  className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-3 text-xs text-[#efe6d5]"
-                />
-              )}
-            </div>
-          )}
+    {newPhysicalVariant === 'personalizado' && (
+      <input
+        type="text"
+        value={newCustomPhysicalName}
+        onChange={(e) => setNewCustomPhysicalName(e.target.value)}
+        placeholder="Nombre del ataque físico base (ej: Cornada, Coletazo)..."
+        className="w-full min-h-[38px] rounded-lg border border-[#433324] bg-[#120d09] px-3 text-xs text-[#efe6d5]"
+      />
+    )}
+
+    {newNatureId === 'musico' && (
+      <div className="sm:col-span-2 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface)] p-2.5 space-y-1.5">
+        <label className="block text-xs font-semibold text-[#b0a084]">
+          Instrumento / Voz de Músico
+        </label>
+        <select
+          value={newMusicianInstrument}
+          onChange={(e) =>
+            setNewMusicianInstrument(e.target.value as MusicianInstrumentId)
+          }
+          className="w-full min-h-[36px] rounded-lg border border-[#433324] bg-[#120d09] px-2.5 text-xs text-[#efe6d5]"
+        >
+          {Object.values(MUSICIAN_INSTRUMENTS).map((inst) => (
+            <option key={inst.id} value={inst.id}>
+              {inst.label} ({inst.family})
+            </option>
+          ))}
+        </select>
+        <p className="text-[11px] text-[var(--arc-muted)] leading-snug">
+          <strong className="text-[var(--arc-accent)]">
+            {MUSICIAN_INSTRUMENTS[newMusicianInstrument].bonusText}
+          </strong>{' '}
+          · {MUSICIAN_INSTRUMENTS[newMusicianInstrument].description}
+        </p>
+      </div>
+    )}
+  </div>
+)}
         </div>
 
         <div className="space-y-2">
