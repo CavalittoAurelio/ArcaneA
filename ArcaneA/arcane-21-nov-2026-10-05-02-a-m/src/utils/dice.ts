@@ -16,6 +16,7 @@ import type {
   ElementalStatusKind,
   FormulaConfig,
   MagePhysicalVariant,
+  MusicianInstrumentId,
   OrderCategory,
   RollBreakdownItem,
   Spell,
@@ -521,7 +522,22 @@ export const MAGE_NATURES: MageNaturePreset[] = [
     damageNote: 'del vacío/corruptor a distancia',
     defaultPhysicalVariant: 'golpe_fisico',
   },
-
+  // Musica
+  {
+    id: 'musico',
+    label: 'Músico / Bardo',
+    category: 'otra',
+    orders: ['Proyección sonora', 'Resonancia', 'Curar'],
+    affinityOrders: [
+      'Proyección sonora',
+      'Resonancia',
+      'Pulso acústico',
+      'Eco / Reverberación',
+      'Curar',
+    ],
+    damageNote: 'palabra musical / sónico a distancia',
+    defaultPhysicalVariant: 'golpe_fisico',
+  },
   // Tiempo, Gravedad y Arcano
   {
     id: 'tiempo',
@@ -751,7 +767,248 @@ export const PHYSICAL_VARIANTS: Record<
     description: 'Ataque cuerpo a cuerpo adaptado a la naturaleza física del mago.',
   },
 };
+export interface MusicianInstrumentPreset {
+  id: MusicianInstrumentId;
+  label: string;
+  family: 'Viento y Voz' | 'Cuerda' | 'Percusión';
+  focus: 'curacion' | 'ataque' | 'defensa' | 'control_eco';
+  bonusText: string;
+  description: string;
+}
 
+export const MUSICIAN_INSTRUMENTS: Record<MusicianInstrumentId, MusicianInstrumentPreset> = {
+  voz: {
+    id: 'voz',
+    label: 'Voz',
+    family: 'Viento y Voz',
+    focus: 'curacion',
+    bonusText: '+1 éxito asegurado en «Curar heridas» y +1 bono en «Compás»',
+    description: 'Proyección vocal directa; fuerte en aliento, curación y sostén de ritmo.',
+  },
+  ocarina: {
+    id: 'ocarina',
+    label: 'Ocarina',
+    family: 'Viento y Voz',
+    focus: 'control_eco',
+    bonusText: '+1 éxito asegurado en «Eco» y +1 bono en «Curar heridas»',
+    description: 'Aire puro y melódico; favorece ecos armónicos y curaciones suaves.',
+  },
+  flauta: {
+    id: 'flauta',
+    label: 'Flauta',
+    family: 'Viento y Voz',
+    focus: 'control_eco',
+    bonusText: '+1 éxito asegurado en «Disonancia» y +1 bono en «Eco»',
+    description: 'Melodía ágil y aguda; ideal para disonar y encadenar ecos.',
+  },
+  trompeta: {
+    id: 'trompeta',
+    label: 'Trompeta',
+    family: 'Viento y Voz',
+    focus: 'ataque',
+    bonusText: '+1 éxito asegurado en «Lanza» y +1 bono en «Disonancia»',
+    description: 'Potencia metálica y frontal; proyecta estocadas sonoras y notas estridentes.',
+  },
+  guitarra: {
+    id: 'guitarra',
+    label: 'Guitarra',
+    family: 'Cuerda',
+    focus: 'ataque',
+    bonusText: '+1 éxito asegurado en «Lanza» y +1 bono en «Compás»',
+    description: 'Cuerda pulsada y rasgueada; versátil entre impacto dirigido y ritmo.',
+  },
+  laud: {
+    id: 'laud',
+    label: 'Laúd',
+    family: 'Cuerda',
+    focus: 'curacion',
+    bonusText: '+1 éxito asegurado en «Curar heridas» y +1 bono en «Eco»',
+    description: 'Clásico de bardo; equilibra restauración, melodía y resonancia.',
+  },
+  arpa: {
+    id: 'arpa',
+    label: 'Arpa',
+    family: 'Cuerda',
+    focus: 'curacion',
+    bonusText: '+1 éxito asegurado en «Curar heridas» y +1 bono en «Eco»',
+    description: 'Armonía amplia y envolvente; potencia curaciones y ecos prolongados.',
+  },
+  banjo: {
+    id: 'banjo',
+    label: 'Banjo',
+    family: 'Cuerda',
+    focus: 'ataque',
+    bonusText: '+1 éxito asegurado en «Lanza» y +1 bono en «Compás»',
+    description: 'Pulso percutido y vivo; destaca en ataques ágiles y cadencia marcada.',
+  },
+  tambor: {
+    id: 'tambor',
+    label: 'Tambor',
+    family: 'Percusión',
+    focus: 'defensa',
+    bonusText: '+1 éxito asegurado en «Muralla» y +1 bono en «Compás»',
+    description: 'Percusión grave y firme; levanta barreras rítmicas y marca el tiempo.',
+  },
+  pandereta: {
+    id: 'pandereta',
+    label: 'Pandereta',
+    family: 'Percusión',
+    focus: 'control_eco',
+    bonusText: '+1 éxito asegurado en «Disonancia» y +1 bono en «Compás»',
+    description: 'Ritmo tintineante y ágil; altera el compás y descoloca al rival.',
+  },
+};
+
+export function buildMusicianWordSpells(params: {
+  charId: string;
+  instrument: MusicianInstrumentId;
+}): Spell[] {
+  const inst = MUSICIAN_INSTRUMENTS[params.instrument] || MUSICIAN_INSTRUMENTS.voz;
+  const tag = inst.label;
+
+  return [
+    {
+      id: generateId('sp_'),
+      name: `Palabra: «Curar heridas» (${tag})`,
+      manaCost: 2,
+      orders: ['Curar', 'Proyección sonora', 'Resonancia'],
+      statuses: [],
+      ownerCharacterId: params.charId,
+      castRequirement: 'none',
+      castStat: 'influencia',
+      manualCastDice: 0,
+      assuredSuccess: inst.focus === 'curacion' ? 1 : 0,
+      combatStats: [],
+      damageMode: 'auto',
+      effectType: 'heal',
+      damage: {
+        dice: [{ type: 'd6', count: 1 }],
+        bonus: inst.focus === 'curacion' ? 2 : 1,
+        notes: `palabra musical · ${tag}`,
+      },
+      effectDescription: `Invoca «Curar heridas» con ${tag} para restaurar PV a un aliado.`,
+      duration: 'Instantáneo',
+      isBasic: false,
+    },
+    {
+      id: generateId('sp_'),
+      name: `Palabra: «Lanza» (${tag})`,
+      manaCost: 2,
+      orders: ['Proyectar', 'Proyección sonora', 'Vibración de ondas'],
+      statuses: [],
+      ownerCharacterId: params.charId,
+      castRequirement: 'none',
+      castStat: 'none',
+      manualCastDice: 0,
+      assuredSuccess: inst.focus === 'ataque' ? 1 : 0,
+      combatStats: ['influencia', 'manipulacion'],
+      damageMode: 'auto',
+      effectType: 'damage',
+      damageKind: 'magico',
+      damage: {
+        dice: [{ type: 'd6', count: 1 }],
+        bonus: inst.focus === 'ataque' ? 2 : 1,
+        notes: `palabra musical · ${tag}`,
+      },
+      effectDescription: `Invoca «Lanza» con ${tag} para lanzar un impacto sonoro punzante.`,
+      duration: 'Instantáneo',
+      isBasic: false,
+    },
+    {
+      id: generateId('sp_'),
+      name: `Palabra: «Muralla» (${tag})`,
+      manaCost: 2,
+      orders: ['Proteger', 'Barrera', 'Resonancia'],
+      statuses: [],
+      ownerCharacterId: params.charId,
+      castRequirement: 'none',
+      castStat: 'none',
+      manualCastDice: 0,
+      assuredSuccess: inst.focus === 'defensa' ? 1 : 0,
+      combatStats: ['influencia', 'manipulacion'],
+      damageMode: 'auto',
+      effectType: 'defense',
+      damage: { dice: [], bonus: 0, notes: `palabra musical · ${tag}` },
+      effectDescription: `Invoca «Muralla» con ${tag} para alzar una defensa sonora ante ataques.`,
+      duration: 'Instantáneo',
+      isBasic: false,
+    },
+    {
+      id: generateId('sp_'),
+      name: `Palabra: «Disonancia» (${tag})`,
+      manaCost: 2,
+      orders: ['Proyección sonora', 'Ensordecer', 'Desorientar'],
+      statuses: ['Ensordecer'],
+      statusParams: { Ensordecer: { autoFails: 1 } },
+      ownerCharacterId: params.charId,
+      castRequirement: 'none',
+      castStat: 'influencia',
+      manualCastDice: 0,
+      assuredSuccess: inst.focus === 'control_eco' ? 1 : 0,
+      combatStats: [],
+      damageMode: 'auto',
+      effectType: 'effect',
+      effectSubType: 'debuff',
+      damage: { dice: [], bonus: 0, notes: `palabra musical · ${tag}` },
+      effectDescription: `Invoca «Disonancia» con ${tag} para aplicar Ensordecer mediante Influencia.`,
+      duration: '1 turno',
+      durationTurns: 1,
+      isBasic: false,
+    },
+    {
+      id: generateId('sp_'),
+      name: `Palabra: «Compás» (${tag})`,
+      manaCost: 2,
+      orders: ['Acelerar', 'Pulso acústico'],
+      statuses: [],
+      ownerCharacterId: params.charId,
+      castRequirement: 'none',
+      castStat: 'influencia',
+      manualCastDice: 0,
+      assuredSuccess: 0,
+      combatStats: [],
+      damageMode: 'auto',
+      effectType: 'effect',
+      effectSubType: 'buff',
+      damage: {
+        dice: [],
+        bonus:
+          inst.focus === 'curacion' || inst.focus === 'ataque' || inst.focus === 'defensa'
+            ? 1
+            : 0,
+        notes: `palabra musical · ${tag}`,
+      },
+      effectDescription: `Marca el ritmo con «Compás» (${tag}) durante 2 turnos.`,
+      duration: '2 turnos',
+      durationTurns: 2,
+      isBasic: false,
+    },
+    {
+      id: generateId('sp_'),
+      name: `Palabra: «Eco» (${tag})`,
+      manaCost: 2,
+      orders: ['Eco / Reverberación', 'Potenciar'],
+      statuses: [],
+      ownerCharacterId: params.charId,
+      castRequirement: 'none',
+      castStat: 'none',
+      manualCastDice: 0,
+      assuredSuccess: inst.focus === 'control_eco' ? 1 : 0,
+      combatStats: ['influencia', 'manipulacion'],
+      damageMode: 'auto',
+      effectType: 'damage',
+      damageKind: 'magico',
+      damage: {
+        dice: [{ type: 'd4', count: 2 }],
+        bonus: inst.focus === 'control_eco' ? 1 : 0,
+        notes: `palabra musical · ${tag}`,
+      },
+      effectDescription: `Invoca «Eco» con ${tag} para proyectar una reverberación de 2d4 mágico.`,
+      duration: 'Instantáneo',
+      isBasic: false,
+    },
+  ];
+}
 export const ORDER_LIBRARY: OrderCategory[] = [
   {
     id: 'elemental',

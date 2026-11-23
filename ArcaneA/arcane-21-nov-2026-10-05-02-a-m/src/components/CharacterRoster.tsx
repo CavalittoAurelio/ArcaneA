@@ -27,6 +27,7 @@ import type {
   CharacterKind,
   FormulaConfig,
   MagePhysicalVariant,
+  MusicianInstrumentId,
   ProgressionHistoryEntry,
   Spell,
   SpellEffectType,
@@ -35,6 +36,7 @@ import type {
 import {
   MAGE_NATURES,
   MAGE_NATURE_CATEGORIES,
+  MUSICIAN_INSTRUMENTS,
   PHYSICAL_VARIANTS,
   STARTER_NPC_SPELL_IDS,
   STAT_NAMES,
@@ -58,12 +60,12 @@ import {
 } from '../utils/dice';
 import { KNOWLEDGE_TREE_SPELLS } from '../utils/knowledgeTrees';
 import { getSpellGoalProgress } from '../utils/progression';
-
 const KNOWLEDGE_TREE_SPELL_IDS = new Set(KNOWLEDGE_TREE_SPELLS.map((s) => s.id));
 
 export interface CreateCharacterOptions {
   name: string;
   kind: CharacterKind;
+  musicianInstrument?: MusicianInstrumentId;
   natureId: string;
   customNature?: string;
   physicalVariant: MagePhysicalVariant;
@@ -142,7 +144,9 @@ export function CharacterRoster({
   const [newNatureId, setNewNatureId] = useState('fuego');
   const [newCustomNature, setNewCustomNature] = useState('');
   const [newPhysicalVariant, setNewPhysicalVariant] = useState<MagePhysicalVariant>('golpe_fisico');
-  const [newCustomPhysicalName, setNewCustomPhysicalName] = useState('');
+const [newCustomPhysicalName, setNewCustomPhysicalName] = useState('');
+  const [newMusicianInstrument, setNewMusicianInstrument] =
+    useState<MusicianInstrumentId>('voz');
   const [showAdaptNature, setShowAdaptNature] = useState(false);
   const [adaptNatureId, setAdaptNatureId] = useState('fuego');
   const [adaptCustomNature, setAdaptCustomNature] = useState('');

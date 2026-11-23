@@ -16,6 +16,18 @@ export type CharacterKind = 'mage' | 'npc';
 
 export type CharacterCondition = 'active' | 'unconscious_mana' | 'unconscious_hp' | 'dead';
 
+export type MusicianInstrumentId =
+  | 'ocarina'
+  | 'guitarra'
+  | 'voz'
+  | 'banjo'
+  | 'flauta'
+  | 'laud'
+  | 'arpa'
+  | 'tambor'
+  | 'trompeta'
+  | 'pandereta';
+
 export interface DamageDie {
   type: DieType;
   count: number;
@@ -200,7 +212,11 @@ export interface Spell {
   /** Agrupación opcional de cadena de dependencias en el Archivo Arcano */
   catalogChainGroup?: string;
 }
-
+export type BardInstrumentSubArchetype =
+  | 'voz_lirica'
+  | 'cuerda_tensa'
+  | 'percusion_guerra'
+  | 'viento_arcano';
 export interface KnowledgeDisciplineRequirement {
   disciplineId: string;
   minimumMastery: number;
@@ -304,6 +320,7 @@ export interface Character {
   progressionHistory?: ProgressionHistoryEntry[];
   nature?: string;
   physicalVariant?: MagePhysicalVariant;
+  musicianInstrument?: MusicianInstrumentId;
   stats: CharacterStats;
   /** Puntos acumulados por característica (ej. 11 o 14 mantiene el mismo nivel hasta el siguiente hito) */
   statPoints?: CharacterStats;
