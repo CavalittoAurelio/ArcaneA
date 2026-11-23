@@ -29,13 +29,17 @@ interface FormulaAndBackupProps {
   onResetAllData: () => void;
   onRevertReset: () => void;
 }
-
 interface PendingBackupImport {
   fileName: string;
   rawContent: string;
   summary: string;
+  spellNames: string[];
 }
 
+interface BackupInspection {
+  summary: string;
+  spellNames: string[];
+}
 const MASTERY_MODES: Array<{ id: MasteryGrowthMode; label: string; hint: string }> = [
   { id: 'linear', label: 'Lineal (base)', hint: '0, 10, 20, 30...' },
   { id: 'double', label: 'Duplicado', hint: '0, B, 2B, 4B, 8B' },
@@ -43,7 +47,7 @@ const MASTERY_MODES: Array<{ id: MasteryGrowthMode; label: string; hint: string 
   { id: 'custom', label: 'Personalizado', hint: 'Hitos manuales' },
 ];
 
-function summarizeBackupContent(raw: string): string | null {
+function inspectBackupContent(raw: string): BackupInspection | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
@@ -64,7 +68,10 @@ function summarizeBackupContent(raw: string): string | null {
       }
       jsonCandidate = new TextDecoder().decode(bytes);
     } catch {
-      return 'Código ARCANE1 detectado (se validará al importar)';
+      return {
+        summary: 'Código ARCANE1 detectado (se validará al importar)',
+        spellNames: [],
+      };
     }
   } else {
     const firstBrace = trimmed.indexOf('{');
@@ -95,23 +102,24 @@ function summarizeBackupContent(raw: string): string | null {
           round?: unknown;
         };
 
+    const hasCharacters =
+    Array.isArray(parsed) || Array.isArray((parsed as { characters?: unknown[] })?.characters);
+
     const spellArray = Array.isArray(parsed)
-      ? parsed
-      : parsed?.format === 'arcane_spells_pack_v1' && Array.isArray(parsed?.spells)
-        ? parsed.spells
-        : null;
+    ? parsed
+    : !hasCharacters &&
+      Array.isArray((parsed as { spells?: Array<{ name?: unknown }> })?.spells)
+    ? (parsed as { spells: Array<{ name?: unknown }> }).spells
+    : null;
 
     if (spellArray && spellArray.length > 0) {
       const names = spellArray
         .map((s) => (typeof s?.name === 'string' ? s.name.trim() : ''))
         .filter(Boolean);
-      const previewNames =
-        names.length <= 4
-          ? names.join(', ')
-          : `${names.slice(0, 4).join(', ')} y ${names.length - 4} más`;
-      return `Paquete de ${spellArray.length} hechizo(s) propio(s)${
-        previewNames ? ` (${previewNames})` : ''
-      }`;
+      return {
+        summary: `Paquete de ${spellArray.length} hechizo(s) propio(s)`,
+        spellNames: names,
+      };
     }
 
     if (Array.isArray(parsed)) return null;
@@ -130,12 +138,14 @@ function summarizeBackupContent(raw: string): string | null {
     if (charCount !== null) parts.push(`${charCount} personaje(s)`);
     if (spellCount !== null) parts.push(`${spellCount} hechizo(s)`);
     if (roundNum !== null) parts.push(`Ronda ${roundNum}`);
-    return parts.join(' · ');
+    return {
+      summary: parts.join(' · '),
+      spellNames: [],
+    };
   } catch {
     return null;
   }
 }
-
 export function FormulaAndBackup({
   formula,
   onChangeFormula,
@@ -153,7 +163,7 @@ export function FormulaAndBackup({
   const [copiedLink, setCopiedLink] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [pendingImport, setPendingImport] = useState<PendingBackupImport | null>(null);
-
+  const [expandedSpellList, setExpandedSpellList] = useState(false);
   const milestones = getMasteryMilestones(formula);
   const statMilestones = getStatMilestones(formula);
 
@@ -191,19 +201,23 @@ export function FormulaAndBackup({
     const reader = new FileReader();
     reader.onload = () => {
       const text = String(reader.result || '');
-      const summary = summarizeBackupContent(text);
-      if (!summary) {
+      const inspection = inspectBackupContent(text);
+      console.log('Archivo leído:', file.name, 'Inspection:', inspection, 'Preview:', text.slice(0, 120));
+      if (!inspection) {
         setBackupError(true);
         setBackupMsg('El archivo seleccionado no contiene una copia de seguridad válida.');
         setPendingImport(null);
+        setExpandedSpellList(false);
         return;
       }
       setBackupError(false);
       setBackupMsg('');
+      setExpandedSpellList(false);
       setPendingImport({
         fileName: file.name,
         rawContent: text,
-        summary,
+        summary: inspection.summary,
+        spellNames: inspection.spellNames,
       });
     };
     reader.readAsText(file);
@@ -216,6 +230,7 @@ export function FormulaAndBackup({
     setBackupError(!res.ok);
     setBackupMsg(res.message);
     setPendingImport(null);
+    setExpandedSpellList(false);
   };
 
   const handleSwitchMasteryMode = (mode: MasteryGrowthMode) => {
@@ -756,44 +771,95 @@ export function FormulaAndBackup({
           </div>
 
           {pendingImport && (
-            <div className="rounded-lg border border-[var(--arc-accent)]/60 bg-[var(--arc-surface-alt)] p-3 space-y-2.5 text-xs">
-              <div className="space-y-0.5">
-                <p className="font-semibold text-[var(--arc-accent)]">
-                  ¿Reemplazar los datos actuales con esta copia de seguridad?
-                </p>
-                <p className="text-[var(--arc-text)]">
-                  Archivo: <strong className="font-mono-num">{pendingImport.fileName}</strong> ·{' '}
-                  {pendingImport.summary}
-                </p>
-                <p className="text-[var(--arc-muted)]">
-                  Esta acción sobrescribirá los personajes, hechizos y configuraciones actuales.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleConfirmImport}
-                  className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                  Confirmar restauración
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPendingImport(null)}
-                  className="min-h-[36px] rounded-lg px-3 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
+  <div className="rounded-lg border border-[var(--arc-accent)]/60 bg-[var(--arc-surface-alt)] p-3 space-y-2.5 text-xs">
+    <div className="space-y-0.5">
+      <p className="font-semibold text-[var(--arc-accent)]">
+        {pendingImport.spellNames.length > 0
+          ? '¿Sumar estos hechizos propios al grimorio actual?'
+          : '¿Reemplazar los datos actuales con esta copia de seguridad?'}
+      </p>
+      <p className="text-[var(--arc-text)]">
+        Archivo: <strong className="font-mono-num">{pendingImport.fileName}</strong> ·{' '}
+        {pendingImport.summary}
+      </p>
+      <p className="text-[var(--arc-muted)]">
+        {pendingImport.spellNames.length > 0
+          ? 'Se agregarán al final del orden actual sin borrar tus personajes ni el resto del grimorio.'
+          : 'Esta acción sobrescribirá los personajes, hechizos y configuraciones actuales.'}
+      </p>
+    </div>
 
-          {backupMsg && (
-            <p className={`text-xs ${backupError ? 'text-[#e88a70]' : 'text-[#a4d67e]'}`}>
-              {backupMsg}
-            </p>
+    {pendingImport.spellNames.length > 0 && (
+      <div className="rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface)] p-2.5 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-semibold text-[var(--arc-muted)]">
+            Hechizos detectados ({pendingImport.spellNames.length})
+          </span>
+          {pendingImport.spellNames.length > 6 && (
+            <button
+              type="button"
+              onClick={() => setExpandedSpellList((prev) => !prev)}
+              className="text-[11px] font-semibold text-[var(--arc-accent)] hover:underline"
+            >
+              {expandedSpellList
+                ? 'Plegar lista'
+                : `Ver todos (${pendingImport.spellNames.length})`}
+            </button>
           )}
+        </div>
+        <ul className="flex flex-wrap gap-1.5">
+          {(pendingImport.spellNames.length > 6 && !expandedSpellList
+            ? pendingImport.spellNames.slice(0, 6)
+            : pendingImport.spellNames
+          ).map((name, idx) => (
+            <li
+              key={`${name}-${idx}`}
+              className="rounded bg-[var(--arc-raised)] px-2 py-0.5 text-[11px] text-[var(--arc-text)]"
+            >
+              {name}
+            </li>
+          ))}
+          {pendingImport.spellNames.length > 6 && !expandedSpellList && (
+            <li className="px-1.5 py-0.5 text-[11px] text-[var(--arc-muted)]">
+              +{pendingImport.spellNames.length - 6} más
+            </li>
+          )}
+        </ul>
+      </div>
+    )}
+
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={handleConfirmImport}
+        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
+      >
+        <Check className="h-3.5 w-3.5" />
+        Confirmar importación
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setPendingImport(null);
+          setExpandedSpellList(false);
+        }}
+        className="min-h-[36px] rounded-lg px-3 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+      >
+        Cancelar
+      </button>
+    </div>
+  </div>
+)}
+
+{backupMsg && (
+  <p
+    className={`text-xs ${
+      backupError ? 'text-red-400' : 'text-[var(--arc-action-text)] font-medium'
+    }`}
+  >
+    {backupMsg}
+  </p>
+)}
         </section>
 
         {/* Borrar información + Revertir */}

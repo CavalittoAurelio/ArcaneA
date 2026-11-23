@@ -7875,18 +7875,27 @@ export default function App() {
         };
       }
 
+      const addedIds = newSpells.map((s) => s.id);
       setSpells((prev) => [...prev, ...newSpells]);
+      setGlobalSpellOrder((prev) => [
+        ...prev.filter((id) => !addedIds.includes(id)),
+        ...addedIds,
+      ]);
       if (activeCharacter) {
-        const addedIds = newSpells.map((s) => s.id);
         setCharacters((prev) =>
           prev.map((c) =>
             c.id === activeCharacter.id
-              ? { ...c, knownSpells: [...new Set([...c.knownSpells, ...addedIds])] }
+              ? {
+                  ...c,
+                  knownSpells: [...new Set([...c.knownSpells, ...addedIds])],
+                  spellOrder: Array.isArray(c.spellOrder)
+                    ? [...c.spellOrder.filter((id) => !addedIds.includes(id)), ...addedIds]
+                    : undefined,
+                }
               : c
           )
         );
       }
-
       return {
         ok: true,
         message: `Se importaron ${newSpells.length} hechizo(s) propio(s) para ${activeCharacter?.name || 'el personaje activo'}${

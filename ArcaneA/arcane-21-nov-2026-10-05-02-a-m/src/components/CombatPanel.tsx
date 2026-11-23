@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+
+import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -363,7 +364,109 @@ export function CombatPanel({
   const [botExistingEnemyIds, setBotExistingEnemyIds] = useState<string[]>([]);
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('normal');
   const [botPlayerGoesFirst, setBotPlayerGoesFirst] = useState(true);
+const [combatDeltas, setCombatDeltas] = useState<
+    Array<{
+      id: string;
+      combatantId: string;
+      text: string;
+      tone: 'damage' | 'heal' | 'mana';
+    }>
+  >([]);
+  const [shakingCombatantIds, setShakingCombatantIds] = useState<Record<string, boolean>>({});
+  const prevVitalsRef = useState(() => new Map())[0];
+const combatSectionRef = useRef<HTMLElement | null>(null);
 
+  useEffect(() => {
+    const hasActiveAction = Boolean(
+      (pendingAttack && !pendingAttack.resolved) ||
+        pendingCounterspell ||
+        pendingStatusCheck ||
+        pendingHeal
+    );
+    if (!hasActiveAction || !combatSectionRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      const el = combatSectionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const isAlreadyComfortablyVisible =
+        rect.top >= 0 && rect.top < window.innerHeight * 0.45 && rect.bottom > 160;
+
+      if (!isAlreadyComfortablyVisible) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 220);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    pendingAttack?.id,
+    pendingAttack?.defenseRoll,
+    pendingAttack?.pendingDamage?.rawSummary.total,
+    pendingCounterspell,
+    pendingStatusCheck,
+    pendingHeal,
+  ]);
+  useEffect(() => {
+    const newFloats: Array<{
+      id: string;
+      combatantId: string;
+      text: string;
+      tone: 'damage' | 'heal' | 'mana';
+    }> = [];
+    const hitIds: string[] = [];
+
+    for (const cb of combatants) {
+      const ch = characters.find((c) => c.id === cb.characterId);
+      if (!ch) continue;
+      const prev = prevVitalsRef.get(cb.id);
+      if (prev) {
+        const hpDiff = ch.hp.current - prev.hp;
+        const manaDiff = ch.mana.current - prev.mana;
+
+        if (hpDiff !== 0) {
+          newFloats.push({
+            id: `${cb.id}-hp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            combatantId: cb.id,
+            text: `${hpDiff > 0 ? `+${hpDiff}` : hpDiff} PV`,
+            tone: hpDiff < 0 ? 'damage' : 'heal',
+          });
+          if (hpDiff < 0) hitIds.push(cb.id);
+        }
+        if (manaDiff !== 0) {
+          newFloats.push({
+            id: `${cb.id}-mp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            combatantId: cb.id,
+            text: `${manaDiff > 0 ? `+${manaDiff}` : manaDiff} Maná`,
+            tone: 'mana',
+          });
+        }
+      }
+      prevVitalsRef.set(cb.id, { hp: ch.hp.current, mana: ch.mana.current });
+    }
+
+    if (newFloats.length > 0) {
+      setCombatDeltas((prevList) => [...prevList, ...newFloats]);
+      const idsToRemove = new Set(newFloats.map((f) => f.id));
+      setTimeout(() => {
+        setCombatDeltas((prevList) => prevList.filter((item) => !idsToRemove.has(item.id)));
+      }, 980);
+    }
+
+    if (hitIds.length > 0) {
+      setShakingCombatantIds((prevMap) => {
+        const next = { ...prevMap };
+        for (const id of hitIds) next[id] = true;
+        return next;
+      });
+      setTimeout(() => {
+        setShakingCombatantIds((prevMap) => {
+          const next = { ...prevMap };
+          for (const id of hitIds) delete next[id];
+          return next;
+        });
+      }, 340);
+    }
+  }, [combatants, characters, prevVitalsRef]);
   const inCombatCharIds = new Set(combatants.map((c) => c.characterId));
   const availableToAdd = characters.filter((c) => !inCombatCharIds.has(c.id));
   const sortedCombatants = [...combatants].sort((a, b) => b.initiative - a.initiative);
@@ -944,12 +1047,20 @@ export function CombatPanel({
     effectiveColProtStacks
   );
 
-  return (
-    <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
+    return (
+    <section
+      ref={combatSectionRef}
+      id="arcane-combat-arena"
+      className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4 scroll-mt-4"
+    >
+      
       {/* Cabecera de combate, cola de turnos y modo de maná */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--arc-border)] pb-3.5">
         <div>
-          <h2 className="font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)]">
+          <h2
+            key={round}
+            className="animate-arcane-die font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)]"
+          >
             Mesa de Combate · Ronda {round}
           </h2>
           <p className="text-[13px] text-[var(--arc-muted)] mt-0.5">
@@ -1184,7 +1295,7 @@ export function CombatPanel({
                   }
                   className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors whitespace-nowrap shrink-0 ${
                     isCurrentTurn
-                      ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-text)] font-bold'
+                      ? 'animate-arcane-turn border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-text)] font-bold'
                       : isIncapacitated
                         ? 'border-transparent bg-[var(--arc-input)] text-[var(--arc-muted)] opacity-50 line-through'
                         : acted
@@ -2276,8 +2387,15 @@ export function CombatPanel({
                             : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-muted)]';
                       return (
                         <span
-                          key={idx}
-                          className={`font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${dieStyle}`}
+                          key={`${pendingAttack.id}-${idx}-${val}`}
+                          style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
+                          className={`animate-arcane-die font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${
+                            val === 6
+                              ? 'ring-1 ring-[#9be870]/70 '
+                              : val === 1
+                                ? 'ring-1 ring-[#ff8b6b]/70 '
+                                : ''
+                          }${dieStyle}`}
                         >
                           {val}
                         </span>
@@ -2316,8 +2434,11 @@ export function CombatPanel({
                 </div>
 
                 {/* Daño ya tirado/decidido (visible en la columna del atacante en Paso 3) */}
-                {pendingDmg && (
-                  <div className="border-t border-[var(--arc-atk-border)]/45 pt-2.5 space-y-1">
+                    {pendingDmg && (
+                      <div
+                        key={`dmg-raw-${pendingAttack.id}-${rawDamageTotal}`}
+                        className="animate-arcane-die border-t border-[var(--arc-atk-border)]/45 pt-2.5 space-y-1"
+                      >
                     {pendingDmg.rawSummary.isCriticalHit && (
                       <div className="inline-flex items-center gap-1.5 rounded bg-[#5e1c14] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffd6c9]">
                         <Zap className="h-3 w-3 shrink-0" />
@@ -2920,10 +3041,17 @@ export function CombatPanel({
                                 : val >= 5
                                   ? 'border-[var(--arc-def-border)] bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
                                   : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-muted)]';
-                            return (
+                                  return (
                               <span
-                                key={idx}
-                                className={`font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${dieStyle}`}
+                                key={`${pendingAttack.id}-def-${idx}-${val}`}
+                                style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
+                                className={`animate-arcane-die font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${
+                                  val === 6
+                                    ? 'ring-1 ring-[#8cc8ff]/70 '
+                                    : val === 1
+                                      ? 'ring-1 ring-[#ff8b6b]/70 '
+                                      : ''
+                                }${dieStyle}`}
                               >
                                 {val}
                               </span>
@@ -3172,7 +3300,10 @@ export function CombatPanel({
 
             {/* Franja inferior — Paso 3: Confirmación final del daño tras decidir Protección */}
             {isAwaitingDamageDecision && pendingDmg && resolvedTargetChar && (
-              <div className="border-t border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+              <div
+                key={`step3-${pendingAttack.id}-${rawDamageTotal}`}
+                className="animate-arcane-die border-t border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3 flex flex-wrap items-center justify-between gap-3"
+              >
                 <div className="space-y-0.5">
                   <div className="text-sm font-bold text-[var(--arc-text)] font-mono-num">
                     Daño final a{' '}
@@ -4478,7 +4609,7 @@ export function CombatPanel({
                 })()}
               </div>
             );
-          })}
+         })}
         </div>
       )}
     </section>

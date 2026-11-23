@@ -319,7 +319,94 @@ function getSpellAppliedStatusLabels(spell: Spell): string[] {
   }
   return Array.from(labels);
 }
+interface ParsedImportSpellItem {
+  raw: Record<string, unknown>;
+  name: string;
+  manaCost: number;
+  orders: string[];
+}
 
+interface PendingSpellPackImport {
+  fileName: string;
+  items: ParsedImportSpellItem[];
+  selectedIndices: number[];
+  customOrders?: string[];
+  customStatuses?: string[];
+}
+
+function parseSpellPackForPreview(rawText: string): Omit<PendingSpellPackImport, 'fileName'> | null {
+  const trimmed = rawText.trim();
+  if (!trimmed) return null;
+
+  let jsonCandidate = trimmed;
+  const arcaneMatch = trimmed.match(/ARCANE1:[A-Za-z0-9+/_=-]+/);
+  if (arcaneMatch) {
+    try {
+      const encoded = arcaneMatch[0].slice('ARCANE1:'.length).trim();
+      const standardBase64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = standardBase64.padEnd(
+        standardBase64.length + ((4 - (standardBase64.length % 4)) % 4),
+        '='
+      );
+      const binary = atob(padded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      jsonCandidate = new TextDecoder().decode(bytes);
+    } catch {
+      return null;
+    }
+  } else {
+    const firstBrace = trimmed.indexOf('{');
+    const lastBrace = trimmed.lastIndexOf('}');
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      jsonCandidate = trimmed.slice(firstBrace, lastBrace + 1);
+    } else {
+      const firstBracket = trimmed.indexOf('[');
+      const lastBracket = trimmed.lastIndexOf(']');
+      if (firstBracket >= 0 && lastBracket > firstBracket) {
+        jsonCandidate = trimmed.slice(firstBracket, lastBracket + 1);
+      }
+    }
+  }
+
+  try {
+    const parsed = JSON.parse(jsonCandidate) as
+      | Array<Record<string, unknown>>
+      | {
+          spells?: Array<Record<string, unknown>>;
+          customOrders?: string[];
+          customStatuses?: string[];
+        };
+
+    const rawList = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed?.spells)
+        ? parsed.spells
+        : [];
+
+    const items: ParsedImportSpellItem[] = rawList
+      .filter((sp) => sp && typeof sp.name === 'string' && sp.name.trim().length > 0)
+      .map((sp) => ({
+        raw: sp,
+        name: String(sp.name).trim(),
+        manaCost: Number(sp.manaCost || 0),
+        orders: Array.isArray(sp.orders) ? sp.orders.map(String) : [],
+      }));
+
+    if (items.length === 0) return null;
+
+    return {
+      items,
+      selectedIndices: items.map((_, idx) => idx),
+      customOrders: !Array.isArray(parsed) && Array.isArray(parsed.customOrders) ? parsed.customOrders : undefined,
+      customStatuses: !Array.isArray(parsed) && Array.isArray(parsed.customStatuses) ? parsed.customStatuses : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
 export function SpellBookList({
   spells,
   activeCharacter,
@@ -377,9 +464,9 @@ export function SpellBookList({
   const [newPersonalTag, setNewPersonalTag] = useState('');
   const [renamingPersonalTag, setRenamingPersonalTag] = useState<string | null>(null);
   const [renamedPersonalTag, setRenamedPersonalTag] = useState('');
-  const [transferNotice, setTransferNotice] = useState<{ ok: boolean; message: string } | null>(
-    null
-  );
+  const [transferNotice, setTransferNotice] = useState<{ ok: boolean; message: string } | null>(null)
+  const [pendingSpellImport, setPendingSpellImport] = useState<PendingSpellPackImport | null>(null);
+  const [expandImportPreview, setExpandImportPreview] = useState(false);
   const [inspectedSpell, setInspectedSpell] = useState<Spell | null>(null);
 
   const selectedSpellSet = useMemo(() => new Set(selectedSpellIds), [selectedSpellIds]);
@@ -1093,7 +1180,7 @@ export function SpellBookList({
               {selectExportMode ? 'Salir de selección' : 'Compartir seleccionados'}
             </button>
           )}
-
+          
           {onImportCustomSpells && (
             <>
               <button
@@ -1115,8 +1202,22 @@ export function SpellBookList({
                   if (!file) return;
                   const reader = new FileReader();
                   reader.onload = () => {
-                    const res = onImportCustomSpells(String(reader.result || ''));
-                    setTransferNotice(res);
+                    const raw = String(reader.result || '');
+                    const preview = parseSpellPackForPreview(raw);
+                    if (!preview) {
+                      setTransferNotice({
+                        ok: false,
+                        message: 'El archivo seleccionado no contiene hechizos propios válidos.',
+                      });
+                      setPendingSpellImport(null);
+                      return;
+                    }
+                    setTransferNotice(null);
+                    setExpandImportPreview(false);
+                    setPendingSpellImport({
+                      fileName: file.name,
+                      ...preview,
+                    });
                   };
                   reader.readAsText(file);
                   e.target.value = '';
@@ -1248,7 +1349,148 @@ export function SpellBookList({
           </button>
         </div>
       )}
+        {pendingSpellImport && onImportCustomSpells && (
+  <div className="rounded-xl border border-[var(--arc-accent)]/60 bg-[var(--arc-surface)] p-3.5 space-y-3 text-xs shadow-md">
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div>
+        <p className="font-semibold text-[var(--arc-accent)]">
+          Elegí qué hechizos importar de{' '}
+          <span className="font-mono-num">{pendingSpellImport.fileName}</span>
+        </p>
+        <p className="text-[var(--arc-muted)] mt-0.5">
+          Seleccionados:{' '}
+          <strong className="text-[var(--arc-text)] font-mono-num">
+            {pendingSpellImport.selectedIndices.length}
+          </strong>{' '}
+          de <span className="font-mono-num">{pendingSpellImport.items.length}</span> · Se sumarán
+          al final del orden actual.
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setPendingSpellImport((prev) =>
+              prev ? { ...prev, selectedIndices: prev.items.map((_, idx) => idx) } : null
+            )
+          }
+          className="text-[11px] font-semibold text-[var(--arc-accent)] hover:underline"
+        >
+          Marcar todos
+        </button>
+        <span className="text-[var(--arc-muted)]">·</span>
+        <button
+          type="button"
+          onClick={() =>
+            setPendingSpellImport((prev) => (prev ? { ...prev, selectedIndices: [] } : null))
+          }
+          className="text-[11px] font-medium text-[var(--arc-muted)] hover:text-[var(--arc-text)] hover:underline"
+        >
+          Desmarcar todos
+        </button>
+      </div>
+    </div>
 
+    <div className="rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-2.5 space-y-2">
+      <div className="grid gap-1.5 sm:grid-cols-2">
+        {(pendingSpellImport.items.length > 6 && !expandImportPreview
+          ? pendingSpellImport.items.map((item, idx) => ({ item, idx })).slice(0, 6)
+          : pendingSpellImport.items.map((item, idx) => ({ item, idx }))
+        ).map(({ item, idx }) => {
+          const checked = pendingSpellImport.selectedIndices.includes(idx);
+          return (
+            <label
+              key={`${item.name}-${idx}`}
+              className={`flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 cursor-pointer transition-colors ${
+                checked
+                  ? 'border-[var(--arc-accent)]/50 bg-[var(--arc-raised)] text-[var(--arc-text)]'
+                  : 'border-transparent bg-[var(--arc-surface)] text-[var(--arc-muted)] opacity-75'
+              }`}
+            >
+              <span className="inline-flex items-center gap-2 min-w-0">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() =>
+                    setPendingSpellImport((prev) => {
+                      if (!prev) return null;
+                      const exists = prev.selectedIndices.includes(idx);
+                      return {
+                        ...prev,
+                        selectedIndices: exists
+                          ? prev.selectedIndices.filter((i) => i !== idx)
+                          : [...prev.selectedIndices, idx].sort((a, b) => a - b),
+                      };
+                    })
+                  }
+                  className="accent-[var(--arc-accent)]"
+                />
+                <span className="truncate font-medium">{item.name}</span>
+              </span>
+              <span className="font-mono-num text-[11px] text-[var(--arc-muted)] shrink-0">
+                {item.manaCost} maná
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      {pendingSpellImport.items.length > 6 && (
+        <div className="flex items-center justify-between pt-1 border-t border-[var(--arc-border)]/60">
+          <span className="text-[11px] text-[var(--arc-muted)]">
+            {!expandImportPreview
+              ? `Mostrando 6 de ${pendingSpellImport.items.length} hechizos`
+              : `Mostrando los ${pendingSpellImport.items.length} hechizos`}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpandImportPreview((prev) => !prev)}
+            className="text-[11px] font-semibold text-[var(--arc-accent)] hover:underline"
+          >
+            {expandImportPreview
+              ? 'Plegar lista'
+              : `Ver todos (${pendingSpellImport.items.length})`}
+          </button>
+        </div>
+      )}
+    </div>
+
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        disabled={pendingSpellImport.selectedIndices.length === 0}
+        onClick={() => {
+          const chosenSpells = pendingSpellImport.selectedIndices
+            .map((idx) => pendingSpellImport.items[idx]?.raw)
+            .filter(Boolean);
+          const payload = JSON.stringify({
+            format: 'arcane_spells_pack_v1',
+            spells: chosenSpells,
+            customOrders: pendingSpellImport.customOrders,
+            customStatuses: pendingSpellImport.customStatuses,
+          });
+          const res = onImportCustomSpells(payload);
+          setTransferNotice(res);
+          setPendingSpellImport(null);
+          setExpandImportPreview(false);
+        }}
+        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-45 disabled:cursor-not-allowed transition-colors"
+      >
+        Importar seleccionados ({pendingSpellImport.selectedIndices.length})
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setPendingSpellImport(null);
+          setExpandImportPreview(false);
+        }}
+        className="min-h-[36px] rounded-lg px-3 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+      >
+        Cancelar
+      </button>
+    </div>
+  </div>
+)}
       {lastMasteryReset && onRevertSpellMastery && (
         <div className="rounded-lg border border-[var(--arc-cat-buff-border)] bg-[var(--arc-cat-buff-bg)] px-3.5 py-2.5 text-xs text-[var(--arc-cat-buff-text)] flex flex-wrap items-center justify-between gap-2.5">
           <span>
