@@ -648,6 +648,12 @@ export default function App() {
   const [autoPassPaused, setAutoPassPaused] = useState<boolean>(false);
   // Combate IRL: tiradas libres sin objetivos ni PNJ, solo el jugador por turnos
   const [irlCombat, setIrlCombat] = useState<boolean>(false);
+  const [irlLastHeal, setIrlLastHeal] = useState<{
+    charId: string;
+    charName: string;
+    spellName: string;
+    amount: number;
+  } | null>(null);
   const [autoPassSecondsLeft, setAutoPassSecondsLeft] = useState<number | null>(null);
   const [arenaLayout, setArenaLayout] = useState<ArenaLayoutConfig>(
     normalizeArenaLayout(initial.arenaLayout)
@@ -5114,7 +5120,14 @@ const handleApplyNatureToCharacter = (
       spell.damage.bonus,
       spell.damage.notes
     );
-
+    if (!isTest && irlCombat) {
+          setIrlLastHeal({
+            charId: healer.id,
+            charName: healer.name,
+            spellName: spell.name,
+            amount: Math.max(0, healRoll.total),
+          });
+        }
     if (!isTest && autoApplyTargetCharId) {
       const healTarget = characters.find((c) => c.id === autoApplyTargetCharId);
       adjustHp(autoApplyTargetCharId, Math.max(0, healRoll.total), false);
@@ -8571,6 +8584,18 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
           round={round}
           manaMode={manaMode}
           irlCombat={irlCombat}
+          onLogIrlAction={pushLog}
+          irlLastHeal={irlLastHeal}
+          onApplyIrlSelfHeal={(charId, amount, spellName) => {
+            adjustHp(charId, Math.max(0, amount), false);
+            setIrlLastHeal(null);
+            pushLog({
+              kind: 'heal',
+              title: `Curación IRL aplicada a ${characters.find((c) => c.id === charId)?.name || 'PJ'}`,
+              summaryText: `Se aplicaron +${amount} PV (${spellName}) en Combate IRL.`,
+            });
+          }}
+          onDismissIrlLastHeal={() => setIrlLastHeal(null)}
           combatants={combatants}
           characters={characters}
           spells={spells}

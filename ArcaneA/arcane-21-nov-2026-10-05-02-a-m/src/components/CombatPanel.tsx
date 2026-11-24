@@ -96,6 +96,7 @@ import {
 } from '../utils/combatMechanics';
 
 interface CombatPanelProps {
+  
   round: number;
   manaMode: ManaDiscountMode;
   irlCombat?: boolean;
@@ -123,6 +124,21 @@ interface CombatPanelProps {
     isManual: boolean;
     formulaText: string;
   } | null;
+  onLogIrlAction?: (entry: {
+    kind: 'cast' | 'attack' | 'defense' | 'heal' | 'quick' | 'event';
+    title: string;
+    actorName?: string;
+    isMagical?: boolean;
+    summaryText: string;
+  }) => void;
+  irlLastHeal?: {
+    charId: string;
+    charName: string;
+    spellName: string;
+    amount: number;
+  } | null;
+  onApplyIrlSelfHeal?: (charId: string, amount: number, spellName: string) => void;
+  onDismissIrlLastHeal?: () => void;
   onChangeRound: (delta: number) => void;
   onResetCombat: () => void;
   onChangeManaMode: (mode: ManaDiscountMode) => void;
@@ -319,7 +335,14 @@ export function CombatPanel({
   onRematchBotPractice,
   onEndBotPractice,
   onToggleCombatantBot,
-}: CombatPanelProps) {
+  onLogIrlAction,
+  irlLastHeal,
+  onApplyIrlSelfHeal,
+  onDismissIrlLastHeal,
+  
+} 
+
+: CombatPanelProps) {
   const [selectedAddId, setSelectedAddId] = useState('');
   const [addInitiative, setAddInitiative] = useState(0);
   const [defendingTargetId, setDefendingTargetId] = useState<string | null>(null);
@@ -353,7 +376,7 @@ export function CombatPanel({
   const [directDmgLethal, setDirectDmgLethal] = useState<boolean>(false);
   const [directDmgLabel, setDirectDmgLabel] = useState<string>('');
   const [directDmgProtStacks, setDirectDmgProtStacks] = useState<number>(0);
-
+    
   // Configuración de práctica contra la máquina (PvE)
   const [showBotSetup, setShowBotSetup] = useState(false);
   const [botPlayerCharId, setBotPlayerCharId] = useState('');
@@ -374,6 +397,7 @@ export function CombatPanel({
   const [, setShakingCombatantIds] = useState<Record<string, boolean>>({});
   const prevVitalsRef = useState(() => new Map<string, { hp: number; mana: number }>())[0];
   const combatSectionRef = useRef<HTMLElement | null>(null);
+  const duelResolutionRef = useRef<HTMLDivElement | null>(null);
   const [showFullVirtualTableInIrl, setShowFullVirtualTableInIrl] = useState(false);
   const [irlLastActionNote, setIrlLastActionNote] = useState<string | null>(null);
 
@@ -384,36 +408,33 @@ export function CombatPanel({
     }
   }, [irlCombat]);
 
-  useEffect(() => {
-    const hasActiveAction = Boolean(
-      (pendingAttack && !pendingAttack.resolved) ||
-        pendingCounterspell ||
-        pendingStatusCheck ||
-        pendingHeal
-    );
-    if (!hasActiveAction || !combatSectionRef.current) return;
+ useEffect(() => {
+  const needsDefenseOrDamageDecision = Boolean(
+    pendingAttack &&
+      !pendingAttack.resolved &&
+      (!pendingAttack.defenseRoll || pendingAttack.pendingDamage)
+  );
+  if (!needsDefenseOrDamageDecision) return;
 
-    const timer = window.setTimeout(() => {
-      const el = combatSectionRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const isAlreadyComfortablyVisible =
-        rect.top >= 0 && rect.top < window.innerHeight * 0.45 && rect.bottom > 160;
+  const timer = window.setTimeout(() => {
+    const targetEl = duelResolutionRef.current || combatSectionRef.current;
+    if (!targetEl) return;
+    const rect = targetEl.getBoundingClientRect();
+    const isAlreadyComfortablyVisible =
+      rect.top >= 0 && rect.top < window.innerHeight * 0.5 && rect.bottom > 140;
 
-      if (!isAlreadyComfortablyVisible) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 220);
+    if (!isAlreadyComfortablyVisible) {
+      targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, 180);
 
-    return () => window.clearTimeout(timer);
-  }, [
-    pendingAttack?.id,
-    pendingAttack?.defenseRoll,
-    pendingAttack?.pendingDamage?.rawSummary.total,
-    pendingCounterspell,
-    pendingStatusCheck,
-    pendingHeal,
-  ]);
+  return () => window.clearTimeout(timer);
+}, [
+  pendingAttack?.id,
+  pendingAttack?.resolved,
+  Boolean(pendingAttack?.defenseRoll),
+  Boolean(pendingAttack?.pendingDamage),
+]);
 
   useEffect(() => {
     const newFloats: Array<{
@@ -1245,9 +1266,14 @@ export function CombatPanel({
             const sum = diceRolls.reduce((acc, n) => acc + n, 0);
             const successes = diceRolls.filter((n) => n >= 4).length;
             const netText = sum > 0 ? `+${sum}` : `${sum}`;
-            setIrlLastActionNote(
-              `${irlChar.name} · ${label}: [${diceRolls.join(', ')}] → neto ${netText} (${successes} éxitos)`
-            );
+            const line = `${irlChar.name} · ${label}: [${diceRolls.join(', ')}] → neto ${netText} (${successes} éxitos)`;
+            setIrlLastActionNote(line);
+            onLogIrlAction?.({
+              kind: 'quick',
+              title: `${irlChar.name} · ${label} (Combate IRL)`,
+              actorName: irlChar.name,
+              summaryText: `Dados [${diceRolls.join(', ')}] · Neto ${netText} (${successes} éxitos).`,
+            });
           };
 
           const handleIrlQuickProtection = (kind: 'magico' | 'fisico') => {
@@ -1261,13 +1287,26 @@ export function CombatPanel({
               return;
             }
             onAdjustMana(irlChar.id, -1);
-            setIrlLastActionNote(
-              `${irlChar.name} activa Protección ${kindLabel}: −${reduction} daño · 1 Maná gastado (${Math.max(
-                0,
-                irlChar.mana.current - 1
-              )}/${irlChar.mana.max})`
-            );
+            const nextMana = Math.max(0, irlChar.mana.current - 1);
+            const line = `${irlChar.name} activa Protección ${kindLabel}: −${reduction} daño · 1 Maná gastado (${nextMana}/${irlChar.mana.max})`;
+            setIrlLastActionNote(line);
+            onLogIrlAction?.({
+              kind: 'defense',
+              title: `${irlChar.name} activa Protección ${kindLabel} · Combate IRL`,
+              actorName: irlChar.name,
+              isMagical: kind === 'magico',
+              summaryText: `Reduce −${reduction} de daño ${kindLabel.toLowerCase()} y gasta 1 Maná (${nextMana}/${irlChar.mana.max} restantes).`,
+            });
           };
+
+          const irlPrepared = irlCb?.preparedSpells || [];
+          const irlStatuses = irlCb?.activeStatuses || [];
+          const canApplySelfHeal = Boolean(
+            irlChar &&
+              irlLastHeal &&
+              irlLastHeal.charId === irlChar.id &&
+              onApplyIrlSelfHeal
+          );
 
           return (
             <div className="rounded-xl border border-[var(--arc-accent)]/40 bg-[var(--arc-surface)] p-3.5 space-y-3">
@@ -1426,6 +1465,39 @@ export function CombatPanel({
                     </button>
                   </div>
 
+                  {canApplySelfHeal && irlLastHeal && irlChar && onApplyIrlSelfHeal && (
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#5f8240]/60 bg-[#192614] px-2.5 py-1.5 text-xs text-[#cdeba9]">
+                      <span>
+                        Curación tirada ({irlLastHeal.spellName}):{' '}
+                        <strong className="font-mono-num">+{irlLastHeal.amount} PV</strong>
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onApplyIrlSelfHeal(
+                              irlChar.id,
+                              irlLastHeal.amount,
+                              irlLastHeal.spellName
+                            )
+                          }
+                          className="rounded-md bg-[#5f8240] px-2.5 py-1 text-xs font-semibold text-[#141a0d] hover:bg-[#77a352] transition-colors"
+                        >
+                          Aplicar a mí (+{irlLastHeal.amount} PV)
+                        </button>
+                        {onDismissIrlLastHeal && (
+                          <button
+                            type="button"
+                            onClick={onDismissIrlLastHeal}
+                            className="text-[11px] text-[#9cb984] hover:text-white px-1"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {irlLastActionNote && (
                     <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/35 px-2.5 py-1.5 text-xs font-mono-num text-[#ffd996]">
                       <span>{irlLastActionNote}</span>
@@ -1436,6 +1508,61 @@ export function CombatPanel({
                       >
                         Limpiar
                       </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Hechizos preparados y buffs/estados activos de tu personaje en IRL */}
+              {irlCb && (irlPrepared.length > 0 || irlStatuses.length > 0) && (
+                <div className="border-t border-white/10 pt-2.5 space-y-2 text-xs">
+                  {irlPrepared.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="block text-[11px] font-semibold text-[var(--arc-magic-accent)]">
+                        Hechizos preparados:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {irlPrepared.map((prep) => (
+                          <div
+                            key={prep.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-black/30 px-2 py-1"
+                          >
+                            <span className="font-semibold text-[#efe6d5]">{prep.spellName}</span>
+                            <button
+                              type="button"
+                              onClick={() => onAttackWithPrepared(irlCb.id, prep)}
+                              className="rounded bg-[var(--arc-action)] px-2 py-0.5 text-[11px] font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
+                            >
+                              Atacar IRL
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {irlStatuses.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="block text-[11px] font-semibold text-[#cbb893]">
+                        Estados / buffs activos:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {irlStatuses.map((st) => (
+                          <span
+                            key={st.id}
+                            className="inline-flex items-center gap-1 rounded-lg bg-black/30 px-2 py-1 text-[#efe6d5]"
+                          >
+                            <strong>{st.name}</strong>
+                            <span className="font-mono-num text-[11px] text-[#cbb893]">
+                              (
+                              {typeof st.remainingTurns === 'number'
+                                ? `${st.remainingTurns}t`
+                                : st.duration || 'activo'}
+                              )
+                            </span>
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2478,7 +2605,9 @@ export function CombatPanel({
               : 0;
 
             return (
-              <div className="rounded-xl border border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] overflow-hidden">
+              <div ref={duelResolutionRef}
+              className="rounded-xl border border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] overflow-hidden scroll-mt-4">
+                
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3">
                   <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
                     <span className="text-xs font-bold uppercase tracking-wider text-[var(--arc-muted)]">
