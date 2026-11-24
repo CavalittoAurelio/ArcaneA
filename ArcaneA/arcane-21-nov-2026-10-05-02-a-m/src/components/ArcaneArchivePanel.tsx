@@ -1178,26 +1178,44 @@ export function ArcaneArchivePanel({
               : null;
             const isGoalExpanded = expandedGoalIds.has(goalId);
 
+            const secondaryDetails: string[] = [];
+            if (sp.areaConfig?.enabled) {
+              secondaryDetails.push(`Área: ${sp.areaConfig.shapeNote || 'Múltiples objetivos'}`);
+            }
+            if (sp.statuses.length > 0) {
+              secondaryDetails.push(`Estados: ${sp.statuses.join(', ')}`);
+            }
+            if (elemMeta && sp.elementalStatus) {
+              secondaryDetails.push(
+                `Efecto: ${elemMeta.name} (${
+                  TRIGGER_LABELS[sp.elementalStatus.trigger] || sp.elementalStatus.trigger
+                })`
+              );
+            }
+            if (sp.orders.length > 0) {
+              secondaryDetails.push(`Órdenes: ${sp.orders.join(', ')}`);
+            }
+
             return (
               <div
                 key={entry.key}
-              className={`border-l-2 px-4 py-4 sm:px-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between ${
-                entry.isLearned
-                  ? 'border-l-[#9ad489]'
-                  : entry.section === 'exclusive'
-                    ? 'border-l-[#e09b7d]'
-                    : isCatalogEntry && (!isElementCompatible || isLockedByKey)
-                      ? 'border-l-[#b7864e] bg-[#b7864e]/[0.025]'
-                      : 'border-l-transparent'
-              }`}
+                className={`border-l-2 px-4 py-3 sm:px-5 flex flex-col gap-2.5 lg:flex-row lg:items-start lg:justify-between ${
+                  entry.isLearned
+                    ? 'border-l-[#9ad489]'
+                    : entry.section === 'exclusive'
+                      ? 'border-l-[#e09b7d]'
+                      : isCatalogEntry && (!isElementCompatible || isLockedByKey)
+                        ? 'border-l-[#b7864e] bg-[#b7864e]/[0.025]'
+                        : 'border-l-transparent'
+                }`}
               >
-                <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="min-w-0 flex-1 space-y-1">
                   {/* Fila de título + cadena + estado de llave / viabilidad */}
-                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <SpellCategoryIcon category={cat} className="h-4 w-4 shrink-0" />
-                    <h2 className="text-[15px] font-semibold text-[var(--arc-text)]">
+                    <h3 className="text-[15px] font-semibold text-[var(--arc-text)]">
                       {sp.name}
-                    </h2>
+                    </h3>
                     <button
                       type="button"
                       onClick={() => {
@@ -1239,7 +1257,7 @@ export function ArcaneArchivePanel({
                     </button>
                     {sp.catalogChainGroup && (
                       <span className="text-xs font-medium text-[var(--arc-accent)]">
-                        Familia: {sp.catalogChainGroup}
+                        · {sp.catalogChainGroup}
                       </span>
                     )}
                     {entry.section === 'adaptable' && (
@@ -1284,7 +1302,7 @@ export function ArcaneArchivePanel({
                     )}
                   </div>
 
-                  {/* Línea estructurada de estadísticas clave (sin cápsulas estáticas) */}
+                  {/* Línea estructurada de estadísticas clave */}
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs font-mono-num text-[var(--arc-muted)]">
                     <span className="font-sans font-semibold text-[var(--arc-text)]">
                       {CATEGORY_LABELS[cat]}
@@ -1328,25 +1346,24 @@ export function ArcaneArchivePanel({
 
                   {/* Auditoría 1 a 1 de viabilidad elemental */}
                   {entry.section === 'adaptable' && !isElementCompatible && (
-                    <div className="flex flex-wrap items-start gap-2 pt-0.5 text-xs text-[#e09b7d]">
+                    <div className="flex flex-wrap items-start gap-1.5 text-xs text-[#e09b7d]">
                       <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <p>
-                          <strong>No viable con {resolvedNature.elementName}:</strong>{' '}
-                          {entry.compatibility.reason}
-                        </p>
+                      <span>
+                        <strong>No viable con {resolvedNature.elementName}:</strong>{' '}
+                        {entry.compatibility.reason}
                         {entry.compatibility.suggestedNatureIds &&
-                          entry.compatibility.suggestedNatureIds.length > 0 && (
-                            <p className="text-[var(--arc-muted)]">
-                              Viable desbloqueando:{' '}
-                              <span className="font-semibold text-[var(--arc-text)]">
-                                {entry.compatibility.suggestedNatureIds
-                                  .map((id) => getNatureShortName(id))
-                                  .join(', ')}
-                              </span>
-                            </p>
-                          )}
-                      </div>
+                        entry.compatibility.suggestedNatureIds.length > 0 ? (
+                          <span className="text-[var(--arc-muted)]">
+                            {' '}
+                            · Viable con:{' '}
+                            <strong className="text-[var(--arc-text)]">
+                              {entry.compatibility.suggestedNatureIds
+                                .map((id) => getNatureShortName(id))
+                                .join(', ')}
+                            </strong>
+                          </span>
+                        ) : null}
+                      </span>
                     </div>
                   )}
 
@@ -1356,53 +1373,38 @@ export function ArcaneArchivePanel({
                     </p>
                   )}
 
-                  {/* Requisitos de activación, área y estados */}
-                  {(sp.dependency?.enabled ||
-                    sp.areaConfig?.enabled ||
-                    sp.statuses.length > 0 ||
-                    elemMeta) && (
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  {/* Requisito de activación + detalles secundarios en una sola línea */}
+                  {(sp.dependency?.enabled || secondaryDetails.length > 0) && (
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--arc-muted)]">
                       {sp.dependency?.enabled && (
-                        <span className="inline-flex items-center gap-1 text-[#e6c07b]">
-                          <Link2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="inline-flex items-center gap-1 font-medium text-[#e6c07b]">
+                          <Link2 className="h-3 w-3 shrink-0" />
                           {formatSpellDependencyLine(sp.dependency)}
                         </span>
                       )}
-                      {sp.areaConfig?.enabled && (
-                        <span className="text-[var(--arc-magic-accent)]">
-                          Área: {sp.areaConfig.shapeNote || 'Múltiples objetivos'}
-                        </span>
-                      )}
-                      {sp.statuses.length > 0 && (
-                        <span className="text-[var(--arc-text)]">
-                          Estados: {sp.statuses.join(', ')}
-                        </span>
-                      )}
-                      {elemMeta && sp.elementalStatus && (
-                        <span className="text-[var(--arc-muted)]">
-                          Efecto elemental: {elemMeta.name} (
-                          {TRIGGER_LABELS[sp.elementalStatus.trigger] || sp.elementalStatus.trigger})
-                        </span>
+                      {secondaryDetails.length > 0 && (
+                        <span>{secondaryDetails.join(' · ')}</span>
                       )}
                     </div>
                   )}
 
-                  {/* Descripción y órdenes */}
-                  <p className="text-[13px] leading-relaxed text-[var(--arc-muted)]">
+                  {/* Descripción acotada a 2 líneas para mantener el listado compacto */}
+                  <p className="line-clamp-2 text-[13px] leading-snug text-[var(--arc-muted)]">
                     {sp.effectDescription}
                   </p>
+
                   {goalProgress && (
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
                       <button
                         type="button"
                         onClick={() => onToggleArchiveGoal(goalId)}
-                        className={`min-h-[30px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
+                        className={`min-h-[28px] inline-flex items-center gap-1 rounded-lg border px-2 text-[11px] font-semibold transition-colors ${
                           isGoal
                             ? 'border-[var(--arc-accent)] bg-[var(--arc-action)] text-[var(--arc-action-text)]'
                             : 'border-[var(--arc-border)] text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]'
                         }`}
                       >
-                        <Target className="h-3.5 w-3.5" />
+                        <Target className="h-3 w-3" />
                         {isGoal ? 'Quitar objetivo' : 'Marcar objetivo'}
                       </button>
                       {isGoal && (
@@ -1417,22 +1419,30 @@ export function ArcaneArchivePanel({
                             })
                           }
                           aria-expanded={isGoalExpanded}
-                          className="min-h-[30px] inline-flex items-center gap-1 rounded-lg px-2 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)]"
+                          className="min-h-[28px] inline-flex items-center gap-1 rounded-lg px-2 text-[11px] font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)]"
                         >
                           {goalProgress.completedRequirements}/{goalProgress.totalRequirements} requisitos
-                          <ChevronDown className={`h-3 w-3 transition-transform ${isGoalExpanded ? 'rotate-180' : ''}`} />
+                          <ChevronDown
+                            className={`h-3 w-3 transition-transform ${
+                              isGoalExpanded ? 'rotate-180' : ''
+                            }`}
+                          />
                         </button>
                       )}
                     </div>
                   )}
+
                   {isGoal && isGoalExpanded && goalProgress && (
-                    <div className="rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface)] px-3 py-2.5">
-                      <p className="mb-2 text-xs font-semibold text-[var(--arc-text)]">
+                    <div className="rounded-lg border border-[var(--arc-border)] bg-[var(--arc-surface)] px-3 py-2">
+                      <p className="mb-1.5 text-xs font-semibold text-[var(--arc-text)]">
                         Camino de progresión
                       </p>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         {(() => {
-                          const renderPath = (node: (typeof goalProgress.path)[number], depth = 0): React.ReactNode => (
+                          const renderPath = (
+                            node: (typeof goalProgress.path)[number],
+                            depth = 0
+                          ): React.ReactNode => (
                             <div key={`${node.id}-${depth}`} style={{ marginLeft: `${depth * 14}px` }}>
                               <div className="flex items-start gap-2 text-xs">
                                 <span
@@ -1449,7 +1459,9 @@ export function ArcaneArchivePanel({
                                   <p className="text-[var(--arc-muted)]">{node.reason}</p>
                                 </div>
                               </div>
-                              {node.prerequisites.map((prerequisite) => renderPath(prerequisite, depth + 1))}
+                              {node.prerequisites.map((prerequisite) =>
+                                renderPath(prerequisite, depth + 1)
+                              )}
                             </div>
                           );
                           return goalProgress.path.map((node) => renderPath(node));
@@ -1457,16 +1469,10 @@ export function ArcaneArchivePanel({
                       </div>
                     </div>
                   )}
-                  {sp.orders.length > 0 && (
-                    <div className="text-[11px] text-[var(--arc-muted)]">
-                      Órdenes: <span className="text-[var(--arc-text)]">{sp.orders.join(', ')}</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Columna de acciones y control de llave */}
-                <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-end lg:min-w-[220px] shrink-0">
-                  {/* Controles de Llave del DJ por hechizo */}
+                <div className="flex flex-wrap items-center gap-1.5 lg:flex-col lg:items-end lg:min-w-[205px] shrink-0">
                   {dmKeyMode && isCatalogEntry && activeCharacter && (
                     <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
                       <button
@@ -1479,7 +1485,7 @@ export function ArcaneArchivePanel({
                               : `${sp.name} volvió a quedar bajo llave para ${activeCharacter.name}.`
                           );
                         }}
-                        className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                        className={`min-h-[30px] inline-flex items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
                           entry.isKeyUnlocked
                             ? 'border-[var(--arc-border)] text-[#e09b7d] hover:bg-[var(--arc-raised)]'
                             : 'border-[var(--arc-accent)] text-[var(--arc-accent)] hover:bg-[var(--arc-raised)]'
@@ -1504,8 +1510,10 @@ export function ArcaneArchivePanel({
                           onClick={() =>
                             handleGrantNatureAndSelect(suggestedUnlockableNatures[0])
                           }
-                          className="min-h-[32px] inline-flex items-center gap-1 rounded-lg border border-[var(--arc-border)] px-2.5 text-xs font-semibold text-[#9ad489] hover:bg-[var(--arc-raised)] whitespace-nowrap"
-                          title={`Desbloquear afinidad ${getNatureShortName(suggestedUnlockableNatures[0])} para ${activeCharacter.name}`}
+                          className="min-h-[30px] inline-flex items-center gap-1 rounded-lg border border-[var(--arc-border)] px-2.5 text-xs font-semibold text-[#9ad489] hover:bg-[var(--arc-raised)] whitespace-nowrap"
+                          title={`Desbloquear afinidad ${getNatureShortName(
+                            suggestedUnlockableNatures[0]
+                          )} para ${activeCharacter.name}`}
                         >
                           <Plus className="h-3.5 w-3.5" />
                           {getNatureShortName(suggestedUnlockableNatures[0])}
@@ -1515,7 +1523,7 @@ export function ArcaneArchivePanel({
                   )}
 
                   {entry.section === 'exclusive' ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--arc-muted)] py-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--arc-muted)] py-1">
                       <Lock className="h-3.5 w-3.5" />
                       No aprendible
                     </span>
@@ -1541,17 +1549,17 @@ export function ArcaneArchivePanel({
                           type="button"
                           disabled={!canLearnNow}
                           onClick={() => triggerLearnAdapted(entry.template, false)}
-                          className="min-h-[36px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 whitespace-nowrap transition-colors"
+                          className="min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 whitespace-nowrap transition-colors"
                         >
                           <Sparkles className="h-3.5 w-3.5" />
                           Aprender adaptado
                         </button>
                       ) : (
-                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
                           <button
                             type="button"
                             onClick={onGoToGrimorio}
-                            className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border border-[var(--arc-border)] px-3 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
+                            className="min-h-[32px] inline-flex items-center gap-1.5 rounded-lg border border-[var(--arc-border)] px-2.5 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
                           >
                             <BookOpen className="h-3.5 w-3.5" />
                             Ver en Grimorio
@@ -1563,7 +1571,7 @@ export function ArcaneArchivePanel({
                                 type="button"
                                 disabled={!canLearnNow}
                                 onClick={() => triggerLearnAdapted(entry.template, false)}
-                                className="min-h-[34px] inline-flex items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
+                                className="min-h-[32px] inline-flex items-center gap-1 rounded-lg px-2.5 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
                               >
                                 Aprender versión {resolvedNature.elementName}
                               </button>
@@ -1575,8 +1583,10 @@ export function ArcaneArchivePanel({
                         <button
                           type="button"
                           onClick={() => triggerLearnAdapted(entry.template, true)}
-                          className="min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--arc-border)] bg-transparent px-3 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
-                          title={`Aprende ${entry.prereqAdaptedName || entry.prereqTemplate.name} y ${sp.name} juntos`}
+                          className="min-h-[32px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--arc-border)] bg-transparent px-2.5 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
+                          title={`Aprende ${entry.prereqAdaptedName || entry.prereqTemplate.name} y ${
+                            sp.name
+                          } juntos`}
                         >
                           <Link2 className="h-3.5 w-3.5" />
                           Aprender ambos
@@ -1590,7 +1600,7 @@ export function ArcaneArchivePanel({
                           onClick={() =>
                             onCustomizeCatalogSpell(entry.template, selectedNatureId || undefined)
                           }
-                          className="min-h-[32px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] disabled:opacity-40 whitespace-nowrap transition-colors"
+                          className="min-h-[30px] inline-flex items-center gap-1.5 rounded-lg px-2 text-xs text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] disabled:opacity-40 whitespace-nowrap transition-colors"
                         >
                           <Edit3 className="h-3.5 w-3.5" />
                           Personalizar en editor
@@ -1610,7 +1620,7 @@ export function ArcaneArchivePanel({
                             type="button"
                             disabled={!activeCharacter}
                             onClick={() => triggerLearnBasic(entry.template.id)}
-                            className="min-h-[36px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 whitespace-nowrap transition-colors"
+                            className="min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 whitespace-nowrap transition-colors"
                           >
                             <BookOpen className="h-3.5 w-3.5" />
                             Aprender
@@ -1622,7 +1632,7 @@ export function ArcaneArchivePanel({
                               onClick={() =>
                                 triggerLearnBasic(entry.template.id, entry.prereqTemplate?.id)
                               }
-                              className="min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--arc-border)] px-3 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] disabled:opacity-40 whitespace-nowrap transition-colors"
+                              className="min-h-[32px] inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--arc-border)] px-2.5 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] disabled:opacity-40 whitespace-nowrap transition-colors"
                             >
                               <Link2 className="h-3.5 w-3.5" />
                               Aprender con {entry.prereqTemplate.name}
@@ -1633,7 +1643,7 @@ export function ArcaneArchivePanel({
                         <button
                           type="button"
                           onClick={onGoToGrimorio}
-                          className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border border-[var(--arc-border)] px-3 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
+                          className="min-h-[32px] inline-flex items-center gap-1.5 rounded-lg border border-[var(--arc-border)] px-3 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] whitespace-nowrap transition-colors"
                         >
                           <BookOpen className="h-3.5 w-3.5" />
                           Ver en Grimorio

@@ -2327,6 +2327,32 @@ const handleApplyNatureToCharacter = (
       : undefined;
 
     if (attackerCombatant && combatants.length > 1) {
+      if (irlCombat) {
+      const rlDamage = rollDamageDice(
+        dmgInfo.dice,
+        dmgInfo.bonus,
+        syntheticWeaponSpell.damage.notes,
+        dmgInfo.damageKind
+      );
+      const formattedNet = attackRoll.net > 0 ? `+${attackRoll.net}` : `${attackRoll.net}`;
+      pushLog({
+        kind: 'attack',
+        title: `${attacker.name} ataca con ${syntheticWeaponSpell.name} · Combate IRL`,
+        actorName: attacker.name,
+        isMagical: dmgInfo.damageKind === 'magico',
+        attackRoll,
+        damageRoll: rlDamage,
+        clash: {
+          attackerName: attacker.name,
+          attackerAction: syntheticWeaponSpell.name,
+          outcome: 'direct_hit',
+          damageKind: dmgInfo.damageKind,
+          isLethal: isAttackLethal,
+        },
+        summaryText: `Ataque (${dmgInfo.damageKind === 'magico' ? 'Mágico' : 'Físico'}) con neto ${formattedNet}. Daño: ${rlDamage.total}.${disintegrationNote}`,
+      });
+      return;
+    }
       setPendingAttack({
         id: generateId('atk_'),
         attackerCombatantId: attackerCombatant.id,
@@ -2598,7 +2624,7 @@ const handleApplyNatureToCharacter = (
       const hasOpenTargetAttack =
         !isTest && pendingAttack && pendingAttack.attackerCharacterId !== caster.id;
 
-      if (!isTest && combatants.length > 1) {
+      if (!isTest && !irlCombat && combatants.length > 1) {
         setPendingCounterspell({
           id: generateId('cnt_'),
           interruptorCharacterId: caster.id,
@@ -3227,7 +3253,11 @@ const handleApplyNatureToCharacter = (
     const cb = combatants.find((c) => c.id === combatantId);
     const char = cb ? characters.find((c) => c.id === cb.characterId) : undefined;
     const spell = spells.find((s) => s.id === prepared.spellId);
-    if (!char || !spell) return;
+    if (!cb || !char || !spell) return;
+    if (irlCombat) {
+      executeIrlAttack(spell, char, prepared.id);
+      return;
+    }
     executeAttack(spell, char, prepared.id, false, explicitTargetCombatantId);
   };
 
@@ -5101,7 +5131,7 @@ const handleApplyNatureToCharacter = (
       return;
     }
 
-    if (!isTest && combatants.length > 0) {
+    if (!isTest && !irlCombat && combatants.length > 0) {
       setPendingHeal({
         id: generateId('heal_'),
         healerName: healer.name,
@@ -5320,7 +5350,7 @@ const handleApplyNatureToCharacter = (
 
     const parsedTurns = parseDurationTurns(spell);
 
-    if (!isTest && targetCb) {
+    if (!isTest && targetCb && !irlCombat) {
       setPendingStatusCheck({
         id: generateId('stchk_'),
         casterCharacterId: caster.id,
@@ -8540,6 +8570,7 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
         <CombatPanel
           round={round}
           manaMode={manaMode}
+          irlCombat={irlCombat}
           combatants={combatants}
           characters={characters}
           spells={spells}
