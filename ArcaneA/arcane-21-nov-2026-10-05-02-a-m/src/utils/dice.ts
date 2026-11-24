@@ -5460,9 +5460,8 @@ export function buildBeastTamerSpells(params: {
       effectSubType: 'general',
       damage: { dice: [], bonus: 0, notes: '' },
       effectDescription:
-        'Hechizo canalizado o de efecto (sin requerir música): establece el estado «Vinculado» sobre una bestia u objetivo mediante tirada de Influencia.',
-      duration: '3 turnos',
-      durationTurns: 3,
+        'Hechizo canalizado o de efecto (sin requerir música): establece el estado «Vinculado» sobre una bestia u objetivo mediante tirada de Influencia. Permanece activo hasta que se disipe o cancele.',
+      duration: 'Hasta ser disipado',
       isBasic: false,
       ownerCharacterId: charId,
     },

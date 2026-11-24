@@ -5472,7 +5472,7 @@ const handleApplyNatureToCharacter = (
             );
           }
         } else {
-          const isLinkedStatus = stName.trim().toLowerCase() === 'vinculado';
+         const isLinkedStatus = stName.trim().toLowerCase() === 'vinculado';
         newStatuses.push({
           id: generateId('st_'),
           name: stName,
@@ -5480,13 +5480,15 @@ const handleApplyNatureToCharacter = (
           sourceName: check.spellName,
           sourceSpellId: check.spellId,
           roundApplied: round,
-          duration: check.duration || '3 turnos',
-          durationTurns: check.durationTurns,
-          remainingTurns: check.durationTurns,
+          duration: isLinkedStatus
+            ? 'Hasta ser disipado'
+            : check.duration || '1 turno',
+          durationTurns: isLinkedStatus ? undefined : check.durationTurns,
+          remainingTurns: isLinkedStatus ? undefined : check.durationTurns,
           effectDescription:
             check.effectDescription ||
             (isLinkedStatus
-              ? `Vinculado a ${check.casterName} mediante hechizo canalizado o efecto (puede potenciarse con música sin depender de ella).`
+              ? `Vinculado a ${check.casterName} mediante hechizo canalizado o efecto (permanece activo hasta ser disipado; puede potenciarse con música sin depender de ella).`
               : undefined),
           isMagical: check.isMagical,
           isLinked: isLinkedStatus ? true : undefined,
@@ -8835,10 +8837,10 @@ const handleSummonBeastProfile = (
             kind: 'buff',
             sourceName: activeCharacter?.name || 'Vínculo de Doma',
             roundApplied: round,
-            duration: '3 turnos',
-            durationTurns: 3,
-            remainingTurns: 3,
-            effectDescription: `Vinculado a ${activeCharacter?.name || 'su controlador'} mediante canalización o efecto.`,
+            duration: 'Hasta ser disipado',
+            effectDescription: `Vinculado a ${
+              activeCharacter?.name || 'su controlador'
+            } mediante canalización o efecto (permanece activo hasta disiparse).`,
             isMagical: true,
             isLinked: true,
             linkedSourceName: activeCharacter?.name,
