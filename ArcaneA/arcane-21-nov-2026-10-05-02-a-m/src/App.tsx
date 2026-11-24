@@ -1006,14 +1006,6 @@ export default function App() {
     setActiveCharacterId(created.id);
   };
 
-  const handleApplyNatureToCharacter = (
-    charId: string,
-    options: Omit<CreateCharacterOptions, 'name' | 'kind'> & {
-      keepPreviousCanalizado?: boolean;
-    }
-  ) => {
-    const target = characters.find((c) => c.id === charId);
-    if (!target) return;
 const handleApplyNatureToCharacter = (
   charId: string,
   options: Omit<CreateCharacterOptions, 'name' | 'kind'> & {
@@ -9428,4 +9420,4 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
     </div>
   
   );
-}}
+}
