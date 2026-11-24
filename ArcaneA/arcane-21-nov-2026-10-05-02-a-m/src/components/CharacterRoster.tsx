@@ -64,17 +64,7 @@ import {
 import { KNOWLEDGE_TREE_SPELLS } from '../utils/knowledgeTrees';
 import { getSpellGoalProgress } from '../utils/progression';
 const KNOWLEDGE_TREE_SPELL_IDS = new Set(KNOWLEDGE_TREE_SPELLS.map((s) => s.id));
-const [customBeasts, setCustomBeasts] = useState<BeastProfile[]>([]);
-const [beastCustomName, setBeastCustomName] = useState('');
-const [beastSpecies, setBeastSpecies] = useState('Bestia salvaje');
-const [beastRole, setBeastRole] = useState('Acompañante / Asalto');
-const [beastHp, setBeastHp] = useState(18);
-const [beastMana, setBeastMana] = useState(5);
-const [beastAttackName, setBeastAttackName] = useState('Zarpazo');
-const [beastMusicNote, setBeastMusicNote] = useState(
-  'Responde a cantos o compases si ya está Vinculada.'
-);
-const [linkBeastOnSummon, setLinkBeastOnSummon] = useState(true);
+
 export interface CreateCharacterOptions {
   name: string;
   kind: CharacterKind;
@@ -202,7 +192,17 @@ const [newCustomPhysicalName, setNewCustomPhysicalName] = useState('');
   const [banquetRestoreCurrent, setBanquetRestoreCurrent] = useState(true);
 
   const [showProgressionHistory, setShowProgressionHistory] = useState(false);
-
+const [customBeasts, setCustomBeasts] = useState<BeastProfile[]>([]);
+const [beastCustomName, setBeastCustomName] = useState('');
+const [beastSpecies, setBeastSpecies] = useState('Bestia salvaje');
+const [beastRole, setBeastRole] = useState('Acompañante / Asalto');
+const [beastHp, setBeastHp] = useState(18);
+const [beastMana, setBeastMana] = useState(5);
+const [beastAttackName, setBeastAttackName] = useState('Zarpazo');
+const [beastMusicNote, setBeastMusicNote] = useState(
+  'Responde a cantos o compases si ya está Vinculada.'
+);
+const [linkBeastOnSummon, setLinkBeastOnSummon] = useState(true);
   const active = characters.find((c) => c.id === activeCharacterId) || characters[0];
   const activeLevel = getCharacterLevel(active);
   const activeHistory = active?.progressionHistory || [];
@@ -2086,10 +2086,7 @@ const handleCreate = () => {
             );
           })}
         </div>
-      </section>
-    </div>
-    
-  );<section className="mt-6 rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
+      </section>;<section className="mt-6 rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3">
     <div>
       <h3 className="font-display text-base font-bold text-[var(--arc-accent)]">
@@ -2253,4 +2250,7 @@ const handleCreate = () => {
     </div>
   </div>
 </section>
+    </div>
+    
+  )
 }
