@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { ArrowRight, BookOpen, Dices, Shield, Swords, Trash2 } from 'lucide-react';
+import { ArrowRight, BookOpen, Shield, Swords, Trash2 } from 'lucide-react';
 import type { D6RollSummary, DamageRollSummary, LogClashOutcome, LogEntry } from '../types/rpg';
 import { STAT_NAMES } from '../utils/dice';
 import {
@@ -12,7 +11,6 @@ import type { CombatMechanicContext } from './CombatMechanicReader';
 interface LogPanelProps {
   logs: LogEntry[];
   onClearLogs: () => void;
-  onQuickRoll: (diceCount: number, assured: number) => void;
   onInspectMechanic?: (mechanicId: CombatMechanicId, context: CombatMechanicContext) => void;
 }
 
@@ -208,16 +206,13 @@ function MechanicLogLinks({
   );
 }
 
-export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: LogPanelProps) {
-  const [quickDice, setQuickDice] = useState(2);
-  const [quickAssured, setQuickAssured] = useState(0);
-
+export function LogPanel({ logs, onClearLogs, onInspectMechanic }: LogPanelProps) {
   return (
     <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-5 space-y-4 min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3.5">
         <div className="min-w-0">
           <h2 className="font-display text-base sm:text-xl font-bold text-[var(--arc-accent)] break-words">
-            Historial y Dados Rápidos
+            Historial
           </h2>
           <p className="text-xs sm:text-[13px] text-[var(--arc-muted)] mt-0.5">
             Registro cronológico de casteos, ataques, defensas y daños
@@ -231,62 +226,6 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
         >
           <Trash2 className="h-3.5 w-3.5 shrink-0" />
           <span>Limpiar historial</span>
-        </button>
-      </div>
-
-      {/* Tirador rápido integrado */}
-      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-[var(--arc-border)] pb-3.5">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-          <div className="flex items-center gap-1">
-            <span className="text-[var(--arc-muted)] mr-1">Dados d6:</span>
-            <button
-              type="button"
-              onClick={() => setQuickDice((n) => Math.max(1, n - 1))}
-              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
-            >
-              −
-            </button>
-            <span className="font-mono-num w-6 text-center font-bold text-[var(--arc-accent)]">
-              {quickDice}
-            </span>
-            <button
-              type="button"
-              onClick={() => setQuickDice((n) => Math.min(20, n + 1))}
-              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
-            >
-              +
-            </button>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <span className="text-[var(--arc-muted)] mr-1">Asegurados:</span>
-            <button
-              type="button"
-              onClick={() => setQuickAssured((n) => Math.max(0, n - 1))}
-              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
-            >
-              −
-            </button>
-            <span className="font-mono-num w-6 text-center font-bold text-[var(--arc-accent)]">
-              {quickAssured}
-            </span>
-            <button
-              type="button"
-              onClick={() => setQuickAssured((n) => Math.min(10, n + 1))}
-              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
-            >
-              +
-            </button>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => onQuickRoll(quickDice, quickAssured)}
-          className="w-full sm:w-auto min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors shrink-0"
-        >
-          <Dices className="h-3.5 w-3.5 shrink-0" />
-          <span>Tirar {quickDice}d6</span>
         </button>
       </div>
 
