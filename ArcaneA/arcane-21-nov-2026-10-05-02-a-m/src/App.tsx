@@ -8985,10 +8985,11 @@ const handleSummonBeastProfile = (
     }
 
     const beastChar = createCharacterFromBeastProfile(profile, {
-      customName: resolvedName,
-      masterId: activeCharacter?.id,
-      setLinkedStatus: options?.setLinkedStatus,
-    });
+  customName: resolvedName,
+  masterId: activeCharacter?.id,
+  setLinkedStatus: options?.setLinkedStatus,
+  formula,
+});
 
     const initialStatuses: ActiveStatus[] = options?.setLinkedStatus
       ? [

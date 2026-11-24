@@ -2920,7 +2920,14 @@ export function calcStatLevelFromPoints(points: number, formula: FormulaConfig):
   }
   return level;
 }
-
+function getPointsForDesiredStatLevel(desiredLevel: number, formula?: FormulaConfig): number {
+  const safeLevel = Math.max(1, Math.floor(desiredLevel || 1));
+  if (!formula) return 0;
+  const milestones = getStatMilestones(formula);
+  const idx = safeLevel - 1;
+  if (idx <= 0) return 0;
+  return milestones[idx] ?? milestones[milestones.length - 1] ?? 0;
+}
 export function getStatLevelStatus(
   points: number,
   formula: FormulaConfig
@@ -5413,18 +5420,24 @@ export function createCharacterFromBeastProfile(
     customName?: string;
     masterId?: string;
     setLinkedStatus?: boolean;
+    formula?: FormulaConfig;
   }
 ): Character {
   const charId = generateId('beast_char_');
   const displayName = options?.customName?.trim() || profile.name;
   const stats = {
-    fisico: Math.max(0, profile.stats?.fisico ?? 1),
-    manipulacion: Math.max(0, profile.stats?.manipulacion ?? 1),
-    influencia: Math.max(0, profile.stats?.influencia ?? 1),
+    fisico: Math.max(1, profile.stats?.fisico ?? 1),
+    manipulacion: Math.max(1, profile.stats?.manipulacion ?? 1),
+    influencia: Math.max(1, profile.stats?.influencia ?? 1),
   };
-  const statPoints = profile.statPoints || { ...stats };
+  const statPoints = {
+    fisico: getPointsForDesiredStatLevel(stats.fisico, options?.formula),
+    manipulacion: getPointsForDesiredStatLevel(stats.manipulacion, options?.formula),
+    influencia: getPointsForDesiredStatLevel(stats.influencia, options?.formula),
+  };
   const hpMax = Math.max(1, profile.hpMax || 15);
   const manaMax = Math.max(0, profile.manaMax || 5);
+ 
 
   const baseAttackName = profile.attackName || 'Ataque bestial';
   const weaponName =
@@ -5444,7 +5457,7 @@ export function createCharacterFromBeastProfile(
     isNatural: true,
     isMagicalCatalyst: profile.attackDamageKind === 'magico',
   };
-
+  
   const defaultKnownSpells = [
     'basic_esquiva_fisica',
     ...(manaMax > 0 ? ['basic_proteccion'] : []),
