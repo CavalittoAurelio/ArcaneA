@@ -46,6 +46,7 @@ import type {
   SpellDispelConfig,
   StatKey,
   SynergyReactionType,
+  BeastProfile,
 } from './types/rpg';
 import {
   ADAPTABLE_CATALOG_SPELLS,
@@ -130,6 +131,9 @@ import {
   spellSupportsMastery,
   MUSICIAN_INSTRUMENTS,
   buildMusicianWordSpells,
+  STARTER_BEAST_PROFILES,
+  buildBeastTamerSpells,
+  createCharacterFromBeastProfile,
 } from './utils/dice';
 import {
   DEFAULT_KNOWLEDGE_TREE_SETTINGS,
@@ -1014,7 +1018,49 @@ const handleApplyNatureToCharacter = (
   ) => {
     const target = characters.find((c) => c.id === charId);
     if (!target) return;
+    if (options.natureId === 'doma_bestias') {
+      const beastSpells = buildBeastTamerSpells({
+        charId,
+        includeMusicBridge: true,
+      });
+      const sig = buildMageSignatureSpells({
+        charId,
+        natureId: options.natureId,
+        customNatureLabel: options.customNature,
+        physicalVariant: options.physicalVariant,
+        customPhysicalName: options.customPhysicalName,
+      });
+      const createdIds = new Set([
+        ...sig.createdSpells.map((s) => s.id),
+        ...beastSpells.map((s) => s.id),
+      ]);
 
+      setSpells((prev) => [
+        ...prev.filter((s) => !(s.ownerCharacterId === charId && createdIds.has(s.id))),
+        ...sig.createdSpells,
+        ...beastSpells,
+      ]);
+
+      setCharacters((prev) =>
+        prev.map((c) => {
+          if (c.id !== charId) return c;
+          const nextKnown = [
+            ...new Set([
+              ...sig.createdSpells.map((s) => s.id),
+              ...beastSpells.map((s) => s.id),
+              ...c.knownSpells.filter((id) => id !== 'basic_ataque_canalizado'),
+            ]),
+          ];
+          return {
+            ...c,
+            nature: 'Domador / Controlador de Bestias',
+            notes: `Domador / Controlador de Bestias · Vínculo por canalización/efecto + integración musical opcional`,
+            knownSpells: nextKnown,
+          };
+        })
+      );
+      return;
+    }
     if (options.natureId === 'musico') {
       const instId = options.musicianInstrument || 'voz';
       const instPreset = MUSICIAN_INSTRUMENTS[instId] || MUSICIAN_INSTRUMENTS.voz;
@@ -5426,19 +5472,26 @@ const handleApplyNatureToCharacter = (
             );
           }
         } else {
-          newStatuses.push({
-            id: generateId('st_'),
-            name: stName,
-            kind: check.kind || 'debuff',
-            sourceName: check.spellName,
-            sourceSpellId: check.spellId,
-            roundApplied: round,
-            duration: check.duration || '1 turno',
-            durationTurns: check.durationTurns,
-            remainingTurns: check.durationTurns,
-            effectDescription: check.effectDescription,
-            isMagical: check.isMagical,
-          });
+          const isLinkedStatus = stName.trim().toLowerCase() === 'vinculado';
+        newStatuses.push({
+          id: generateId('st_'),
+          name: stName,
+          kind: check.kind || 'debuff',
+          sourceName: check.spellName,
+          sourceSpellId: check.spellId,
+          roundApplied: round,
+          duration: check.duration || '3 turnos',
+          durationTurns: check.durationTurns,
+          remainingTurns: check.durationTurns,
+          effectDescription:
+            check.effectDescription ||
+            (isLinkedStatus
+              ? `Vinculado a ${check.casterName} mediante hechizo canalizado o efecto (puede potenciarse con música sin depender de ella).`
+              : undefined),
+          isMagical: check.isMagical,
+          isLinked: isLinkedStatus ? true : undefined,
+          linkedSourceName: isLinkedStatus ? check.casterName : undefined,
+        });
         }
       }
 
@@ -8760,7 +8813,66 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
       </div>
     );
   };
+const handleSummonBeastProfile = (
+    profile: BeastProfile,
+    options?: {
+      customName?: string;
+      setLinkedStatus?: boolean;
+      initiative?: number;
+    }
+  ) => {
+    const beastChar = createCharacterFromBeastProfile(profile, {
+      customName: options?.customName,
+      masterId: activeCharacter?.id,
+      setLinkedStatus: options?.setLinkedStatus,
+    });
 
+    const initialStatuses: ActiveStatus[] = options?.setLinkedStatus
+      ? [
+          {
+            id: generateId('st_'),
+            name: 'Vinculado',
+            kind: 'buff',
+            sourceName: activeCharacter?.name || 'Vínculo de Doma',
+            roundApplied: round,
+            duration: '3 turnos',
+            durationTurns: 3,
+            remainingTurns: 3,
+            effectDescription: `Vinculado a ${activeCharacter?.name || 'su controlador'} mediante canalización o efecto.`,
+            isMagical: true,
+            isLinked: true,
+            linkedSourceName: activeCharacter?.name,
+          },
+        ]
+      : [];
+
+    const newCbId = generateId('cb_');
+    const newCombatant: Combatant = {
+      id: newCbId,
+      characterId: beastChar.id,
+      initiative: options?.initiative ?? 2,
+      preparedSpells: [],
+      activeStatuses: initialStatuses,
+      attacksUsedThisTurn: 0,
+      actedThisRound: false,
+    };
+
+    setCharacters((prev) => [...prev, beastChar]);
+    setCombatants((prev) => [...prev, newCombatant]);
+    if (!currentTurnCombatantId) {
+      setCurrentTurnCombatantId(newCbId);
+    }
+    setSelectedTargetId(newCbId);
+
+    pushLog({
+      kind: 'event',
+      title: `🐾 Bestia en combate: ${beastChar.name} (${profile.species})`,
+      actorName: activeCharacter?.name,
+      summaryText: `${beastChar.name} (${beastChar.hp.max} PV · ${beastChar.mana.max} Maná) se suma a la mesa de combate${
+        options?.setLinkedStatus ? ' con el estado «Vinculado» activo' : ''
+      }.`,
+    });
+  };
   const hasPendingCombat = Boolean(
     pendingAttack || pendingStatusCheck || pendingCounterspell || pendingHeal
   );

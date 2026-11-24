@@ -29,6 +29,7 @@ import type {
   StatKey,
   SynergyReactionType,
   WeaponPreset,
+  BeastProfile,
 } from '../types/rpg';
 
 export const ARMOR_ELEMENTS: string[] = [
@@ -522,6 +523,16 @@ export const MAGE_NATURES: MageNaturePreset[] = [
     damageNote: 'del vacío/corruptor a distancia',
     defaultPhysicalVariant: 'golpe_fisico',
   },
+  // Bestia
+  {
+  id: 'doma_bestias',
+  label: 'Domador / Controlador de Bestias',
+  category: 'otra',
+  orders: ['Domar', 'Vínculo', 'Manada'],
+  affinityOrders: ['Domar', 'Vínculo', 'Manada', 'Instinto', 'Canto'],
+  damageNote: 'de vínculo instintivo a distancia',
+  defaultPhysicalVariant: 'golpe_fisico',
+},
   // Musica
   {
     id: 'musico',
@@ -1317,6 +1328,7 @@ export const PRESET_STATUSES: string[] = [
   'Electrificado',
   'Sangrando',
   'Disipar',
+  'Vinculado',
 ];
 
 export const BASIC_SPELLS: Spell[] = [
@@ -5302,4 +5314,206 @@ export function evaluateCatalogSpellCompatibility(
     default:
       return { compatible: true };
   }
+}
+export const STARTER_BEAST_PROFILES: BeastProfile[] = [
+  {
+    id: 'beast_frost_wolf',
+    name: 'Lobo de Escarcha',
+    species: 'Cánido salvaje',
+    role: 'Acechador de manada',
+    hpMax: 16,
+    manaMax: 6,
+    stats: { fisico: 2, manipulacion: 2, influencia: 1 },
+    statPoints: { fisico: 2, manipulacion: 2, influencia: 1 },
+    attackName: 'Mordisco de Escarcha',
+    attackStat: 'fisico',
+    attackDice: [{ type: 'd6', count: 1 }],
+    attackBonus: 1,
+    attackDamageKind: 'fisico',
+    notes: 'Rápido y coordinado; ideal para flanquear al objetivo cuando está Vinculado.',
+    resistances: 'Frío ÷2',
+    musicSynergyNote: 'Responde a cantos o compases de caza de Músico / Bardo.',
+    isPreset: true,
+  },
+  {
+    id: 'beast_iron_bear',
+    name: 'Oso de Montaña',
+    species: 'Úrsido pesado',
+    role: 'Vanguardia / Impacto',
+    hpMax: 26,
+    manaMax: 4,
+    stats: { fisico: 3, manipulacion: 1, influencia: 1 },
+    statPoints: { fisico: 3, manipulacion: 1, influencia: 1 },
+    attackName: 'Zarpazo Devastador',
+    attackStat: 'fisico',
+    attackDice: [{ type: 'd8', count: 1 }],
+    attackBonus: 2,
+    attackDamageKind: 'fisico',
+    notes: 'Alta resistencia física y contundencia; excelente para retener enemigos en primera línea.',
+    resistances: 'Físico -1',
+    musicSynergyNote: 'Los tambores o cantos graves refuerzan su presencia en combate.',
+    isPreset: true,
+  },
+  {
+    id: 'beast_storm_hawk',
+    name: 'Rapaz de Tormenta',
+    species: 'Ave de presa',
+    role: 'Hostigador / Explorador',
+    hpMax: 12,
+    manaMax: 8,
+    stats: { fisico: 1, manipulacion: 3, influencia: 1 },
+    statPoints: { fisico: 1, manipulacion: 3, influencia: 1 },
+    attackName: 'Picada Fulminante',
+    attackStat: 'manipulacion',
+    attackDice: [{ type: 'd6', count: 1 }],
+    attackBonus: 0,
+    attackDamageKind: 'magico',
+    notes: 'Ataca desde altura con precisión y hostiga sin quedarse expuesto.',
+    resistances: 'Rayo ÷2',
+    musicSynergyNote: 'Coordina picadas al ritmo de flauta, ocarina o voz.',
+    isPreset: true,
+  },
+  {
+    id: 'beast_bristle_boar',
+    name: 'Jabalí de Colmillos',
+    species: 'Bestia terrestre',
+    role: 'Embestida / Resistencia',
+    hpMax: 18,
+    manaMax: 5,
+    stats: { fisico: 2, manipulacion: 1, influencia: 2 },
+    statPoints: { fisico: 2, manipulacion: 1, influencia: 2 },
+    attackName: 'Embestida Brutal',
+    attackStat: 'fisico',
+    attackDice: [{ type: 'd6', count: 1 }],
+    attackBonus: 2,
+    attackDamageKind: 'fisico',
+    notes: 'Embestida firme y terca; buena base para pruebas de doma o control instintivo.',
+    resistances: 'Aturdir resistente',
+    musicSynergyNote: 'Puede calmarse o encauzarse con melodías suaves si ya está Vinculado.',
+    isPreset: true,
+  },
+];
+
+export function createCharacterFromBeastProfile(
+  profile: BeastProfile,
+  options?: {
+    customName?: string;
+    masterId?: string;
+    setLinkedStatus?: boolean;
+  }
+): Character {
+  const charId = generateId('beast_char_');
+  const displayName = options?.customName?.trim() || profile.name;
+  const stats = {
+    fisico: Math.max(0, profile.stats?.fisico ?? 1),
+    manipulacion: Math.max(0, profile.stats?.manipulacion ?? 1),
+    influencia: Math.max(0, profile.stats?.influencia ?? 1),
+  };
+  const statPoints = profile.statPoints || { ...stats };
+  const hpMax = Math.max(1, profile.hpMax || 15);
+  const manaMax = Math.max(0, profile.manaMax || 5);
+
+  return {
+    id: charId,
+    name: displayName,
+    kind: 'npc',
+    isBeastProfile: true,
+    beastBondMasterId: options?.masterId,
+    stats,
+    statPoints,
+    hp: { current: hpMax, max: hpMax },
+    mana: { current: manaMax, max: manaMax },
+    knownSpells: [],
+    spellMastery: {},
+    weapons: [],
+    condition: 'active',
+    notes: `${profile.species} · ${profile.role}. Ataque: ${profile.attackName} (${
+     profile.attackDice.map((d: DamageDie) => `${d.count}${d.type}`)
+    }${profile.attackBonus ? ` + ${profile.attackBonus}` : ''}). ${profile.notes}${
+      options?.setLinkedStatus ? ' [Estado inicial: Vinculado]' : ''
+    }`,
+    resistances: profile.resistances || '',
+    characterLevel: 1,
+    progressionHistory: [],
+  };
+}
+
+export function buildBeastTamerSpells(params: {
+  charId: string;
+  includeMusicBridge?: boolean;
+}): Spell[] {
+  const { charId, includeMusicBridge = true } = params;
+  const baseSpells: Spell[] = [
+    {
+      id: generateId('sp_doma_link_'),
+      name: 'Canalizar Vínculo',
+      manaCost: 2,
+      orders: ['Domar', 'Vínculo', 'Instinto'],
+      statuses: ['Vinculado'],
+      castRequirement: 'none',
+      castStat: 'influencia',
+      manualCastDice: 0,
+      assuredSuccess: 0,
+      combatStats: ['influencia'],
+      damageMode: 'auto',
+      effectType: 'effect',
+      effectSubType: 'general',
+      damage: { dice: [], bonus: 0, notes: '' },
+      effectDescription:
+        'Hechizo canalizado o de efecto (sin requerir música): establece el estado «Vinculado» sobre una bestia u objetivo mediante tirada de Influencia.',
+      duration: '3 turnos',
+      durationTurns: 3,
+      isBasic: false,
+      ownerCharacterId: charId,
+    },
+    {
+      id: generateId('sp_doma_pack_'),
+      name: 'Llamado de Manada',
+      manaCost: 2,
+      orders: ['Manada', 'Vínculo', 'Domar'],
+      statuses: [],
+      castRequirement: 'none',
+      castStat: 'none',
+      manualCastDice: 0,
+      assuredSuccess: 0,
+      combatStats: [],
+      damageMode: 'auto',
+      effectType: 'effect',
+      effectSubType: 'buff',
+      damage: { dice: [], bonus: 0, notes: '' },
+      effectDescription:
+        'Coordina a una bestia o aliado Vinculado para actuar o sostener el vínculo instintivo durante este turno.',
+      duration: '1 turno',
+      durationTurns: 1,
+      isBasic: false,
+      ownerCharacterId: charId,
+    },
+  ];
+
+  if (includeMusicBridge) {
+    baseSpells.push({
+      id: generateId('sp_doma_canto_'),
+      name: 'Compás de Doma (Canto / Música)',
+      manaCost: 2,
+      orders: ['Canto', 'Vínculo', 'Manada'],
+      statuses: [],
+      castRequirement: 'none',
+      castStat: 'none',
+      manualCastDice: 0,
+      assuredSuccess: 0,
+      combatStats: [],
+      damageMode: 'auto',
+      effectType: 'effect',
+      effectSubType: 'buff',
+      damage: { dice: [], bonus: 0, notes: '' },
+      effectDescription:
+        'Integración opcional con Músico / Bardo: refuerza la armonía con un objetivo ya Vinculado mediante ritmo o canto (no reemplaza la canalización ni el efecto de vínculo).',
+      duration: '2 turnos',
+      durationTurns: 2,
+      isBasic: false,
+      ownerCharacterId: charId,
+    });
+  }
+
+  return baseSpells;
 }

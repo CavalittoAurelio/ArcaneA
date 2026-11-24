@@ -234,6 +234,26 @@ export type WeaponCategory = 'melee' | 'ranged' | 'natural' | 'catalyst';
 
 export type CatalystKind = 'one_hand' | 'bow' | 'great' | 'shield';
 
+export interface BeastProfile {
+  id: string;
+  name: string;
+  species: string;
+  role: string;
+  hpMax: number;
+  manaMax: number;
+  stats: Record<StatKey, number>;
+  statPoints?: Record<StatKey, number>;
+  attackName: string;
+  attackStat: StatKey;
+  attackDice: DamageDie[];
+  attackBonus: number;
+  attackDamageKind: DamageKind;
+  notes: string;
+  resistances?: string;
+  musicSynergyNote?: string;
+  isPreset?: boolean;
+}
+
 export interface WeaponPreset {
   id: string;
   name: string;
@@ -357,6 +377,8 @@ export interface Character {
   immuneToBlind?: boolean;
   /** Enemigo temporal generado por el modo Combate contra la máquina */
   isBotPreset?: boolean;
+  beastBondMasterId?: string;
+  isBeastProfile?: boolean;
 }
 
 export interface OrderCategory {
@@ -425,6 +447,8 @@ export interface ActiveStatus {
   autoFails?: number;
   /** Si es true, este estado se retira automáticamente al recibir un golpe (ej. Aturdir por defecto o retroceso de Empujar) */
   endsOnHit?: boolean;
+  isLinked?: boolean;
+  linkedSourceName?: string;
 }
 
 export type BotDifficulty = 'normal' | 'tactical';
@@ -442,6 +466,8 @@ export interface Combatant {
   /** Si es true, la máquina juega automáticamente los turnos y defensas de este combatiente */
   isBotControlled?: boolean;
   botDifficulty?: BotDifficulty;
+  isLinked?: boolean;
+  linkedSourceName?: string;
 }
 
 export interface FormulaConfig {
