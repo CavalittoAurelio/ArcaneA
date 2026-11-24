@@ -472,7 +472,7 @@ export function QuickCastPanel({
             <Zap className="h-5 w-5 shrink-0" />
             Casteo rápido — {activeCharacter?.name || 'Personaje'}
           </h2>
-          <p className="text-[13px] text-[var(--arc-muted)] mt-0.5 font-mono-num">
+          <p className="text-xs sm:text-[13px] text-[var(--arc-muted)] mt-0.5 font-mono-num break-words">
             {activeCharacter ? (
               <>
                 Maná {activeCharacter.mana.current}/{activeCharacter.mana.max}
@@ -492,7 +492,7 @@ export function QuickCastPanel({
 
         {/* Selector rápido de objetivo y Letal / No letal */}
         {activeCharacter && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {irlMode && (
               <span className="inline-flex items-center rounded-lg bg-[var(--arc-input)] px-2.5 py-1.5 text-xs font-semibold text-[var(--arc-accent)]">
                 Modo IRL · sin objetivo
@@ -504,7 +504,7 @@ export function QuickCastPanel({
                 value={selectedTargetId}
                 onChange={(e) => onSelectTarget(e.target.value)}
                 aria-label="Objetivo de ataque rápido"
-                className="min-h-[36px] max-w-[230px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                className="w-full sm:w-auto sm:max-w-[230px] min-w-0 min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
               >
                 {potentialTargets.map((cb) => {
                   const targetChar = characters.find((c) => c.id === cb.characterId);
@@ -566,7 +566,7 @@ export function QuickCastPanel({
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] px-3 py-2 text-xs">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-semibold text-[var(--arc-accent)] inline-flex items-center gap-1">
-                <Sparkles className="h-3.5 w-3.5" />
+                <Sparkles className="h-3.5 w-3.5 shrink-0" />
                 En {selectedTargetChar.name}:
               </span>
               {Array.from(targetElementalStacks.entries()).map(([kind, count]) => (
@@ -607,7 +607,7 @@ export function QuickCastPanel({
 
       {outOfTurnActions && activeCharacter && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#33220c] px-3 py-2 text-xs text-[#ffd28a]">
-          <span>
+          <span className="min-w-0 flex-1">
             {autoPassSecondsLeft !== null ? (
               <>
                 Acciones agotadas ({turnStatus.used}/{turnStatus.max}) · pasando turno en{' '}
@@ -645,10 +645,10 @@ export function QuickCastPanel({
 
       {/* Filtros compactos */}
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             {/* Propios vs Base */}
-            <div className="inline-flex p-0.5 rounded-lg bg-[var(--arc-input)]">
+            <div className="grid grid-cols-3 sm:inline-flex w-full sm:w-auto p-0.5 rounded-lg bg-[var(--arc-input)]">
               {(
                 [
                   { id: 'all', label: `Todo (${knownSpells.length})` },
@@ -660,7 +660,7 @@ export function QuickCastPanel({
                   key={opt.id}
                   type="button"
                   onClick={() => setOriginFilter(opt.id)}
-                  className={`min-h-[30px] px-2.5 text-xs font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors ${
+                  className={`min-h-[30px] px-2 text-xs font-semibold rounded-md whitespace-nowrap text-center transition-colors ${
                     originFilter === opt.id
                       ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                       : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -715,7 +715,7 @@ export function QuickCastPanel({
                 aria-label="Filtrar por etiqueta personal"
                 value={personalTagFilter}
                 onChange={(event) => setPersonalTagFilter(event.target.value)}
-                className="min-h-[32px] max-w-[170px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
+                className="min-h-[32px] max-w-full sm:max-w-[170px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
               >
                 <option value="">Todas las etiquetas</option>
                 {activeCharacter?.personalSpellTagNames?.map((tag) => (
@@ -726,7 +726,7 @@ export function QuickCastPanel({
           </div>
 
           {/* Buscador rápido */}
-          <div className="relative flex-1 min-w-[160px] max-w-[240px]">
+          <div className="relative w-full sm:flex-1 sm:min-w-[160px] sm:max-w-[240px]">
             <Search
               className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--arc-muted)]"
               aria-hidden="true"
@@ -737,19 +737,19 @@ export function QuickCastPanel({
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar hechizo..."
               aria-label="Buscar hechizo en casteo rápido"
-              className="w-full min-h-[32px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] pl-8 pr-2.5 text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)]"
+              className="w-full min-h-[34px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] pl-8 pr-2.5 text-xs text-[var(--arc-text)] placeholder:text-[var(--arc-muted)]"
             />
           </div>
         </div>
 
         {/* Filtro por categoría (6 categorías separadas por color e icono) */}
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="grid grid-cols-3 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-1">
           {ROLE_FILTER_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setRoleFilter(opt.value)}
-              className={`min-h-[30px] inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+              className={`min-h-[32px] sm:min-h-[30px] inline-flex items-center justify-center sm:justify-start gap-1.5 rounded-md px-2 sm:px-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
                 roleFilter === opt.value
                   ? opt.value === 'all'
                     ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
@@ -758,9 +758,9 @@ export function QuickCastPanel({
               }`}
             >
               {opt.value !== 'all' && (
-                <SpellCategoryIcon category={opt.value} className="h-3.5 w-3.5" />
+                <SpellCategoryIcon category={opt.value} className="h-3.5 w-3.5 shrink-0" />
               )}
-              {opt.label}
+              <span className="truncate">{opt.label}</span>
             </button>
           ))}
         </div>
@@ -960,7 +960,7 @@ export function QuickCastPanel({
               return (
                 <li
                   key={spell.id}
-                  className={`px-3.5 py-2.5 transition-all ${
+                  className={`px-3 sm:px-3.5 py-2.5 transition-all ${
                     synergyPreview
                       ? synergyPreview.rowClass
                       : 'hover:bg-[var(--arc-surface)]/70'
@@ -971,7 +971,7 @@ export function QuickCastPanel({
                     <div className="sm:col-span-4 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className={CAT_BADGE_CLASSES[spellCat]}>
-                          <SpellCategoryIcon category={spellCat} className="h-4 w-4" />
+                          <SpellCategoryIcon category={spellCat} className="h-4 w-4 shrink-0" />
                         </span>
                         <span
                           className={`text-sm font-bold truncate ${CAT_BADGE_CLASSES[spellCat]}`}
@@ -1013,9 +1013,11 @@ export function QuickCastPanel({
                               : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
                           }`}
                         >
-                          <Star className={`h-3.5 w-3.5 ${
-                            activeCharacter?.favoriteSpellIds?.includes(spell.id) ? 'fill-current' : ''
-                          }`} />
+                          <Star
+                            className={`h-3.5 w-3.5 ${
+                              activeCharacter?.favoriteSpellIds?.includes(spell.id) ? 'fill-current' : ''
+                            }`}
+                          />
                         </button>
                         {isFire && (
                           <Flame
@@ -1112,13 +1114,13 @@ export function QuickCastPanel({
                     {/* Columna 2: Daño / Valor clave */}
                     <div className="sm:col-span-3 flex items-center justify-between sm:block">
                       <span className="text-xs text-[var(--arc-muted)] sm:hidden">Daño / Efecto</span>
-                      <div>
+                      <div className="text-right sm:text-left">
                         <span
                           className={`font-mono-num text-sm font-bold ${
                             spell.effectType === 'damage'
                               ? 'text-[var(--arc-text)]'
                               : spell.effectType === 'heal'
-                                ? 'text-[#8ee0a4]'
+                                ? 'text-[#8fd2a1]'
                                 : 'text-[var(--arc-muted)] font-medium text-xs'
                           }`}
                         >
@@ -1153,16 +1155,16 @@ export function QuickCastPanel({
                     </div>
 
                     {/* Columna 4: Botón directo de lanzamiento */}
-                    <div className="sm:col-span-3 flex flex-wrap items-center justify-end gap-1.5">
+                    <div className="sm:col-span-3 flex flex-wrap items-center justify-end gap-1.5 pt-1 sm:pt-0">
                       {hardBlocked ? (
                         <button
                           type="button"
                           disabled
                           title={hardBlockReason}
-                          className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-raised)] px-3 text-xs font-semibold text-[#f3b562] opacity-85 cursor-not-allowed whitespace-nowrap shrink-0"
+                          className="flex-1 sm:flex-initial min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-raised)] px-3 text-xs font-semibold text-[#f3b562] opacity-85 cursor-not-allowed whitespace-nowrap"
                         >
                           <Lock className="h-3.5 w-3.5 shrink-0" />
-                          Bloqueado
+                          <span>Bloqueado</span>
                         </button>
                       ) : (
                         <>
@@ -1178,10 +1180,10 @@ export function QuickCastPanel({
                                       ? 'Sin acciones restantes este turno — activá Hechizo Veloz o pasá el turno'
                                       : 'Castear y preparar hechizo (gasta 1 acción)'
                                   }
-                                  className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                  className="flex-1 sm:flex-initial min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
                                 >
                                   <Sparkles className="h-3.5 w-3.5" />
-                                  Castear
+                                  <span>Castear</span>
                                 </button>
                               ) : (
                                 <>
@@ -1195,10 +1197,10 @@ export function QuickCastPanel({
                                           ? 'Sin acciones restantes este turno'
                                           : 'Declarar casteo (gasta 1 acción)'
                                       }
-                                      className="min-h-[34px] inline-flex items-center gap-1 rounded-md bg-transparent px-2 text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                      className="min-h-[34px] inline-flex items-center justify-center gap-1 rounded-md bg-[var(--arc-surface)] sm:bg-transparent px-2.5 text-xs font-semibold text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
                                     >
                                       <Sparkles className="h-3.5 w-3.5" />
-                                      Castear
+                                      <span>Castear</span>
                                     </button>
                                   )}
                                   <button
@@ -1212,7 +1214,7 @@ export function QuickCastPanel({
                                           ? `Activa ${synergyPreview.label} (${synergyPreview.bonusDiceText})`
                                           : undefined
                                     }
-                                    className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors ${
+                                    className={`flex-1 sm:flex-initial min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors ${
                                       synergyPreview
                                         ? synergyPreview.buttonClass
                                         : 'bg-[var(--arc-action)] text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)]'
@@ -1223,7 +1225,9 @@ export function QuickCastPanel({
                                     ) : (
                                       <Swords className="h-3.5 w-3.5" />
                                     )}
-                                    {synergyPreview ? synergyPreview.shortActionLabel : 'Atacar'}
+                                    <span>
+                                      {synergyPreview ? synergyPreview.shortActionLabel : 'Atacar'}
+                                    </span>
                                   </button>
                                 </>
                               )}
@@ -1234,10 +1238,10 @@ export function QuickCastPanel({
                             <button
                               type="button"
                               onClick={() => onDefendTestSpell(spell)}
-                              className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-def-raised)] border border-[var(--arc-def-border)] px-3 text-xs font-semibold text-[var(--arc-def-text)] hover:brightness-110 whitespace-nowrap shrink-0 transition-all"
+                              className="flex-1 sm:flex-initial min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-def-raised)] border border-[var(--arc-def-border)] px-3 text-xs font-semibold text-[var(--arc-def-text)] hover:brightness-110 whitespace-nowrap transition-all"
                             >
                               <Shield className="h-3.5 w-3.5 text-[var(--arc-def-accent)]" />
-                              Defender
+                              <span>Defender</span>
                             </button>
                           )}
 
@@ -1247,10 +1251,10 @@ export function QuickCastPanel({
                               disabled={lacksMana || blockedByTurn}
                               onClick={() => onHealSpell(spell)}
                               title={blockedByTurn ? 'Sin acciones restantes este turno' : undefined}
-                              className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                              className="flex-1 sm:flex-initial min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
                             >
                               <HeartPulse className="h-3.5 w-3.5" />
-                              Curar
+                              <span>Curar</span>
                             </button>
                           )}
 
@@ -1275,7 +1279,7 @@ export function QuickCastPanel({
                                           ? `Activa ${synergyPreview.label} (${synergyPreview.bonusDiceText})`
                                           : undefined
                                 }
-                                className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                                className={`flex-1 sm:flex-initial min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold whitespace-nowrap transition-colors ${
                                   lacksMana || isTurnBuffLocked || blockedByTurn
                                     ? 'bg-[var(--arc-raised)] text-[var(--arc-muted)] opacity-50 cursor-not-allowed'
                                     : synergyPreview
@@ -1294,15 +1298,17 @@ export function QuickCastPanel({
                                 ) : (
                                   <Sparkles className="h-3.5 w-3.5" />
                                 )}
-                                {isElevarActive || isVelozActive
-                                  ? 'Activo'
-                                  : isElevarBlocked
-                                    ? 'Bloqueado'
-                                    : synergyPreview
-                                      ? synergyPreview.shortActionLabel
-                                      : effectSub === 'debuff'
-                                        ? 'Aplicar'
-                                        : 'Activar'}
+                                <span>
+                                  {isElevarActive || isVelozActive
+                                    ? 'Activo'
+                                    : isElevarBlocked
+                                      ? 'Bloqueado'
+                                      : synergyPreview
+                                        ? synergyPreview.shortActionLabel
+                                        : effectSub === 'debuff'
+                                          ? 'Aplicar'
+                                          : 'Activar'}
+                                </span>
                               </button>
                             )}
 
@@ -1320,7 +1326,7 @@ export function QuickCastPanel({
                                       ? `Activa ${synergyPreview.label} (${synergyPreview.bonusDiceText})`
                                       : undefined
                                 }
-                                className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors ${
+                                className={`flex-1 sm:flex-initial min-h-[34px] inline-flex items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap transition-colors ${
                                   synergyPreview
                                     ? synergyPreview.buttonClass
                                     : 'bg-[#b85a3a] text-white hover:bg-[#cc6644]'
@@ -1331,7 +1337,9 @@ export function QuickCastPanel({
                                 ) : (
                                   <Dices className="h-3.5 w-3.5" />
                                 )}
-                                {synergyPreview ? synergyPreview.shortActionLabel : 'Aplicar'}
+                                <span>
+                                  {synergyPreview ? synergyPreview.shortActionLabel : 'Aplicar'}
+                                </span>
                               </button>
                             )}
                         </>
@@ -1358,6 +1366,4 @@ export function QuickCastPanel({
           onClose={() => setInspectedSpell(null)}
         />
       )}
-    </section>
-  );
-}
+    </section>)}
