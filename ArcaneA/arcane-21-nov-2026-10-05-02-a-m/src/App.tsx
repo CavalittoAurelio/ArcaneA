@@ -9445,6 +9445,7 @@ const handleSummonBeastProfile = (
             onAdjustMana={adjustMana}
             onResetResources={resetResources}
             onAddToCombat={(id) => handleAddToCombat(id, 0)}
+            onSummonBeastProfile={handleSummonBeastProfile}
           />
         )}
 
