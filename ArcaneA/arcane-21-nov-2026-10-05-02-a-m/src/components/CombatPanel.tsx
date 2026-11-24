@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import {
   Activity,
@@ -9,7 +8,6 @@ import {
   Check,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
   ChevronUp,
   Dices,
   Droplets,
@@ -274,7 +272,6 @@ export function CombatPanel({
   onRollDefense,
   onVerifyTieDamage,
   onConfirmPendingDamage,
-  onUseAttackProtection,
   onReinforcePendingAttack,
   onTriggerCounterspellFromAttack,
   onResolveCounterspell,
@@ -364,7 +361,7 @@ export function CombatPanel({
   const [botExistingEnemyIds, setBotExistingEnemyIds] = useState<string[]>([]);
   const [botDifficulty, setBotDifficulty] = useState<BotDifficulty>('normal');
   const [botPlayerGoesFirst, setBotPlayerGoesFirst] = useState(true);
-const [combatDeltas, setCombatDeltas] = useState<
+  const [, setCombatDeltas] = useState<
     Array<{
       id: string;
       combatantId: string;
@@ -372,9 +369,9 @@ const [combatDeltas, setCombatDeltas] = useState<
       tone: 'damage' | 'heal' | 'mana';
     }>
   >([]);
-  const [shakingCombatantIds, setShakingCombatantIds] = useState<Record<string, boolean>>({});
-  const prevVitalsRef = useState(() => new Map())[0];
-const combatSectionRef = useRef<HTMLElement | null>(null);
+  const [, setShakingCombatantIds] = useState<Record<string, boolean>>({});
+  const prevVitalsRef = useState(() => new Map<string, { hp: number; mana: number }>())[0];
+  const combatSectionRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const hasActiveAction = Boolean(
@@ -406,6 +403,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
     pendingStatusCheck,
     pendingHeal,
   ]);
+
   useEffect(() => {
     const newFloats: Array<{
       id: string;
@@ -467,6 +465,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
       }, 340);
     }
   }, [combatants, characters, prevVitalsRef]);
+
   const inCombatCharIds = new Set(combatants.map((c) => c.characterId));
   const availableToAdd = characters.filter((c) => !inCombatCharIds.has(c.id));
   const sortedCombatants = [...combatants].sort((a, b) => b.initiative - a.initiative);
@@ -485,7 +484,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
   const validExistingEnemyIds = botExistingEnemyIds.filter((id) => id !== resolvedBotPlayerId);
   const totalSelectedBotEnemies = selectedPresetTotal + validExistingEnemyIds.length;
 
-  // Lista compacta de hechizos conocidos lanzables con el maná restante tras activar Hechizo Veloz / Elevar el Límite
   const renderChainCastList = (
     casterChar: Character,
     casterCb: Combatant,
@@ -704,7 +702,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
           </div>
         </div>
 
-        {/* Aviso de límite agotado (bloqueo estricto de 1 acción por buff) */}
         {!hasRemainingAction && (
           <div className="flex items-center gap-2 border-b border-[var(--arc-border)] bg-[#33220c] px-3 py-2 text-xs text-[#ffd28a]">
             <Lock className="h-3.5 w-3.5 shrink-0 text-[#f0a83a]" />
@@ -725,7 +722,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
             <div className="max-h-[290px] overflow-y-auto divide-y divide-[var(--arc-border)]">
               {groupedByCategory.map((group) => (
                 <div key={group.category} className={group.style.bg}>
-                  {/* Encabezado de categoría con emblema y color */}
                   <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--arc-border)]/50">
                     <span
                       className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${group.style.accent}`}
@@ -918,9 +914,9 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
     return { reduction, divisor, names };
   };
 
-  // Sincronizar el objetivo seleccionado cuando nace un nuevo pendingAttack
   useEffect(() => {
     setPendingProtStacks(0);
+    setManualDmgInput('');
     if (!pendingAttack) {
       setDefendingTargetId(null);
       setDamageReduction(0);
@@ -961,13 +957,17 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
     }
   }, [pendingAttack?.id]);
 
-  // Reiniciar las cargas de Protección en vista previa cuando se decide un nuevo daño entrante
   useEffect(() => {
     setPendingProtStacks(0);
   }, [pendingAttack?.pendingDamage]);
 
+  useEffect(() => {
+    if (!pendingHeal) setManualHealInput('');
+  }, [pendingHeal?.id]);
+
   const handleSelectDefender = (targetId: string) => {
     setDefendingTargetId(targetId);
+    setManualDmgInput('');
     const targetCb = combatants.find((c) => c.id === targetId);
     const armorMods = getCombatantArmorModifiers(targetCb);
     setDamageReduction(armorMods.reduction);
@@ -1000,13 +1000,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
   const defendingCombatant = combatants.find((c) => c.id === defendingTargetId);
   const defendingChar = defendingCombatant
     ? characters.find((c) => c.id === defendingCombatant.characterId)
-    : undefined;
-
-  const tieTargetCombatant = pendingAttack?.targetCombatantId
-    ? combatants.find((c) => c.id === pendingAttack.targetCombatantId)
-    : undefined;
-  const tieTargetChar = tieTargetCombatant
-    ? characters.find((c) => c.id === tieTargetCombatant.characterId)
     : undefined;
 
   const defenderDefenseSpells = defendingChar
@@ -1047,13 +1040,12 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
     effectiveColProtStacks
   );
 
-    return (
+  return (
     <section
       ref={combatSectionRef}
       id="arcane-combat-arena"
       className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4 scroll-mt-4"
     >
-      
       {/* Cabecera de combate, cola de turnos y modo de maná */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--arc-border)] pb-3.5">
         <div>
@@ -1817,7 +1809,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
         </div>
       )}
 
-      {/* Panel de Daño Colateral (cercanía / impacto / quemadura por turnos) */}
+      {/* Panel de Daño Colateral */}
       {showCollateralPanel && onApplyCollateralDamage && combatants.length > 0 && (
         <div className="rounded-xl border border-[#7d4423] bg-[#1f130c] p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#4a2b18] pb-2.5">
@@ -2118,7 +2110,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
         </div>
       )}
 
-      {/* Resolución de Ataque pendiente vs Defensa — Duelo Dividido (Ataca Izq / Defiende Der) */}
+      {/* Resolución de Ataque pendiente vs Defensa — Duelo Dividido */}
       {pendingAttack && !pendingAttack.resolved && (() => {
         const isPendingMagical = isSpellMagical(pendingAttack.spell);
         const pendingDmgKind = getEffectiveSpellDamageKind(pendingAttack.spell);
@@ -2167,7 +2159,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
         const defenderCannotUseProtection =
           resolvedTargetEffects.cannotReact || resolvedTargetEffects.cannotCastMagic;
 
-        // Cálculo en vivo de Protección y daño final cuando ya se tiró/decidió el daño
         const maxProtStacks =
           resolvedTargetChar && !defenderCannotUseProtection
             ? getMaxAffordableProtectionStacks(
@@ -2212,7 +2203,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
 
         return (
           <div className="rounded-xl border border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] overflow-hidden">
-            {/* Barra superior neutral de resumen del enfrentamiento */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3">
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
                 <span className="text-xs font-bold uppercase tracking-wider text-[var(--arc-muted)]">
@@ -2247,6 +2237,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                 onClick={() => {
                   setDefendingTargetId(null);
                   setPendingProtStacks(0);
+                  setManualDmgInput('');
                   onDismissPendingAttack();
                 }}
                 className="min-h-[32px] rounded-md bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
@@ -2255,7 +2246,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
               </button>
             </div>
 
-            {/* Barra de objetivos en Área / Multi-objetivo cuando corresponde */}
             {(pendingAttack.spell.areaConfig?.enabled ||
               (pendingAttack.areaTargetIds && pendingAttack.areaTargetIds.length > 0) ||
               (pendingAttack.areaResolvedTargets && pendingAttack.areaResolvedTargets.length > 0)) && (() => {
@@ -2293,7 +2283,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                     )}
                   </div>
 
-                  {/* Selector rápido de blancos en el área */}
                   {onToggleAreaTarget && eligibleTargets.length > 0 && (
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] font-semibold text-[var(--arc-muted)] mr-1">
@@ -2347,9 +2336,8 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
               );
             })()}
 
-            {/* Cuerpo dividido: Izquierda ATACA (cálido) | Derecha DEFIENDE (frío) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[var(--arc-border)]">
-              {/* COLUMNA IZQUIERDA — ATACA (Cálido) */}
+              {/* COLUMNA IZQUIERDA — ATACA */}
               <div className="bg-[var(--arc-atk-bg)] p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -2375,7 +2363,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                   </div>
                 </div>
 
-                {/* Dados del ataque */}
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-1.5">
                     {pendingAttack.attackRoll.rolls.map((val, idx) => {
@@ -2433,12 +2420,11 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                   </p>
                 </div>
 
-                {/* Daño ya tirado/decidido (visible en la columna del atacante en Paso 3) */}
-                    {pendingDmg && (
-                      <div
-                        key={`dmg-raw-${pendingAttack.id}-${rawDamageTotal}`}
-                        className="animate-arcane-die border-t border-[var(--arc-atk-border)]/45 pt-2.5 space-y-1"
-                      >
+                {pendingDmg && (
+                  <div
+                    key={`dmg-raw-${pendingAttack.id}-${rawDamageTotal}`}
+                    className="animate-arcane-die border-t border-[var(--arc-atk-border)]/45 pt-2.5 space-y-1"
+                  >
                     {pendingDmg.rawSummary.isCriticalHit && (
                       <div className="inline-flex items-center gap-1.5 rounded bg-[#5e1c14] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffd6c9]">
                         <Zap className="h-3 w-3 shrink-0" />
@@ -2484,7 +2470,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                   </div>
                 )}
 
-                {/* Notas de fuego y Reforzar (antes de tirar daño) */}
                 {!pendingDmg && isFireDamageSpell(pendingAttack.spell) && (
                   <p className="text-xs font-medium text-[var(--arc-atk-text)] opacity-90 flex items-start gap-1.5">
                     <Flame className="h-3.5 w-3.5 shrink-0 mt-0.5 text-[var(--arc-atk-accent)]" />
@@ -2519,7 +2504,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                     </div>
                   )}
 
-                {/* Decisión rápida del atacante en Combate: Hechizo Veloz y Elevar el Límite */}
                 {attackerCanCastTurnBuffs && (hechizoVelozSpell || elevarLimiteSpell) && (
                   <div className="border-t border-[var(--arc-atk-border)]/40 pt-2.5 space-y-1.5">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
@@ -2637,9 +2621,8 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                 )}
               </div>
 
-              {/* COLUMNA DERECHA — DEFIENDE (Frío) */}
+              {/* COLUMNA DERECHA — DEFIENDE */}
               <div className="bg-[var(--arc-def-bg)] p-4 space-y-3">
-                {/* PASO 1: Esperando tirada de defensa */}
                 {isAwaitingDefenseRoll && (
                   <>
                     <div className="flex items-start justify-between gap-2">
@@ -2674,7 +2657,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       )}
                     </div>
 
-                    {/* Selector del objetivo defensor */}
                     <div className="flex flex-wrap items-center gap-2">
                       <label
                         htmlFor="defense-target"
@@ -2703,7 +2685,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       </select>
                     </div>
 
-                    {/* Info de resistencias, armadura y estados activos del defensor */}
                     {defendingCombatant && defendingChar && (
                       <div className="space-y-1.5 text-xs">
                         {defendingEffects.summaryTags.length > 0 && (
@@ -2758,7 +2739,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       </div>
                     )}
 
-                    {/* Resistencia y reducción fija base */}
                     <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--arc-def-border)]/40 pt-2.5 text-xs">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[var(--arc-def-text)] opacity-80">Resistencia:</span>
@@ -2805,7 +2785,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       </label>
                     </div>
 
-                    {/* Interrumpir Círculo (antes de resolver) + nota de Protección post-daño */}
                     {defendingCombatant && defendingChar && (
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         {onTriggerCounterspellFromAttack &&
@@ -2845,7 +2824,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       </div>
                     )}
 
-                    {/* Tirada de defensa o resolución directa */}
                     {defendingCombatant && defendingChar && (
                       <div className="border-t border-[var(--arc-def-border)]/40 pt-3 space-y-2.5">
                         {defendingChar.condition !== 'active' || defendingEffects.cannotDefend ? (
@@ -2999,7 +2977,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                   </>
                 )}
 
-                {/* PASO 2 Y PASO 3: Defensa resuelta (o impacto directo) + Decisión de Protección tras ver el daño */}
                 {(isAwaitingDamageRoll || isAwaitingDamageDecision) && (
                   <>
                     <div className="flex items-start justify-between gap-2">
@@ -3030,7 +3007,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       )}
                     </div>
 
-                    {/* Dados de la defensa (si hubo tirada defensiva) */}
                     {pendingAttack.defenseRoll && (
                       <div className="space-y-1.5">
                         <div className="flex flex-wrap items-center gap-1.5">
@@ -3041,7 +3017,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                                 : val >= 5
                                   ? 'border-[var(--arc-def-border)] bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
                                   : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-muted)]';
-                                  return (
+                            return (
                               <span
                                 key={`${pendingAttack.id}-def-${idx}-${val}`}
                                 style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
@@ -3093,7 +3069,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       </p>
                     )}
 
-                    {/* Resistencia y reducción base */}
                     <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--arc-def-border)]/40 pt-2.5 text-xs">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-[var(--arc-def-text)] opacity-80">Resistencia:</span>
@@ -3140,7 +3115,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       </label>
                     </div>
 
-                    {/* PASO 3: Decisión de Protección DESPUÉS de conocer el daño tirado */}
                     {isAwaitingDamageDecision && resolvedTargetChar && (
                       <div className="border-t border-[var(--arc-def-border)]/50 pt-3 space-y-2.5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3235,7 +3209,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
               </div>
             </div>
 
-            {/* Franja inferior — Paso 2: Tirar verificación de daños (empate o daño manual) */}
             {isAwaitingDamageRoll && pendingAttack.defenseRoll && (
               <div className="border-t border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-0.5">
@@ -3298,7 +3271,6 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
               </div>
             )}
 
-            {/* Franja inferior — Paso 3: Confirmación final del daño tras decidir Protección */}
             {isAwaitingDamageDecision && pendingDmg && resolvedTargetChar && (
               <div
                 key={`step3-${pendingAttack.id}-${rawDamageTotal}`}
@@ -3362,7 +3334,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
         );
       })()}
 
-      {/* Tirada enfrentada de Interrumpir Círculo (Influencia + Manipulación de maná) */}
+      {/* Tirada enfrentada de Interrumpir Círculo */}
       {pendingCounterspell && onResolveCounterspell && (
         <div className="rounded-xl border border-[#6e4fb8] bg-[#171129] p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3450,7 +3422,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
         </div>
       )}
 
-      {/* Chequeo de Estado pendiente (siempre por Influencia) */}
+      {/* Chequeo de Estado pendiente */}
       {pendingStatusCheck && (
         <div className="rounded-xl border border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)] p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3581,7 +3553,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
         </div>
       )}
 
-      {/* Lista de combatientes con colores diferenciados PJ vs PNJ */}
+      {/* Lista de combatientes */}
       {sortedCombatants.length === 0 ? (
         <div className="rounded-lg bg-[var(--arc-surface-alt)] p-6 text-center text-[13px] text-[var(--arc-muted)]">
           Todavía no hay combatientes en la mesa. Añadí PJs o PNJs arriba.
@@ -3593,6 +3565,12 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
             if (!char) return null;
             const isActor = char.id === activeCharacterId;
             const isPJ = char.kind === 'mage';
+            const isBeast = Boolean(char.isBeastProfile);
+            const isLinked = (cb.activeStatuses || []).some(
+              (st) => st.isLinked || st.name.trim().toLowerCase() === 'vinculado'
+            );
+            const isAllyBeast = isBeast || isLinked;
+
             const hpPct =
               char.hp.max > 0 ? Math.max(0, Math.min(100, (char.hp.current / char.hp.max) * 100)) : 0;
             const manaPct =
@@ -3602,14 +3580,32 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
 
             const cardColors = isPJ
               ? 'border-[#4a7545] bg-[#172216]'
-              : 'border-[#824234] bg-[#251614]';
+              : isAllyBeast
+                ? 'border-[#2e6f65] bg-[#102421]'
+                : 'border-[#824234] bg-[#251614]';
+
+            const badgeColors = isPJ
+              ? 'text-[#9ad489]'
+              : isAllyBeast
+                ? 'text-[#5eead4]'
+                : 'text-[#f09a82]';
+
+            const badgeLabel = isPJ
+              ? 'PJ'
+              : isBeast && isLinked
+                ? 'BESTIA · VINCULADA'
+                : isBeast
+                  ? 'BESTIA'
+                  : isLinked
+                    ? 'VINCULADO'
+                    : 'PNJ';
 
             const isDead = char.condition === 'dead';
             const isUnconscious =
-            !isDead &&
-            (char.condition !== 'active' ||
-            char.hp.current <= 0 ||
-            (!char.ignoreManaUnconsciousness && char.mana.max > 0 && char.mana.current <= 0));
+              !isDead &&
+              (char.condition !== 'active' ||
+                char.hp.current <= 0 ||
+                (!char.ignoreManaUnconsciousness && char.mana.max > 0 && char.mana.current <= 0));
             const isDown = isDead || isUnconscious;
             const downStateClass = isDead
               ? 'arc-card-dead'
@@ -3650,17 +3646,15 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
             return (
               <div
                 key={cb.id}
-                className={`rounded-xl border p-4 space-y-3 transition-all ${cardColors} ${activeRoleRing} ${downStateClass}`}
+                className={`rounded-xl border p-3 space-y-2.5 transition-all ${cardColors} ${activeRoleRing} ${downStateClass}`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <span
-                        className={`text-xs font-bold uppercase tracking-wide ${
-                          isPJ ? 'text-[#9ad489]' : 'text-[#f09a82]'
-                        }`}
+                        className={`text-[11px] font-bold uppercase tracking-wide ${badgeColors}`}
                       >
-                        {isPJ ? 'PJ' : 'PNJ'}
+                        {badgeLabel}
                       </span>
                       {cb.isBotControlled && (
                         <span
@@ -3671,27 +3665,29 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                           Máquina
                         </span>
                       )}
-                      <span className="text-base font-bold text-[#efe6d5]">{char.name}</span>
+                      <span className="text-sm sm:text-base font-bold text-[#efe6d5] truncate">
+                        {char.name}
+                      </span>
                       {isDead && (
-                        <span className="arc-status-enter inline-flex items-center gap-1 rounded border border-[#a83030] bg-[#451316] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffb8be]">
+                        <span className="arc-status-enter inline-flex items-center gap-1 rounded border border-[#a83030] bg-[#451316] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#ffb8be]">
                           <Skull className="h-3 w-3 shrink-0" />
                           Muerto
                         </span>
                       )}
                       {isUnconscious && (
-                        <span className="arc-status-enter inline-flex items-center gap-1 rounded border border-[#b4733e] bg-[#3d2512] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffd6ad]">
+                        <span className="arc-status-enter inline-flex items-center gap-1 rounded border border-[#b4733e] bg-[#3d2512] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#ffd6ad]">
                           <Moon className="h-3 w-3 shrink-0" />
                           Inconsciente
                         </span>
                       )}
                       {isActiveAttacker && (
-                        <span className="inline-flex items-center gap-1 rounded bg-[var(--arc-atk-bg)] border border-[var(--arc-atk-border)] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--arc-atk-accent)]">
+                        <span className="inline-flex items-center gap-1 rounded bg-[var(--arc-atk-bg)] border border-[var(--arc-atk-border)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--arc-atk-accent)]">
                           <Swords className="h-3 w-3 shrink-0" />
                           Atacando
                         </span>
                       )}
                       {isActiveDefender && (
-                        <span className="inline-flex items-center gap-1 rounded bg-[var(--arc-def-bg)] border border-[var(--arc-def-border)] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[var(--arc-def-accent)]">
+                        <span className="inline-flex items-center gap-1 rounded bg-[var(--arc-def-bg)] border border-[var(--arc-def-border)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--arc-def-accent)]">
                           <Shield className="h-3 w-3 shrink-0" />
                           Defendiendo
                         </span>
@@ -3710,16 +3706,16 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                           · Acciones {cbTurnStatus.remaining}/{cbTurnStatus.max}
                         </span>
                       )}
-                    </div>
-                    <div className="mt-0.5 text-xs text-[#a3947e] font-mono-num">
-                      Fís {getCharacterStatDice(char, 'fisico', formula)}d6 · Man{' '}
-                      {getCharacterStatDice(char, 'manipulacion', formula)}d6 · Inf{' '}
-                      {getCharacterStatDice(char, 'influencia', formula)}d6
+                      <span className="text-xs text-[#a3947e] font-mono-num">
+                        · Fís {getCharacterStatDice(char, 'fisico', formula)}d6 · Man{' '}
+                        {getCharacterStatDice(char, 'manipulacion', formula)}d6 · Inf{' '}
+                        {getCharacterStatDice(char, 'influencia', formula)}d6
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <div className="flex items-center gap-1 text-xs text-[#a3947e] mr-1">
+                  <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 text-xs text-[#a3947e] mr-0.5">
                       <span>Init</span>
                       <input
                         type="number"
@@ -3728,7 +3724,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                           onUpdateInitiative(cb.id, parseInt(e.target.value, 10) || 0)
                         }
                         aria-label={`Iniciativa de ${char.name}`}
-                        className="font-mono-num w-14 min-h-[34px] rounded border border-[#433324] bg-[#120d09] px-1.5 text-center text-xs text-[#d4a843]"
+                        className="font-mono-num w-12 min-h-[30px] rounded border border-[#433324] bg-[#120d09] px-1 text-center text-xs text-[#d4a843]"
                       />
                     </div>
 
@@ -3741,7 +3737,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                             ? 'Pasar a control manual'
                             : 'Dejar que la máquina controle a este combatiente'
                         }
-                        className={`min-h-[34px] inline-flex items-center gap-1 rounded-lg border px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                        className={`min-h-[30px] inline-flex items-center gap-1 rounded-lg border px-2 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                           cb.isBotControlled
                             ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                             : 'border-transparent bg-transparent text-[#a3947e] hover:bg-white/10 hover:text-[#efe6d5]'
@@ -3755,7 +3751,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                     <button
                       type="button"
                       onClick={() => onSelectActor(char.id)}
-                      className={`min-h-[34px] rounded-lg px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                      className={`min-h-[30px] rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
                         isActor
                           ? 'bg-[#d4a843] text-[#181209]'
                           : 'bg-transparent text-[#efe6d5] hover:bg-white/10'
@@ -3769,16 +3765,16 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       onClick={() => onRemoveFromCombat(cb.id)}
                       title="Quitar del combate"
                       aria-label={`Quitar a ${char.name} del combate`}
-                      className="min-h-[34px] w-8 inline-flex items-center justify-center rounded-lg bg-transparent text-[#9c8b75] hover:bg-[#361912] hover:text-[#e88a70] transition-colors"
+                      className="min-h-[30px] w-7 inline-flex items-center justify-center rounded-lg bg-transparent text-[#9c8b75] hover:bg-[#361912] hover:text-[#e88a70] transition-colors"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
 
                 {/* Barras rápidas PV y Maná */}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  <div className="space-y-1">
                     <div className="flex flex-wrap items-center justify-between gap-1 text-xs font-mono-num">
                       <span className="text-[#d6c9b3] font-semibold">
                         PV {char.hp.current}/{char.hp.max}
@@ -3789,7 +3785,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                             key={d}
                             type="button"
                             onClick={() => onAdjustHp(char.id, d, false)}
-                            className="min-h-[30px] min-w-[30px] rounded bg-transparent px-1.5 text-xs font-semibold text-[#d6c9b3] hover:bg-black/30 hover:text-white transition-colors"
+                            className="min-h-[26px] min-w-[26px] rounded bg-transparent px-1 text-xs font-semibold text-[#d6c9b3] hover:bg-black/30 hover:text-white transition-colors"
                           >
                             {d > 0 ? `+${d}` : d}
                           </button>
@@ -3807,7 +3803,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                               }
                             }}
                             title="Aplicar daño directo con opción rápida de Protección"
-                            className={`min-h-[30px] inline-flex items-center gap-1 rounded px-2 text-xs font-sans font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                            className={`min-h-[26px] inline-flex items-center gap-1 rounded px-1.5 text-xs font-sans font-semibold whitespace-nowrap shrink-0 transition-colors ${
                               isDirectDmgOpen
                                 ? 'bg-[#1a3352] text-[#9fd2ff]'
                                 : 'bg-transparent text-[#9fd2ff] hover:bg-black/30'
@@ -3819,12 +3815,12 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                         )}
                       </div>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#120d09]">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#120d09]">
                       <div className="h-full bg-[#d85a3a]" style={{ width: `${hpPct}%` }} />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <div className="flex items-center justify-between text-xs font-mono-num">
                       <span className="text-[#d6c9b3] font-semibold">
                         Maná {char.mana.current}/{char.mana.max}
@@ -3835,14 +3831,14 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                             key={d}
                             type="button"
                             onClick={() => onAdjustMana(char.id, d)}
-                            className="min-h-[30px] min-w-[30px] rounded bg-transparent px-1.5 text-xs font-semibold text-[#d6c9b3] hover:bg-black/30 hover:text-white transition-colors"
+                            className="min-h-[26px] min-w-[26px] rounded bg-transparent px-1 text-xs font-semibold text-[#d6c9b3] hover:bg-black/30 hover:text-white transition-colors"
                           >
                             {d > 0 ? `+${d}` : d}
                           </button>
                         ))}
                       </div>
                     </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-[#120d09]">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#120d09]">
                       <div className="h-full bg-[#5282d6]" style={{ width: `${manaPct}%` }} />
                     </div>
                   </div>
@@ -3850,7 +3846,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
 
                 {/* Sub-sección plana de Daño directo con Protección */}
                 {isDirectDmgOpen && onApplyDirectDamageWithProtection && directProtSummary && (
-                  <div className="border-t border-white/10 pt-2.5 space-y-2.5">
+                  <div className="border-t border-white/10 pt-2 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                       <span className="font-semibold text-[#9fd2ff] inline-flex items-center gap-1.5">
                         <Shield className="h-3.5 w-3.5" />
@@ -3865,7 +3861,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                       </button>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2.5 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
                       <div className="flex items-center gap-1.5">
                         <label
                           htmlFor={`direct-dmg-${cb.id}`}
@@ -3882,7 +3878,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                           onChange={(e) =>
                             setDirectDmgAmount(Math.max(0, parseInt(e.target.value, 10) || 0))
                           }
-                          className="font-mono-num w-16 min-h-[34px] rounded-md border border-white/15 bg-black/35 px-2 text-center text-xs text-[#efe6d5]"
+                          className="font-mono-num w-16 min-h-[32px] rounded-md border border-white/15 bg-black/35 px-2 text-center text-xs text-[#efe6d5]"
                         />
                       </div>
 
@@ -3918,7 +3914,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                           disabled={effectiveDirectProt <= 0}
                           onClick={() => setDirectDmgProtStacks((s) => Math.max(0, s - 1))}
                           aria-label={`Restar Protección para ${char.name}`}
-                          className="h-7 w-7 rounded text-xs font-bold text-[#efe6d5] hover:bg-white/10 disabled:opacity-35 transition-colors"
+                          className="h-6 w-6 rounded text-xs font-bold text-[#efe6d5] hover:bg-white/10 disabled:opacity-35 transition-colors"
                         >
                           −
                         </button>
@@ -3932,7 +3928,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                             setDirectDmgProtStacks((s) => Math.min(directMaxProt, s + 1))
                           }
                           aria-label={`Sumar Protección para ${char.name}`}
-                          className="h-7 w-7 rounded text-xs font-bold text-[#efe6d5] hover:bg-white/10 disabled:opacity-35 transition-colors"
+                          className="h-6 w-6 rounded text-xs font-bold text-[#efe6d5] hover:bg-white/10 disabled:opacity-35 transition-colors"
                         >
                           +
                         </button>
@@ -3944,7 +3940,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                         onChange={(e) => setDirectDmgLabel(e.target.value)}
                         placeholder="Motivo (opcional)"
                         aria-label={`Motivo del daño directo para ${char.name}`}
-                        className="flex-1 min-w-[130px] min-h-[34px] rounded-md border border-white/15 bg-black/35 px-2.5 text-xs text-[#efe6d5]"
+                        className="flex-1 min-w-[130px] min-h-[32px] rounded-md border border-white/15 bg-black/35 px-2.5 text-xs text-[#efe6d5]"
                       />
 
                       <label className="inline-flex items-center gap-1.5 text-[#d6c9b3] cursor-pointer">
@@ -3984,7 +3980,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                           setDirectDmgProtStacks(0);
                           setDirectDmgLabel('');
                         }}
-                        className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[#b85a3a] px-3.5 text-xs font-semibold text-white hover:bg-[#cc6644] disabled:opacity-40 shadow-sm whitespace-nowrap shrink-0 transition-colors"
+                        className="min-h-[32px] inline-flex items-center gap-1.5 rounded-lg bg-[#b85a3a] px-3 text-xs font-semibold text-white hover:bg-[#cc6644] disabled:opacity-40 shadow-sm whitespace-nowrap shrink-0 transition-colors"
                       >
                         Aplicar daño ({directNetDmg} PV)
                       </button>
@@ -3992,13 +3988,13 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                   </div>
                 )}
 
-                {/* Hechizos preparados / activos (casteados en este turno o turnos anteriores) */}
+                {/* Hechizos preparados / activos */}
                 {cb.preparedSpells.length > 0 && (
-                  <div className="border-t border-white/10 pt-2.5 space-y-1.5">
-                    <span className="block text-xs font-semibold text-[var(--arc-magic-accent)]">
-                      Hechizos preparados (listos para atacar en acción aparte):
+                  <div className="border-t border-white/10 pt-2 space-y-1">
+                    <span className="block text-[11px] font-semibold text-[var(--arc-magic-accent)]">
+                      Hechizos preparados:
                     </span>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {cb.preparedSpells.map((prep) => {
                         const prepSpell = spells.find((s) => s.id === prep.spellId);
                         const isPrepMagic = prepSpell ? isSpellMagical(prepSpell) : true;
@@ -4025,7 +4021,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                         return (
                           <div
                             key={prep.id}
-                            className={`inline-flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs ${
+                            className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs ${
                               isPrepMagic
                                 ? 'bg-[var(--arc-magic-bg)]'
                                 : 'bg-[var(--arc-phys-bg)]'
@@ -4040,7 +4036,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                             >
                               {prep.spellName}
                             </span>
-                            <span className="text-[#9c8b75] font-mono-num">
+                            <span className="text-[#9c8b75] font-mono-num text-[11px]">
                               (
                               {typeof prep.remainingTurns === 'number'
                                 ? `${prep.remainingTurns}/${prep.durationTurns || prep.remainingTurns}t`
@@ -4056,7 +4052,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                                   prepDepCheck?.missingReason ||
                                   `Requiere: ${prepDepCheck?.requiredName}`
                                 }
-                                className="inline-flex items-center gap-1 rounded-md bg-[var(--arc-raised)] px-2 py-1 text-xs font-semibold text-[#f3b562] opacity-85 cursor-not-allowed whitespace-nowrap shrink-0"
+                                className="inline-flex items-center gap-1 rounded-md bg-[var(--arc-raised)] px-2 py-0.5 text-[11px] font-semibold text-[#f3b562] opacity-85 cursor-not-allowed whitespace-nowrap shrink-0"
                               >
                                 <Lock className="h-3 w-3 shrink-0" />
                                 {prepStatusBlock || prepDepCheck?.missingReason || 'Bloqueado'}
@@ -4071,7 +4067,7 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                                     : `Atacar con ${prep.spellName} (0 maná)`
                                 }
                                 onClick={() => onAttackWithPrepared(cb.id, prep)}
-                                className="rounded-md bg-[var(--arc-action)] px-2.5 py-1 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                className="rounded-md bg-[var(--arc-action)] px-2 py-0.5 text-[11px] font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                               >
                                 Atacar
                               </button>
@@ -4104,153 +4100,123 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                   const triggerElemTurn = onTriggerElementalTurn || onTriggerBurnTurn;
                   const cbStatusEffects = getCombatantStatusEffects(cb, char);
                   return (
-                  <div className="border-t border-white/10 pt-2.5 space-y-1.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-[#cbb893]">
-                        Buffs, Armaduras, Estados y Debuffs activos:
-                      </span>
-                      {onCancelCombatantBuffs && cancellableBuffCount > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => onCancelCombatantBuffs(cb.id)}
-                          title="Cancelar todos los hechizos por turno y buffs activos de este combatiente"
-                          className="min-h-[26px] inline-flex items-center gap-1 rounded-md border border-[#6e3a2c] bg-[#2a1510] px-2 text-[11px] font-semibold text-[#ffb8a3] hover:bg-[#3d1e17] whitespace-nowrap shrink-0 transition-colors"
-                        >
-                          <XCircle className="h-3 w-3 shrink-0" />
-                          Cancelar buffs ({cancellableBuffCount})
-                        </button>
-                      )}
-                    </div>
-                    {cbStatusEffects.summaryTags.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-[#633222] bg-[#22110c] px-2.5 py-1.5 text-[11px] text-[#ffd4c2]">
-                        <span className="font-bold text-[#ff9a76]">Efectos mecánicos:</span>
-                        {cbStatusEffects.summaryTags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="rounded bg-black/35 px-1.5 py-0.5 font-semibold text-[#ffe4d6]"
+                    <div className="border-t border-white/10 pt-2 space-y-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold text-[#cbb893]">
+                          Estados / buffs activos:
+                        </span>
+                        {onCancelCombatantBuffs && cancellableBuffCount > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => onCancelCombatantBuffs(cb.id)}
+                            title="Cancelar todos los hechizos por turno y buffs activos de este combatiente"
+                            className="min-h-[24px] inline-flex items-center gap-1 rounded-md border border-[#6e3a2c] bg-[#2a1510] px-2 text-[11px] font-semibold text-[#ffb8a3] hover:bg-[#3d1e17] whitespace-nowrap shrink-0 transition-colors"
                           >
-                            {tag}
-                          </span>
-                        ))}
+                            <XCircle className="h-3 w-3 shrink-0" />
+                            Cancelar buffs ({cancellableBuffCount})
+                          </button>
+                        )}
                       </div>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      {cb.activeStatuses.map((st) => {
-                        const elemKind = getStatusElementalKind(st);
-                        const elemStacks = getStatusStackTurns(st);
-                        const isElemental = Boolean(elemKind && elemStacks.length > 0);
-                        const isCollateral = Boolean(st.collateralConfig);
-                        const isBuff = st.kind === 'buff' || (st.armorReduction || 0) > 0;
-                        const isDebuff = st.kind === 'debuff';
-                        const hasTimer = typeof st.remainingTurns === 'number' || isElemental;
-                        const isAboutToExpire = !isElemental && hasTimer && st.remainingTurns === 1;
-                        const controlKey = !isElemental && !isCollateral
-                          ? normalizeCombatStatusKey(st.name)
-                          : null;
-                        const mechanicId = elemKind
-                          ? getElementalMechanicId(elemKind)
-                          : controlKey
-                            ? getControlMechanicId(controlKey)
-                            : undefined;
-                        const controlRuleHint = controlKey
-                          ? formatStatusChipMechanics(st, char)
-                          : null;
+                      {cbStatusEffects.summaryTags.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1 rounded-md border border-[#633222] bg-[#22110c] px-2 py-1 text-[11px] text-[#ffd4c2]">
+                          <span className="font-bold text-[#ff9a76]">Efectos:</span>
+                          {cbStatusEffects.summaryTags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded bg-black/35 px-1.5 py-0.5 text-[10px] font-semibold text-[#ffe4d6]"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {cb.activeStatuses.map((st) => {
+                          const elemKind = getStatusElementalKind(st);
+                          const elemStacks = getStatusStackTurns(st);
+                          const isElemental = Boolean(elemKind && elemStacks.length > 0);
+                          const isCollateral = Boolean(st.collateralConfig);
+                          const isBuff = st.kind === 'buff' || (st.armorReduction || 0) > 0;
+                          const isDebuff = st.kind === 'debuff';
+                          const hasTimer = typeof st.remainingTurns === 'number' || isElemental;
+                          const isAboutToExpire = !isElemental && hasTimer && st.remainingTurns === 1;
+                          const controlKey =
+                            !isElemental && !isCollateral
+                              ? normalizeCombatStatusKey(st.name)
+                              : null;
+                          const mechanicId = elemKind
+                            ? getElementalMechanicId(elemKind)
+                            : controlKey
+                              ? getControlMechanicId(controlKey)
+                              : undefined;
+                          const controlRuleHint = controlKey
+                            ? formatStatusChipMechanics(st, char)
+                            : null;
 
-                        const chipColorClass = isElemental
-                          ? elemKind === 'burn'
-                            ? 'bg-[#2c140c] text-[#ffc4a3] border border-[#d96b38]/45'
-                            : elemKind === 'poison'
-                              ? 'bg-[#162614] text-[#c2f0ad] border border-[#47b872]/40'
+                          const chipColorClass = isElemental
+                            ? elemKind === 'burn'
+                              ? 'bg-[#2c140c] text-[#ffc4a3] border border-[#d96b38]/45'
+                              : elemKind === 'poison'
+                                ? 'bg-[#162614] text-[#c2f0ad] border border-[#47b872]/40'
+                                : elemKind === 'frozen'
+                                  ? 'bg-[#0f2330] text-[#b5e4ff] border border-[#58bce8]/50'
+                                  : elemKind === 'electrified'
+                                    ? 'bg-[#29220a] text-[#ffe899] border border-[#e3bd42]/45'
+                                    : 'bg-[#2d1015] text-[#ffb8c2] border border-[#e0526a]/45'
+                            : controlKey === 'aturdir'
+                              ? 'bg-[#33260b] text-[#ffe29a] border border-[#eab308]/50'
+                              : controlKey === 'cegar'
+                                ? 'bg-[#1e1a28] text-[#dcd3f2] border border-[#8b7ab8]/45'
+                                : isCollateral
+                                  ? 'bg-[#29170b] text-[#ffd7bd]'
+                                  : isBuff
+                                    ? 'bg-[#112418] text-[#bff0cb]'
+                                    : isDebuff
+                                      ? 'bg-[#2a1510] text-[#ffc9b8]'
+                                      : 'bg-[#2a2112] text-[#f1d58a]';
+
+                          const statusAnimClass =
+                            controlKey === 'aturdir'
+                              ? 'arc-status-stun'
                               : elemKind === 'frozen'
-                                ? 'bg-[#0f2330] text-[#b5e4ff] border border-[#58bce8]/50'
-                                : elemKind === 'electrified'
-                                  ? 'bg-[#29220a] text-[#ffe899] border border-[#e3bd42]/45'
-                                  : 'bg-[#2d1015] text-[#ffb8c2] border border-[#e0526a]/45'
-                          : controlKey === 'aturdir'
-                            ? 'bg-[#33260b] text-[#ffe29a] border border-[#eab308]/50'
-                            : controlKey === 'cegar'
-                              ? 'bg-[#1e1a28] text-[#dcd3f2] border border-[#8b7ab8]/45'
-                              : isCollateral
-                                ? 'bg-[#29170b] text-[#ffd7bd]'
-                                : isBuff
-                                  ? 'bg-[#112418] text-[#bff0cb]'
-                                  : isDebuff
-                                    ? 'bg-[#2a1510] text-[#ffc9b8]'
-                                    : 'bg-[#2a2112] text-[#f1d58a]';
+                                ? 'arc-status-frozen'
+                                : elemKind === 'burn'
+                                  ? 'arc-status-burn'
+                                  : elemKind === 'electrified'
+                                    ? 'arc-status-shock'
+                                    : 'arc-status-enter';
 
-                        const statusAnimClass =
-                          controlKey === 'aturdir'
-                            ? 'arc-status-stun'
-                            : elemKind === 'frozen'
-                              ? 'arc-status-frozen'
-                              : elemKind === 'burn'
-                                ? 'arc-status-burn'
-                                : elemKind === 'electrified'
-                                  ? 'arc-status-shock'
-                                  : 'arc-status-enter';
-
-                        return (
-                          <span
-                            key={st.id}
-                            className={`inline-flex flex-wrap items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs ${chipColorClass} ${statusAnimClass}`}
-                          >
-                            {elemKind === 'burn' && <Flame className="h-3.5 w-3.5 text-[#ff8748]" />}
-                            {elemKind === 'poison' && (
-                              <Droplets className="h-3.5 w-3.5 text-[#7ee068]" />
-                            )}
-                            {elemKind === 'frozen' && (
-                              <Snowflake className="h-3.5 w-3.5 text-[#7ad0ff]" />
-                            )}
-                            {elemKind === 'electrified' && (
-                              <Zap className="h-3.5 w-3.5 text-[#ffd859]" />
-                            )}
-                            {elemKind === 'bleeding' && (
-                              <Droplets className="h-3.5 w-3.5 text-[#ff6b81]" />
-                            )}
-                            {controlKey === 'aturdir' && (
-                              <Zap className="h-3.5 w-3.5 text-[#facc15]" />
-                            )}
-                            {controlKey === 'cegar' && (
-                              <EyeOff className="h-3.5 w-3.5 text-[#c4b5fd]" />
-                            )}
-                            {!isElemental && isCollateral && (
-                              <AlertTriangle className="h-3.5 w-3.5 text-[#ff9d5c]" />
-                            )}
-                            {!isElemental && !isCollateral && isBuff && (
-                              <ShieldPlus className="h-3.5 w-3.5 text-[#7ee098]" />
-                            )}
-                            {isElemental && elemKind && mechanicId && onInspectMechanic ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onInspectMechanic(mechanicId, {
-                                    source: 'active-status',
-                                    combatantId: cb.id,
-                                    statusId: st.id,
-                                  })
-                                }
-                                className="inline-flex items-center gap-1 text-xs uppercase tracking-wide font-bold opacity-90 hover:underline"
-                                aria-label={`Consultar ${ELEMENTAL_STATUS_META[elemKind].name}`}
-                                title={`Consultar regla de ${ELEMENTAL_STATUS_META[elemKind].name}`}
-                              >
-                                {ELEMENTAL_STATUS_META[elemKind].name}
-                                <BookOpen className="h-3 w-3" />
-                              </button>
-                            ) : (
-                              <span className="text-xs uppercase tracking-wide opacity-80 font-bold">
-                                {isElemental && elemKind
-                                  ? ELEMENTAL_STATUS_META[elemKind].name
-                                  : isCollateral
-                                    ? 'Colateral'
-                                    : isBuff
-                                      ? 'Buff'
-                                      : isDebuff
-                                        ? 'Debuff'
-                                        : 'Efecto'}
-                              </span>
-                            )}
-                            {!isElemental &&
-                              (mechanicId && onInspectMechanic ? (
+                          return (
+                            <span
+                              key={st.id}
+                              className={`inline-flex flex-wrap items-center gap-1 rounded-lg px-2 py-1 text-xs ${chipColorClass} ${statusAnimClass}`}
+                            >
+                              {elemKind === 'burn' && <Flame className="h-3.5 w-3.5 text-[#ff8748]" />}
+                              {elemKind === 'poison' && (
+                                <Droplets className="h-3.5 w-3.5 text-[#7ee068]" />
+                              )}
+                              {elemKind === 'frozen' && (
+                                <Snowflake className="h-3.5 w-3.5 text-[#7ad0ff]" />
+                              )}
+                              {elemKind === 'electrified' && (
+                                <Zap className="h-3.5 w-3.5 text-[#ffd859]" />
+                              )}
+                              {elemKind === 'bleeding' && (
+                                <Droplets className="h-3.5 w-3.5 text-[#ff6b81]" />
+                              )}
+                              {controlKey === 'aturdir' && (
+                                <Zap className="h-3.5 w-3.5 text-[#facc15]" />
+                              )}
+                              {controlKey === 'cegar' && (
+                                <EyeOff className="h-3.5 w-3.5 text-[#c4b5fd]" />
+                              )}
+                              {!isElemental && isCollateral && (
+                                <AlertTriangle className="h-3.5 w-3.5 text-[#ff9d5c]" />
+                              )}
+                              {!isElemental && !isCollateral && isBuff && (
+                                <ShieldPlus className="h-3.5 w-3.5 text-[#7ee098]" />
+                              )}
+                              {isElemental && elemKind && mechanicId && onInspectMechanic ? (
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -4260,356 +4226,389 @@ const combatSectionRef = useRef<HTMLElement | null>(null);
                                       statusId: st.id,
                                     })
                                   }
-                                  className="inline-flex items-center gap-1 font-bold hover:underline"
-                                  aria-label={`Consultar ${st.name}`}
-                                  title={`Consultar regla de ${st.name}`}
+                                  className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide font-bold opacity-90 hover:underline"
+                                  aria-label={`Consultar ${ELEMENTAL_STATUS_META[elemKind].name}`}
+                                  title={`Consultar regla de ${ELEMENTAL_STATUS_META[elemKind].name}`}
                                 >
-                                  {st.name}
+                                  {ELEMENTAL_STATUS_META[elemKind].name}
                                   <BookOpen className="h-3 w-3" />
                                 </button>
                               ) : (
-                                <strong>{st.name}</strong>
-                              ))}
-                            {controlRuleHint && (
-                              <span className="rounded bg-black/30 px-1.5 py-0.5 text-[11px] font-medium opacity-95">
-                                {controlRuleHint}
-                              </span>
-                            )}
-                            {controlKey === 'desarmar' && onRecoverDisarmedWeapon && (
-                              <button
-                                type="button"
-                                disabled={
-                                  cbTurnStatus.remaining <= 0 || cbStatusEffects.cannotAct
-                                }
-                                onClick={() => onRecoverDisarmedWeapon(cb.id)}
-                                title={
-                                  cbTurnStatus.remaining <= 0
-                                    ? 'Necesita 1 acción disponible en su turno para recuperar arma/escudo'
-                                    : cbStatusEffects.cannotAct
-                                      ? `Bloqueado por ${cbStatusEffects.cannotActReasons.join(', ')}`
-                                      : 'Gastar 1 acción del turno para recuperar el arma/escudo soltado'
-                                }
-                                className="rounded bg-[#7c4820] px-2 py-0.5 text-[11px] font-semibold text-[#fff2de] hover:bg-[#945829] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
-                              >
-                                Recuperar arma (1 acc.)
-                              </button>
-                            )}
-                            {controlKey === 'derribar' && onStandUpFromProne && (
-                              <button
-                                type="button"
-                                disabled={cbStatusEffects.cannotAct || cbStatusEffects.mobility === 'zero'}
-                                onClick={() => onStandUpFromProne(cb.id, st.id)}
-                                title={
-                                  cbStatusEffects.cannotAct || cbStatusEffects.mobility === 'zero'
-                                    ? 'No puede levantarse mientras tiene movilidad 0 o está impedido'
-                                    : 'Levantarse del suelo (retira Derribar)'
-                                }
-                                className="rounded bg-black/35 px-2 py-0.5 text-[11px] font-semibold hover:bg-black/55 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
-                              >
-                                Levantarse
-                              </button>
-                            )}
-                            {isCollateral && st.collateralConfig && (() => {
-                              const pendingProt = Math.max(0, st.pendingProtectionStacks || 0);
-                              const maxStatusProt = getMaxAffordableProtectionStacks(
-                                char,
-                                spells,
-                                manaMode
-                              );
-                              const statusProtReduction =
-                                pendingProt *
-                                (st.collateralConfig.damageKind === 'magico' ? 3 : 5);
-                              return (
-                                <>
-                                  <span className="font-mono-num text-xs text-[#ffbe94]">
-                                    {formatCollateralValue(st.collateralConfig)}/t
-                                  </span>
-                                  {onAdjustStatusProtection && (
-                                    <span
-                                      className="inline-flex items-center gap-0.5 rounded bg-black/35 px-1 py-0.5 text-xs text-[#9fd2ff]"
-                                      title="Preparar Protección (1 maná/uso) para mitigar el próximo golpe de este daño colateral"
-                                    >
-                                      <Shield className="h-3 w-3 shrink-0" />
-                                      <button
-                                        type="button"
-                                        disabled={pendingProt <= 0}
-                                        onClick={() => onAdjustStatusProtection(cb.id, st.id, -1)}
-                                        aria-label={`Restar Protección en ${st.name}`}
-                                        className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
-                                      >
-                                        −
-                                      </button>
-                                      <span className="font-mono-num px-0.5 font-semibold">
-                                        ×{pendingProt}
-                                        {pendingProt > 0 ? ` (−${statusProtReduction})` : ''}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        disabled={pendingProt >= maxStatusProt}
-                                        onClick={() => onAdjustStatusProtection(cb.id, st.id, 1)}
-                                        aria-label={`Sumar Protección en ${st.name}`}
-                                        className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
-                                      >
-                                        +
-                                      </button>
-                                    </span>
-                                  )}
-                                  {onTriggerCollateralTurn && (
-                                    <button
-                                      type="button"
-                                      onClick={() => onTriggerCollateralTurn(cb.id, st.id)}
-                                      title="Aplicar daño colateral de inicio de turno ahora y descontar 1 turno"
-                                      className="rounded bg-[#45200d] px-2 py-0.5 text-xs font-semibold text-[#ffd7bd] hover:bg-[#5e2c12] transition-colors"
-                                    >
-                                      Inicio turno
-                                    </button>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            {isElemental && elemKind && (() => {
-                              const meta = ELEMENTAL_STATUS_META[elemKind];
-                              const tickDie = st.tickDie ?? meta.defaultTickDie;
-                              const tickKind = st.tickDamageKind || meta.defaultDamageKind;
-                              const pendingProt = Math.max(0, st.pendingProtectionStacks || 0);
-                              const maxStatusProt = getMaxAffordableProtectionStacks(
-                                char,
-                                spells,
-                                manaMode
-                              );
-                              const protReduction = pendingProt * (tickKind === 'magico' ? 3 : 5);
-                              const synergyBtn: {
-                                reaction: Exclude<SynergyReactionType, 'none'>;
-                                label: string;
-                                title: string;
-                                cls: string;
-                              } =
-                                elemKind === 'burn'
-                                  ? {
-                                      reaction: 'detonate_burn',
-                                      label: 'Detonar (1 carga · 1d6)',
-                                      title:
-                                        'Reacción de sinergia: consume 1 carga de Quemadura (regla base) → 1d6 mágico explosivo',
-                                      cls: 'bg-[#5c220c] text-[#ffe1cc] hover:bg-[#7a2e10]',
+                                <span className="text-[11px] uppercase tracking-wide opacity-80 font-bold">
+                                  {isElemental && elemKind
+                                    ? ELEMENTAL_STATUS_META[elemKind].name
+                                    : isCollateral
+                                      ? 'Colateral'
+                                      : isBuff
+                                        ? 'Buff'
+                                        : isDebuff
+                                          ? 'Debuff'
+                                          : 'Efecto'}
+                                </span>
+                              )}
+                              {!isElemental &&
+                                (mechanicId && onInspectMechanic ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onInspectMechanic(mechanicId, {
+                                        source: 'active-status',
+                                        combatantId: cb.id,
+                                        statusId: st.id,
+                                      })
                                     }
-                                  : elemKind === 'poison'
-                                    ? {
-                                        reaction: 'siphon_poison',
-                                        label: 'Sifonar (1 carga · 1d4)',
-                                        title:
-                                          'Reacción de sinergia: consume 1 carga de Envenenado (regla base) → 1d4 + recupera PV y Maná al actor activo',
-                                        cls: 'bg-[#1a4728] text-[#c7ffd9] hover:bg-[#246137]',
-                                      }
-                                    : elemKind === 'frozen'
-                                      ? {
-                                          reaction: 'shatter_frozen',
-                                          label: 'Quebrar (1 carga · 1d8)',
-                                          title:
-                                            'Reacción de sinergia: consume 1 carga de Congelado (regla base) → 1d8 físico',
-                                          cls: 'bg-[#153e59] text-[#d1f0ff] hover:bg-[#1e5578]',
-                                        }
-                                      : elemKind === 'electrified'
-                                        ? {
-                                            reaction: 'overload_electrified',
-                                            label: 'Sobrecarga (1/objetivo · 1d6)',
-                                            title:
-                                              'Sobrecarga: consume 1 carga de cada combatiente Electrificado y causa 1d6 mágico por carga',
-                                            cls: 'bg-[#54440e] text-[#fff0b3] hover:bg-[#705b14]',
-                                          }
-                                        : {
-                                            reaction: 'hemorrhage_bleed',
-                                            label: 'Desgarrar (1 carga · 1d6)',
-                                            title:
-                                              'Reacción de sinergia: consume 1 carga de Sangrando (regla base) → 1d6 físico',
-                                            cls: 'bg-[#5c1622] text-[#ffd1d9] hover:bg-[#7a1e2e]',
-                                          };
-
-                              return (
-                                <>
-                                  <strong className="font-mono-num">
-                                    {elemStacks.length}/{MAX_ELEMENTAL_STACKS}
-                                    {tickDie ? ` (${elemStacks.length}${tickDie})` : ''}
-                                  </strong>
-                                  <span className="font-mono-num text-xs opacity-90">
-                                    [{elemStacks.map((t) => `${t}t`).join(', ')}]
-                                  </span>
-                                  {tickDie && onAdjustStatusProtection && (
-                                    <span
-                                      className="inline-flex items-center gap-0.5 rounded bg-black/35 px-1 py-0.5 text-xs text-[#9fd2ff]"
-                                      title={`Preparar Protección (1 maná = −${tickKind === 'magico' ? 3 : 5}) para el próximo inicio de turno`}
-                                    >
-                                      <Shield className="h-3 w-3 shrink-0" />
-                                      <button
-                                        type="button"
-                                        disabled={pendingProt <= 0}
-                                        onClick={() => onAdjustStatusProtection(cb.id, st.id, -1)}
-                                        aria-label={`Restar Protección en ${meta.name}`}
-                                        className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
-                                      >
-                                        −
-                                      </button>
-                                      <span className="font-mono-num px-0.5 font-semibold">
-                                        ×{pendingProt}
-                                        {pendingProt > 0 ? ` (−${protReduction})` : ''}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        disabled={pendingProt >= maxStatusProt}
-                                        onClick={() => onAdjustStatusProtection(cb.id, st.id, 1)}
-                                        aria-label={`Sumar Protección en ${meta.name}`}
-                                        className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
-                                      >
-                                        +
-                                      </button>
+                                    className="inline-flex items-center gap-1 font-bold hover:underline"
+                                    aria-label={`Consultar ${st.name}`}
+                                    title={`Consultar regla de ${st.name}`}
+                                  >
+                                    {st.name}
+                                    <BookOpen className="h-3 w-3" />
+                                  </button>
+                                ) : (
+                                  <strong>{st.name}</strong>
+                                ))}
+                              {controlRuleHint && (
+                                <span className="rounded bg-black/30 px-1.5 py-0.5 text-[10px] font-medium opacity-95">
+                                  {controlRuleHint}
+                                </span>
+                              )}
+                              {controlKey === 'desarmar' && onRecoverDisarmedWeapon && (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    cbTurnStatus.remaining <= 0 || cbStatusEffects.cannotAct
+                                  }
+                                  onClick={() => onRecoverDisarmedWeapon(cb.id)}
+                                  title={
+                                    cbTurnStatus.remaining <= 0
+                                      ? 'Necesita 1 acción disponible en su turno para recuperar arma/escudo'
+                                      : cbStatusEffects.cannotAct
+                                        ? `Bloqueado por ${cbStatusEffects.cannotActReasons.join(', ')}`
+                                        : 'Gastar 1 acción del turno para recuperar el arma/escudo soltado'
+                                  }
+                                  className="rounded bg-[#7c4820] px-2 py-0.5 text-[11px] font-semibold text-[#fff2de] hover:bg-[#945829] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                >
+                                  Recuperar arma (1 acc.)
+                                </button>
+                              )}
+                              {controlKey === 'derribar' && onStandUpFromProne && (
+                                <button
+                                  type="button"
+                                  disabled={
+                                    cbStatusEffects.cannotAct || cbStatusEffects.mobility === 'zero'
+                                  }
+                                  onClick={() => onStandUpFromProne(cb.id, st.id)}
+                                  title={
+                                    cbStatusEffects.cannotAct || cbStatusEffects.mobility === 'zero'
+                                      ? 'No puede levantarse mientras tiene movilidad 0 o está impedido'
+                                      : 'Levantarse del suelo (retira Derribar)'
+                                  }
+                                  className="rounded bg-black/35 px-2 py-0.5 text-[11px] font-semibold hover:bg-black/55 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                >
+                                  Levantarse
+                                </button>
+                              )}
+                              {isCollateral && st.collateralConfig && (() => {
+                                const pendingProt = Math.max(0, st.pendingProtectionStacks || 0);
+                                const maxStatusProt = getMaxAffordableProtectionStacks(
+                                  char,
+                                  spells,
+                                  manaMode
+                                );
+                                const statusProtReduction =
+                                  pendingProt *
+                                  (st.collateralConfig.damageKind === 'magico' ? 3 : 5);
+                                return (
+                                  <>
+                                    <span className="font-mono-num text-[11px] text-[#ffbe94]">
+                                      {formatCollateralValue(st.collateralConfig)}/t
                                     </span>
-                                  )}
-                                  {tickDie && triggerElemTurn && (
-                                    <button
-                                      type="button"
-                                      onClick={() => triggerElemTurn(cb.id, st.id)}
-                                      title={`Aplicar daño de ${meta.name} al inicio del turno y descontar 1 turno`}
-                                      className="rounded bg-black/35 px-2 py-0.5 text-xs font-semibold hover:bg-black/55 whitespace-nowrap shrink-0 transition-colors"
-                                    >
-                                      Inicio turno ({elemStacks.length}
-                                      {tickDie})
-                                    </button>
-                                  )}
-                                  {onTriggerSynergyReaction && (
-                                    <span className="inline-flex items-center gap-1">
+                                    {onAdjustStatusProtection && (
+                                      <span
+                                        className="inline-flex items-center gap-0.5 rounded bg-black/35 px-1 py-0.5 text-[11px] text-[#9fd2ff]"
+                                        title="Preparar Protección (1 maná/uso) para mitigar el próximo golpe de este daño colateral"
+                                      >
+                                        <Shield className="h-3 w-3 shrink-0" />
+                                        <button
+                                          type="button"
+                                          disabled={pendingProt <= 0}
+                                          onClick={() => onAdjustStatusProtection(cb.id, st.id, -1)}
+                                          aria-label={`Restar Protección en ${st.name}`}
+                                          className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
+                                        >
+                                          −
+                                        </button>
+                                        <span className="font-mono-num px-0.5 font-semibold">
+                                          ×{pendingProt}
+                                          {pendingProt > 0 ? ` (−${statusProtReduction})` : ''}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          disabled={pendingProt >= maxStatusProt}
+                                          onClick={() => onAdjustStatusProtection(cb.id, st.id, 1)}
+                                          aria-label={`Sumar Protección en ${st.name}`}
+                                          className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
+                                        >
+                                          +
+                                        </button>
+                                      </span>
+                                    )}
+                                    {onTriggerCollateralTurn && (
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          onTriggerSynergyReaction(cb.id, synergyBtn.reaction)
-                                        }
-                                        title={synergyBtn.title}
-                                        className={`rounded px-2 py-0.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${synergyBtn.cls}`}
+                                        onClick={() => onTriggerCollateralTurn(cb.id, st.id)}
+                                        title="Aplicar daño colateral de inicio de turno ahora y descontar 1 turno"
+                                        className="rounded bg-[#45200d] px-2 py-0.5 text-[11px] font-semibold text-[#ffd7bd] hover:bg-[#5e2c12] transition-colors"
                                       >
-                                        {synergyBtn.label}
+                                        Inicio turno
                                       </button>
-                                      {onInspectMechanic && (
+                                    )}
+                                  </>
+                                );
+                              })()}
+                              {isElemental && elemKind && (() => {
+                                const meta = ELEMENTAL_STATUS_META[elemKind];
+                                const tickDie = st.tickDie ?? meta.defaultTickDie;
+                                const tickKind = st.tickDamageKind || meta.defaultDamageKind;
+                                const pendingProt = Math.max(0, st.pendingProtectionStacks || 0);
+                                const maxStatusProt = getMaxAffordableProtectionStacks(
+                                  char,
+                                  spells,
+                                  manaMode
+                                );
+                                const protReduction = pendingProt * (tickKind === 'magico' ? 3 : 5);
+                                const synergyBtn: {
+                                  reaction: Exclude<SynergyReactionType, 'none'>;
+                                  label: string;
+                                  title: string;
+                                  cls: string;
+                                } =
+                                  elemKind === 'burn'
+                                    ? {
+                                        reaction: 'detonate_burn',
+                                        label: 'Detonar (1 carga · 1d6)',
+                                        title:
+                                          'Reacción de sinergia: consume 1 carga de Quemadura (regla base) → 1d6 mágico explosivo',
+                                        cls: 'bg-[#5c220c] text-[#ffe1cc] hover:bg-[#7a2e10]',
+                                      }
+                                    : elemKind === 'poison'
+                                      ? {
+                                          reaction: 'siphon_poison',
+                                          label: 'Sifonar (1 carga · 1d4)',
+                                          title:
+                                            'Reacción de sinergia: consume 1 carga de Envenenado (regla base) → 1d4 + recupera PV y Maná al actor activo',
+                                          cls: 'bg-[#1a4728] text-[#c7ffd9] hover:bg-[#246137]',
+                                        }
+                                      : elemKind === 'frozen'
+                                        ? {
+                                            reaction: 'shatter_frozen',
+                                            label: 'Quebrar (1 carga · 1d8)',
+                                            title:
+                                              'Reacción de sinergia: consume 1 carga de Congelado (regla base) → 1d8 físico',
+                                            cls: 'bg-[#153e59] text-[#d1f0ff] hover:bg-[#1e5578]',
+                                          }
+                                        : elemKind === 'electrified'
+                                          ? {
+                                              reaction: 'overload_electrified',
+                                              label: 'Sobrecarga (1/objetivo · 1d6)',
+                                              title:
+                                                'Sobrecarga: consume 1 carga de cada combatiente Electrificado y causa 1d6 mágico por carga',
+                                              cls: 'bg-[#54440e] text-[#fff0b3] hover:bg-[#705b14]',
+                                            }
+                                          : {
+                                              reaction: 'hemorrhage_bleed',
+                                              label: 'Desgarrar (1 carga · 1d6)',
+                                              title:
+                                                'Reacción de sinergia: consume 1 carga de Sangrando (regla base) → 1d6 físico',
+                                              cls: 'bg-[#5c1622] text-[#ffd1d9] hover:bg-[#7a1e2e]',
+                                            };
+
+                                return (
+                                  <>
+                                    <strong className="font-mono-num text-[11px]">
+                                      {elemStacks.length}/{MAX_ELEMENTAL_STACKS}
+                                      {tickDie ? ` (${elemStacks.length}${tickDie})` : ''}
+                                    </strong>
+                                    <span className="font-mono-num text-[11px] opacity-90">
+                                      [{elemStacks.map((t) => `${t}t`).join(', ')}]
+                                    </span>
+                                    {tickDie && onAdjustStatusProtection && (
+                                      <span
+                                        className="inline-flex items-center gap-0.5 rounded bg-black/35 px-1 py-0.5 text-[11px] text-[#9fd2ff]"
+                                        title={`Preparar Protección (1 maná = −${tickKind === 'magico' ? 3 : 5}) para el próximo inicio de turno`}
+                                      >
+                                        <Shield className="h-3 w-3 shrink-0" />
+                                        <button
+                                          type="button"
+                                          disabled={pendingProt <= 0}
+                                          onClick={() => onAdjustStatusProtection(cb.id, st.id, -1)}
+                                          aria-label={`Restar Protección en ${meta.name}`}
+                                          className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
+                                        >
+                                          −
+                                        </button>
+                                        <span className="font-mono-num px-0.5 font-semibold">
+                                          ×{pendingProt}
+                                          {pendingProt > 0 ? ` (−${protReduction})` : ''}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          disabled={pendingProt >= maxStatusProt}
+                                          onClick={() => onAdjustStatusProtection(cb.id, st.id, 1)}
+                                          aria-label={`Sumar Protección en ${meta.name}`}
+                                          className="h-5 w-5 rounded hover:bg-white/10 disabled:opacity-35 leading-none"
+                                        >
+                                          +
+                                        </button>
+                                      </span>
+                                    )}
+                                    {tickDie && triggerElemTurn && (
+                                      <button
+                                        type="button"
+                                        onClick={() => triggerElemTurn(cb.id, st.id)}
+                                        title={`Aplicar daño de ${meta.name} al inicio del turno y descontar 1 turno`}
+                                        className="rounded bg-black/35 px-2 py-0.5 text-[11px] font-semibold hover:bg-black/55 whitespace-nowrap shrink-0 transition-colors"
+                                      >
+                                        Inicio turno ({elemStacks.length}
+                                        {tickDie})
+                                      </button>
+                                    )}
+                                    {onTriggerSynergyReaction && (
+                                      <span className="inline-flex items-center gap-1">
                                         <button
                                           type="button"
                                           onClick={() =>
-                                            onInspectMechanic(
-                                              getSynergyMechanicId(synergyBtn.reaction),
-                                              {
-                                                source: 'reaction',
-                                                combatantId: cb.id,
-                                                statusId: st.id,
-                                              }
-                                            )
+                                            onTriggerSynergyReaction(cb.id, synergyBtn.reaction)
                                           }
-                                          className="inline-flex h-7 w-7 items-center justify-center rounded bg-black/30 text-current hover:bg-black/50"
-                                          aria-label={`Consultar ${synergyBtn.label}`}
-                                          title={`Consultar regla de ${synergyBtn.label}`}
+                                          title={synergyBtn.title}
+                                          className={`rounded px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap shrink-0 transition-colors ${synergyBtn.cls}`}
                                         >
-                                          <BookOpen className="h-3.5 w-3.5" />
+                                          {synergyBtn.label}
                                         </button>
-                                      )}
-                                    </span>
-                                  )}
-                                </>
-                              );
-                            })()}
-                            {(st.armorReduction || 0) > 0 && (
-                              <span className="font-mono-num text-xs text-[#8ee0a4]">
-                                Red. +{st.armorReduction}
-                              </span>
-                            )}
-                            {st.armorDivisor !== undefined && st.armorDivisor !== 1 && (
-                              <span className="font-mono-num text-xs text-[#8ee0a4]">
-                                {st.armorDivisor === 0 ? 'Anula' : `÷${st.armorDivisor}`}
-                              </span>
-                            )}
-                            {typeof st.remainingHits === 'number' && (
-                              <span
-                                className={`inline-flex items-center gap-0.5 rounded bg-black/30 px-1.5 py-0.5 font-mono-num text-xs ${
-                                  st.remainingHits <= 1
-                                    ? 'text-[#ffd07a] font-bold'
-                                    : 'text-[#9fd2ff] font-semibold'
-                                }`}
-                                title="Golpes restantes antes de que se rompa o disipe"
-                              >
-                                <Shield className="h-3 w-3 shrink-0" />
-                                <span>
-                                  {st.remainingHits}/{st.maxHits || st.remainingHits}g
-                                </span>
-                                {onAdjustStatusHits && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={() => onAdjustStatusHits(cb.id, st.id, -1)}
-                                      title="Restar 1 golpe (se rompe si llega a 0)"
-                                      aria-label={`Restar 1 golpe a ${st.name}`}
-                                      className="h-5 w-5 rounded text-xs leading-none hover:bg-white/15 transition-colors ml-0.5"
-                                    >
-                                      −
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => onAdjustStatusHits(cb.id, st.id, 1)}
-                                      title="Sumar 1 golpe de resistencia"
-                                      aria-label={`Sumar 1 golpe a ${st.name}`}
-                                      className="h-5 w-5 rounded text-xs leading-none hover:bg-white/15 transition-colors"
-                                    >
-                                      +
-                                    </button>
+                                        {onInspectMechanic && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              onInspectMechanic(
+                                                getSynergyMechanicId(synergyBtn.reaction),
+                                                {
+                                                  source: 'reaction',
+                                                  combatantId: cb.id,
+                                                  statusId: st.id,
+                                                }
+                                              )
+                                            }
+                                            className="inline-flex h-6 w-6 items-center justify-center rounded bg-black/30 text-current hover:bg-black/50"
+                                            aria-label={`Consultar ${synergyBtn.label}`}
+                                            title={`Consultar regla de ${synergyBtn.label}`}
+                                          >
+                                            <BookOpen className="h-3 w-3" />
+                                          </button>
+                                        )}
+                                      </span>
+                                    )}
                                   </>
-                                )}
-                              </span>
-                            )}
-                            {!isElemental && (
-                              <span
-                                className={`font-mono-num text-xs ${
-                                  isAboutToExpire ? 'text-[#ffd07a] font-bold' : 'opacity-85'
-                                }`}
+                                );
+                              })()}
+                              {(st.armorReduction || 0) > 0 && (
+                                <span className="font-mono-num text-[11px] text-[#8ee0a4]">
+                                  Red. +{st.armorReduction}
+                                </span>
+                              )}
+                              {st.armorDivisor !== undefined && st.armorDivisor !== 1 && (
+                                <span className="font-mono-num text-[11px] text-[#8ee0a4]">
+                                  {st.armorDivisor === 0 ? 'Anula' : `÷${st.armorDivisor}`}
+                                </span>
+                              )}
+                              {typeof st.remainingHits === 'number' && (
+                                <span
+                                  className={`inline-flex items-center gap-0.5 rounded bg-black/30 px-1.5 py-0.5 font-mono-num text-[11px] ${
+                                    st.remainingHits <= 1
+                                      ? 'text-[#ffd07a] font-bold'
+                                      : 'text-[#9fd2ff] font-semibold'
+                                  }`}
+                                  title="Golpes restantes antes de que se rompa o disipe"
+                                >
+                                  <Shield className="h-3 w-3 shrink-0" />
+                                  <span>
+                                    {st.remainingHits}/{st.maxHits || st.remainingHits}g
+                                  </span>
+                                  {onAdjustStatusHits && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => onAdjustStatusHits(cb.id, st.id, -1)}
+                                        title="Restar 1 golpe (se rompe si llega a 0)"
+                                        aria-label={`Restar 1 golpe a ${st.name}`}
+                                        className="h-5 w-5 rounded text-xs leading-none hover:bg-white/15 transition-colors ml-0.5"
+                                      >
+                                        −
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => onAdjustStatusHits(cb.id, st.id, 1)}
+                                        title="Sumar 1 golpe de resistencia"
+                                        aria-label={`Sumar 1 golpe a ${st.name}`}
+                                        className="h-5 w-5 rounded text-xs leading-none hover:bg-white/15 transition-colors"
+                                      >
+                                        +
+                                      </button>
+                                    </>
+                                  )}
+                                </span>
+                              )}
+                              {!isElemental && (
+                                <span
+                                  className={`font-mono-num text-[11px] ${
+                                    isAboutToExpire ? 'text-[#ffd07a] font-bold' : 'opacity-85'
+                                  }`}
+                                >
+                                  {hasTimer
+                                    ? `${st.remainingTurns}/${st.durationTurns || st.remainingTurns}t`
+                                    : st.duration || 'activo'}
+                                </span>
+                              )}
+                              {hasTimer && onAdjustStatusTurns && (
+                                <span className="inline-flex items-center gap-0.5 ml-0.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => onAdjustStatusTurns(cb.id, st.id, -1)}
+                                    title="Restar 1 turno (disipar si llega a 0)"
+                                    aria-label={`Restar 1 turno a ${st.name}`}
+                                    className="h-5 w-5 rounded text-xs leading-none hover:bg-black/30 transition-colors"
+                                  >
+                                    −
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => onAdjustStatusTurns(cb.id, st.id, 1)}
+                                    title="Sumar 1 turno"
+                                    aria-label={`Sumar 1 turno a ${st.name}`}
+                                    className="h-5 w-5 rounded text-xs leading-none hover:bg-black/30 transition-colors"
+                                  >
+                                    +
+                                  </button>
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => onRemoveCombatantStatus(cb.id, st.id)}
+                                title={`Cancelar / disipar ${st.name}`}
+                                aria-label={`Cancelar ${st.name}`}
+                                className="inline-flex items-center gap-0.5 rounded bg-black/25 px-1.5 py-0.5 text-[10px] font-semibold opacity-85 hover:bg-[#5c2015] hover:text-[#ffd2c4] hover:opacity-100 ml-0.5 whitespace-nowrap shrink-0 transition-colors"
                               >
-                                {hasTimer
-                                  ? `${st.remainingTurns}/${st.durationTurns || st.remainingTurns}t`
-                                  : st.duration || 'activo'}
-                              </span>
-                            )}
-                            {hasTimer && onAdjustStatusTurns && (
-                              <span className="inline-flex items-center gap-0.5 ml-0.5">
-                                <button
-                                  type="button"
-                                  onClick={() => onAdjustStatusTurns(cb.id, st.id, -1)}
-                                  title="Restar 1 turno (disipar si llega a 0)"
-                                  aria-label={`Restar 1 turno a ${st.name}`}
-                                  className="h-6 w-6 rounded text-xs leading-none hover:bg-black/30 transition-colors"
-                                >
-                                  −
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onAdjustStatusTurns(cb.id, st.id, 1)}
-                                  title="Sumar 1 turno"
-                                  aria-label={`Sumar 1 turno a ${st.name}`}
-                                  className="h-6 w-6 rounded text-xs leading-none hover:bg-black/30 transition-colors"
-                                >
-                                  +
-                                </button>
-                              </span>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => onRemoveCombatantStatus(cb.id, st.id)}
-                              title={`Cancelar / disipar ${st.name}`}
-                              aria-label={`Cancelar ${st.name}`}
-                              className="inline-flex items-center gap-0.5 rounded bg-black/25 px-1.5 py-0.5 text-[11px] font-semibold opacity-85 hover:bg-[#5c2015] hover:text-[#ffd2c4] hover:opacity-100 ml-0.5 whitespace-nowrap shrink-0 transition-colors"
-                            >
-                              Cancelar ×
-                            </button>
-                          </span>
-                        );
-                      })}
+                                Cancelar ×
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
                   );
                 })()}
               </div>
             );
-         })}
+          })}
         </div>
       )}
     </section>

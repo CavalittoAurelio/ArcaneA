@@ -100,15 +100,17 @@ interface CharacterRosterProps {
   onAdjustHp: (id: string, delta: number, lethal?: boolean) => void;
   onAdjustMana: (id: string, delta: number) => void;
   onResetResources: (id: string, resource: 'hp' | 'mana') => void;
-  onAddToCombat: (id: string) => void;
+onAddToCombat: (id: string) => void;
   onSummonBeastProfile?: (
-  profile: BeastProfile,
-  options?: {
-    customName?: string;
-    setLinkedStatus?: boolean;
-    initiative?: number;
-  }
-) => void;
+    profile: BeastProfile,
+    options?: {
+      customName?: string;
+      setLinkedStatus?: boolean;
+      initiative?: number;
+    }
+  ) => void;
+  customBeasts?: BeastProfile[];
+  onCreateCustomBeast?: (beast: BeastProfile) => void;
 }
 
 const STAT_KEYS: StatKey[] = ['fisico', 'manipulacion', 'influencia'];
@@ -150,6 +152,8 @@ export function CharacterRoster({
   onResetResources,
   onAddToCombat,
   onSummonBeastProfile,
+  customBeasts,
+  onCreateCustomBeast,
 }: CharacterRosterProps) {
   const [newName, setNewName] = useState('');
   const [newKind, setNewKind] = useState<CharacterKind>('mage');
@@ -192,10 +196,11 @@ const [newCustomPhysicalName, setNewCustomPhysicalName] = useState('');
   const [banquetRestoreCurrent, setBanquetRestoreCurrent] = useState(true);
 
   const [showProgressionHistory, setShowProgressionHistory] = useState(false);
-const [customBeasts, setCustomBeasts] = useState<BeastProfile[]>([]);
-const [beastCustomName, setBeastCustomName] = useState('');
-const [beastSpecies, setBeastSpecies] = useState('Bestia salvaje');
-const [beastRole, setBeastRole] = useState('Acompañante / Asalto');
+const [localCustomBeasts, setLocalCustomBeasts] = useState<BeastProfile[]>([]);
+  const beastList = customBeasts ?? localCustomBeasts;
+  const [beastCustomName, setBeastCustomName] = useState('');
+  const [beastSpecies, setBeastSpecies] = useState('Bestia salvaje');
+  const [beastRole, setBeastRole] = useState('Acompañante / Asalto');
 const [beastHp, setBeastHp] = useState(18);
 const [beastMana, setBeastMana] = useState(5);
 const [beastAttackName, setBeastAttackName] = useState('Zarpazo');
@@ -1108,25 +1113,24 @@ const handleCreate = () => {
                       <span>Conservar ataque canalizado anterior (mago multielemento)</span>
                     </label>
 
-                    <div className="sm:col-span-2">
+                    <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
                       <button
                         type="button"
-                       onClick={() => {
-  onApplyNatureToCharacter(active.id, {
-    natureId: adaptNatureId,
-    customNature: adaptCustomNature,
-    physicalVariant: adaptPhysicalVariant,
-    customPhysicalName: adaptCustomPhysicalName,
-    musicianInstrument: adaptMusicianInstrument,
-    keepPreviousCanalizado: adaptKeepPreviousCanalizado,
-  });
-  setAdaptKeepPreviousCanalizado(false);
-  setShowAdaptNature(false);
-}}
-                         
+                        onClick={() => {
+                          onApplyNatureToCharacter(active.id, {
+                            natureId: adaptNatureId,
+                            customNature: adaptCustomNature,
+                            physicalVariant: adaptPhysicalVariant,
+                            customPhysicalName: adaptCustomPhysicalName,
+                            musicianInstrument: adaptMusicianInstrument,
+                            keepPreviousCanalizado: true,
+                          });
+                          setAdaptKeepPreviousCanalizado(false);
+                          setShowAdaptNature(false);
+                        }}
                         className="min-h-[34px] rounded-md bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
                       >
-                        Aplicar a {active.name}
+                        Asignar / Sumar estilo a {active.name}
                       </button>
                     </div>
                   </div>
@@ -2002,29 +2006,37 @@ const handleCreate = () => {
           {characters.map((char) => {
             const isActive = char.id === active.id;
             const isPJ = char.kind === 'mage';
+            const isBeast = Boolean(char.isBeastProfile);
             const isDown =
               char.hp.current <= 0 ||
               (!char.ignoreManaUnconsciousness && char.mana.max > 0 && char.mana.current <= 0) ||
               char.condition !== 'active';
+
+            const cardColors = isPJ
+              ? 'border-[#4a7545] bg-[#172216]'
+              : isBeast
+                ? 'border-[#2e6f65] bg-[#102421]'
+                : 'border-[#824234] bg-[#251614]';
+
+            const badgeColors = isPJ
+              ? 'text-[#9ad489]'
+              : isBeast
+                ? 'text-[#5eead4]'
+                : 'text-[#f09a82]';
+
+            const badgeLabel = isPJ ? 'PJ' : isBeast ? 'BESTIA' : 'PNJ';
+
             return (
               <div
                 key={char.id}
-                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3.5 ${
-                  isPJ
-                    ? 'border-[#4a7545] bg-[#172216]'
-                    : 'border-[#824234] bg-[#251614]'
-                } ${isActive ? 'ring-1 ring-[#d4a843]' : ''} ${
-                  isDown ? 'grayscale opacity-75' : ''
-                }`}
+                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3.5 ${cardColors} ${
+                  isActive ? 'ring-1 ring-[#d4a843]' : ''
+                } ${isDown ? 'grayscale opacity-75' : ''}`}
               >
                 <div className="min-w-[180px] flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`text-xs font-bold uppercase tracking-wide ${
-                        isPJ ? 'text-[#9ad489]' : 'text-[#f09a82]'
-                      }`}
-                    >
-                      {isPJ ? 'PJ' : 'PNJ'}
+                    <span className={`text-xs font-bold uppercase tracking-wide ${badgeColors}`}>
+                      {badgeLabel}
                     </span>
                     <span className="text-sm font-semibold text-[#efe6d5]">{char.name}</span>
                     <span className="font-mono-num text-xs font-semibold text-[#a4d67e]">
@@ -2083,10 +2095,10 @@ const handleCreate = () => {
                   </button>
                 </div>
               </div>
-            );
+            )
           })}
         </div>
-      </section>;<section className="mt-6 rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
+      </section><section className="mt-6 rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3">
     <div>
       <h3 className="font-display text-base font-bold text-[var(--arc-accent)]">
@@ -2110,7 +2122,7 @@ const handleCreate = () => {
 
   {/* Grid de perfiles prearmados + personalizados */}
   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-    {[...STARTER_BEAST_PROFILES, ...customBeasts].map((profile) => (
+    {[...STARTER_BEAST_PROFILES, ...beastList].map((profile) =>
       <div
         key={profile.id}
         className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-3.5 flex flex-col justify-between gap-3"
@@ -2149,108 +2161,115 @@ const handleCreate = () => {
           {linkBeastOnSummon ? 'Sumar Vinculada a combate' : 'Sumar a combate'}
         </button>
       </div>
-    ))}
+    )}
   </div>
 
-  {/* Creador rápido de perfil de bestia */}
-  <div className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface-alt)]/70 p-3.5 space-y-3">
-    <div className="text-xs font-bold uppercase tracking-wide text-[var(--arc-accent)]">
-      Crear nuevo perfil de bestia
-    </div>
-    <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-6">
-      <input
-        type="text"
-        value={beastCustomName}
-        onChange={(e) => setBeastCustomName(e.target.value)}
-        placeholder="Nombre (ej. Lobo Gris)"
-        className="lg:col-span-2 min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
-      />
-      <input
-        type="text"
-        value={beastSpecies}
-        onChange={(e) => setBeastSpecies(e.target.value)}
-        placeholder="Especie"
-        className="min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
-      />
-      <input
-        type="text"
-        value={beastAttackName}
-        onChange={(e) => setBeastAttackName(e.target.value)}
-        placeholder="Ataque base"
-        className="min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
-      />
-      <label className="flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
-        PV
-        <input
-          type="number"
-          min={1}
-          max={200}
-          value={beastHp}
-          onChange={(e) => setBeastHp(Math.max(1, parseInt(e.target.value, 10) || 1))}
-          className="font-mono-num w-full min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
-        />
-      </label>
-      <label className="flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
-        Maná
-        <input
-          type="number"
-          min={0}
-          max={100}
-          value={beastMana}
-          onChange={(e) => setBeastMana(Math.max(0, parseInt(e.target.value, 10) || 0))}
-          className="font-mono-num w-full min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
-        />
-      </label>
-    </div>
+{/* Creador rápido de perfil de bestia */}
+      <div className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface-alt)]/70 p-3.5 space-y-3">
+        <div className="text-xs font-bold uppercase tracking-wide text-[var(--arc-accent)]">
+          Crear nuevo perfil de bestia
+        </div>
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-6">
+          <input
+            type="text"
+            value={beastCustomName}
+            onChange={(e) => setBeastCustomName(e.target.value)}
+            placeholder="Nombre (ej. Lobo Gris)"
+            className="lg:col-span-2 min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
+          />
+          <input
+            type="text"
+            value={beastSpecies}
+            onChange={(e) => setBeastSpecies(e.target.value)}
+            placeholder="Especie"
+            className="min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
+          />
+          <input
+            type="text"
+            value={beastAttackName}
+            onChange={(e) => setBeastAttackName(e.target.value)}
+            placeholder="Ataque base"
+            className="min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
+          />
+          <label className="flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
+            PV
+            <input
+              type="number"
+              min={1}
+              max={200}
+              value={beastHp}
+              onChange={(e) => setBeastHp(Math.max(1, parseInt(e.target.value, 10) || 1))}
+              className="font-mono-num w-full min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
+            />
+          </label>
+          <label className="flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
+            Maná
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={beastMana}
+              onChange={(e) => setBeastMana(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              className="font-mono-num w-full min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
+            />
+          </label>
+        </div>
 
-    <div className="flex flex-wrap items-center gap-2.5">
-      <input
-        type="text"
-        value={beastRole}
-        onChange={(e) => setBeastRole(e.target.value)}
-        placeholder="Rol (ej. Acechador / Apoyo)"
-        className="min-h-[36px] flex-1 min-w-[180px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
-      />
-      <input
-        type="text"
-        value={beastMusicNote}
-        onChange={(e) => setBeastMusicNote(e.target.value)}
-        placeholder="Integración musical opcional..."
-        className="min-h-[36px] flex-1 min-w-[220px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
-      />
-      <button
-        type="button"
-        onClick={() => {
-          const finalName = beastCustomName.trim() || `Bestia ${customBeasts.length + 1}`;
-          const createdProfile: BeastProfile = {
-            id: `beast_custom_${Date.now()}`,
-            name: finalName,
-            species: beastSpecies.trim() || 'Bestia salvaje',
-            role: beastRole.trim() || 'Combatiente bestial',
-            hpMax: beastHp,
-            manaMax: beastMana,
-            stats: { fisico: 2, manipulacion: 2, influencia: 1 },
-            statPoints: { fisico: 2, manipulacion: 2, influencia: 1 },
-            attackName: beastAttackName.trim() || 'Ataque bestial',
-            attackStat: 'fisico',
-            attackDice: [{ type: 'd6', count: 1 }],
-            attackBonus: 1,
-            attackDamageKind: 'fisico',
-            notes: `Perfil personalizado (${beastSpecies.trim() || 'Bestia salvaje'}).`,
-            musicSynergyNote: beastMusicNote.trim() || undefined,
-            isPreset: false,
-          };
-          setCustomBeasts((prev) => [...prev, createdProfile]);
-          setBeastCustomName('');
-        }}
-        className="min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] px-4 text-xs font-semibold text-[var(--arc-accent)] hover:brightness-110 transition-colors"
-      >
-        Guardar perfil de bestia
-      </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            type="text"
+            value={beastRole}
+            onChange={(e) => setBeastRole(e.target.value)}
+            placeholder="Rol (ej. Acechador / Apoyo)"
+            className="min-h-[36px] flex-1 min-w-[180px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
+          />
+          <input
+            type="text"
+            value={beastMusicNote}
+            onChange={(e) => setBeastMusicNote(e.target.value)}
+            placeholder="Integración musical opcional..."
+            className="min-h-[36px] flex-1 min-w-[220px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const speciesTrimmed = beastSpecies.trim() || 'Bestia salvaje';
+              const roleTrimmed = beastRole.trim() || 'Combatiente bestial';
+              const attackTrimmed = beastAttackName.trim() || 'Ataque bestial';
+              const finalName = beastCustomName.trim() || `Bestia ${beastList.length + 1}`;
+              const createdProfile: BeastProfile = {
+                id: `beast_custom_${Date.now()}`,
+                name: finalName,
+                species: speciesTrimmed,
+                role: roleTrimmed,
+                hpMax: beastHp,
+                manaMax: beastMana,
+                stats: { fisico: 2, manipulacion: 2, influencia: 1 },
+                statPoints: { fisico: 2, manipulacion: 2, influencia: 1 },
+                attackName: attackTrimmed,
+                attackStat: 'fisico',
+                attackDice: [{ type: 'd6', count: 1 }],
+                attackBonus: 1,
+                attackDamageKind: 'fisico',
+                notes: `Perfil personalizado (${speciesTrimmed}).`,
+                musicSynergyNote: beastMusicNote.trim() || undefined,
+                isPreset: false,
+              };
+              if (onCreateCustomBeast) {
+  onCreateCustomBeast(createdProfile);
+} else {
+  setLocalCustomBeasts((prev) => [...prev, createdProfile]);
+}
+setBeastCustomName('');
+            
+            }}
+            className="min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] px-4 text-xs font-semibold text-[var(--arc-accent)] hover:brightness-110 transition-colors"
+          >
+            Guardar perfil de bestia
+          </button>
+        </div>
+      </div>
+    </section>
     </div>
-  </div>
-</section>
-    </div>
-    
-  )
+  );
 }

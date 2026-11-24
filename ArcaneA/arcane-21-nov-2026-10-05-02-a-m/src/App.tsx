@@ -245,6 +245,7 @@ interface PersistedState {
   theme?: GrimorioThemeConfig;
   globalSpellOrder?: string[];
   knowledgeTreeSettings?: KnowledgeTreeSettings;
+  customBeasts?: BeastProfile[];
 }
 
 /** Hechizos base retirados: se eliminan de los estados guardados al cargar. */
@@ -295,6 +296,7 @@ function buildDefaultState(): PersistedState {
     },
     globalSpellOrder: [],
     knowledgeTreeSettings: { ...DEFAULT_KNOWLEDGE_TREE_SETTINGS },
+    customBeasts: [],
   };
 }
 
@@ -311,6 +313,7 @@ function loadUndoSnapshot(): PersistedState | null {
         theme: normalizeThemeConfig(parsed.theme),
         globalSpellOrder: Array.isArray(parsed.globalSpellOrder) ? parsed.globalSpellOrder : [],
         knowledgeTreeSettings: normalizeKnowledgeTreeSettings(parsed.knowledgeTreeSettings),
+        customBeasts: Array.isArray(parsed.customBeasts) ? parsed.customBeasts : [],
       };
     }
   } catch {
@@ -565,6 +568,7 @@ function loadInitialState(): PersistedState {
         theme: normalizeThemeConfig(parsed.theme),
         globalSpellOrder: Array.isArray(parsed.globalSpellOrder) ? parsed.globalSpellOrder : [],
         knowledgeTreeSettings: normalizeKnowledgeTreeSettings(parsed.knowledgeTreeSettings),
+        customBeasts: Array.isArray(parsed.customBeasts) ? parsed.customBeasts : [],
       };
     }
   } catch (err) {
@@ -655,6 +659,7 @@ export default function App() {
   const [knowledgeTreeSettings, setKnowledgeTreeSettings] = useState<KnowledgeTreeSettings>(
     () => normalizeKnowledgeTreeSettings(initial.knowledgeTreeSettings)
   );
+  const [customBeasts, setCustomBeasts] = useState<BeastProfile[]>(initial.customBeasts || []);
 
   const [showCustomizer, setShowCustomizer] = useState<boolean>(false);
   const [customizeLayoutMode, setCustomizeLayoutMode] = useState<boolean>(false);
@@ -710,6 +715,7 @@ export default function App() {
       theme,
       globalSpellOrder,
       knowledgeTreeSettings,
+    customBeasts,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   } catch (err) {
@@ -731,6 +737,7 @@ export default function App() {
     theme,
     globalSpellOrder,
     knowledgeTreeSettings,
+    customBeasts,
   ]);
 
   const sortedCombatants = useMemo(
@@ -941,52 +948,63 @@ export default function App() {
   };
 
   const handleCreateCharacter = (options: CreateCharacterOptions) => {
-    const newCharId = generateId('char_');
+  const newCharId = generateId('char_');
 
-    if (options.kind === 'mage') {
-      const sig = buildMageSignatureSpells({
-        charId: newCharId,
-        natureId: options.natureId,
-        customNatureLabel: options.customNature,
-        physicalVariant: options.physicalVariant,
-        customPhysicalName: options.customPhysicalName,
-      });
+  if (options.kind === 'mage') {
+    const sig = buildMageSignatureSpells({
+      charId: newCharId,
+      natureId: options.natureId,
+      customNatureLabel: options.customNature,
+      physicalVariant: options.physicalVariant,
+      customPhysicalName: options.customPhysicalName,
+    });
 
-      const baseIds = STARTER_MAGE_SPELL_IDS.filter(
-        (id) =>
-          id !== 'basic_ataque_canalizado' &&
-          (!sig.replaceBasicPhysicalId || id !== 'basic_golpe_fisico') &&
-          spells.some((s) => s.id === id)
-      );
+    const beastSpells =
+      options.natureId === 'doma_bestias'
+        ? buildBeastTamerSpells({ charId: newCharId, includeMusicBridge: true })
+        : [];
 
-      const knownSpells = [...new Set([...sig.createdSpells.map((s) => s.id), ...baseIds])];
+    const baseIds = STARTER_MAGE_SPELL_IDS.filter(
+      (id) =>
+        id !== 'basic_ataque_canalizado' &&
+        (!sig.replaceBasicPhysicalId || id !== 'basic_golpe_fisico') &&
+        spells.some((s) => s.id === id)
+    );
 
-      const startLvl = calcStatLevelFromPoints(0, formula);
-      const created: Character = {
-        id: newCharId,
-        name: options.name || 'Mago',
-        kind: 'mage',
-        nature: sig.natureLabel,
-        physicalVariant: options.physicalVariant,
-        stats: { fisico: startLvl, manipulacion: startLvl, influencia: startLvl },
-        statPoints: { fisico: 0, manipulacion: 0, influencia: 0 },
-        hp: { current: 20, max: 20 },
-        mana: { current: 15, max: 15 },
-        knownSpells,
-        spellMastery: {},
-        weapons: [],
-        condition: 'active',
-        notes: `Naturaleza: ${sig.natureLabel}`,
-        resistances: '',
-        characterLevel: 1,
-        progressionHistory: [],
-      };
+    const knownSpells = [
+      ...new Set([
+        ...sig.createdSpells.map((s) => s.id),
+        ...beastSpells.map((s) => s.id),
+        ...baseIds,
+      ]),
+    ];
 
-      setSpells((prev) => [...prev, ...sig.createdSpells]);
-      setCharacters((prev) => [...prev, created]);
-      setActiveCharacterId(created.id);
-      return;
-    }
+    const startLvl = calcStatLevelFromPoints(0, formula);
+    const created: Character = {
+      id: newCharId,
+      name: options.name || 'Mago',
+      kind: 'mage',
+      nature: sig.natureLabel,
+      physicalVariant: options.physicalVariant,
+      stats: { fisico: startLvl, manipulacion: startLvl, influencia: startLvl },
+      statPoints: { fisico: 0, manipulacion: 0, influencia: 0 },
+      hp: { current: 20, max: 20 },
+      mana: { current: 15, max: 15 },
+      knownSpells,
+      spellMastery: {},
+      weapons: [],
+      condition: 'active',
+      notes: `Naturaleza: ${sig.natureLabel}`,
+      resistances: '',
+      characterLevel: 1,
+      progressionHistory: [],
+    };
+
+    setSpells((prev) => [...prev, ...sig.createdSpells, ...beastSpells]);
+    setCharacters((prev) => [...prev, created]);
+    setActiveCharacterId(created.id);
+    return;
+  }
 
     const npcStartLvl = calcStatLevelFromPoints(0, formula);
     const created: Character = {
@@ -1030,31 +1048,53 @@ const handleApplyNatureToCharacter = (
         physicalVariant: options.physicalVariant,
         customPhysicalName: options.customPhysicalName,
       });
-      const createdIds = new Set([
-        ...sig.createdSpells.map((s) => s.id),
-        ...beastSpells.map((s) => s.id),
-      ]);
+
+      const existingDomaSpells = spells.filter(
+        (s) =>
+          s.ownerCharacterId === charId &&
+          (s.id.startsWith('sp_doma_') || s.orders.includes('Domar'))
+      );
+      const alreadyHasDoma = existingDomaSpells.length > 0;
 
       setSpells((prev) => [
-        ...prev.filter((s) => !(s.ownerCharacterId === charId && createdIds.has(s.id))),
-        ...sig.createdSpells,
-        ...beastSpells,
+        ...prev,
+        ...sig.createdSpells.filter(
+          (ns) => !prev.some((es) => es.ownerCharacterId === charId && es.name === ns.name)
+        ),
+        ...beastSpells.filter(
+          (bs) => !prev.some((es) => es.ownerCharacterId === charId && es.name === bs.name)
+        ),
       ]);
 
       setCharacters((prev) =>
         prev.map((c) => {
           if (c.id !== charId) return c;
+          const matchingIds = [
+            ...sig.createdSpells.map((s) => s.id),
+            ...beastSpells.map((s) => s.id),
+            ...existingDomaSpells.map((s) => s.id),
+          ];
           const nextKnown = [
             ...new Set([
-              ...sig.createdSpells.map((s) => s.id),
-              ...beastSpells.map((s) => s.id),
+              ...matchingIds,
               ...c.knownSpells.filter((id) => id !== 'basic_ataque_canalizado'),
             ]),
           ];
+          const currentNatures = (c.nature || '')
+            .split(' + ')
+            .map((x) => x.trim())
+            .filter(Boolean);
+          const nextNature = currentNatures.includes('Domador / Controlador de Bestias')
+            ? c.nature
+            : [...currentNatures, 'Domador / Controlador de Bestias'].join(' + ');
+
           return {
             ...c,
-            nature: 'Domador / Controlador de Bestias',
-            notes: `Domador / Controlador de Bestias · Vínculo por canalización/efecto + integración musical opcional`,
+            nature: nextNature,
+            unlockedNatures: [...new Set([...(c.unlockedNatures || []), 'doma_bestias'])],
+            notes: alreadyHasDoma
+              ? c.notes
+              : `${c.notes ? `${c.notes} · ` : ''}Domador / Controlador de Bestias`,
             knownSpells: nextKnown,
           };
         })
@@ -1070,26 +1110,31 @@ const handleApplyNatureToCharacter = (
       });
 
       setSpells((prev) => [
-        ...prev.filter(
-          (s) => !(s.ownerCharacterId === charId && s.name.startsWith('Palabra: «'))
+        ...prev,
+        ...wordSpells.filter(
+          (ws) => !prev.some((es) => es.ownerCharacterId === charId && es.name === ws.name)
         ),
-        ...wordSpells,
       ]);
+
       setCharacters((prev) =>
         prev.map((c) => {
           if (c.id !== charId) return c;
-          const prevWordIds = new Set(
-            spells
-              .filter((s) => s.ownerCharacterId === charId && s.name.startsWith('Palabra: «'))
-              .map((s) => s.id)
-          );
-          const keptKnown = c.knownSpells.filter((id) => !prevWordIds.has(id));
+          const styleLabel = `Músico / Bardo (${instPreset.label})`;
+          const currentNatures = (c.nature || '')
+            .split(' + ')
+            .map((x) => x.trim())
+            .filter(Boolean);
+          const nextNature = currentNatures.includes(styleLabel)
+            ? c.nature
+            : [...currentNatures, styleLabel].join(' + ');
+
           return {
             ...c,
-            nature: `Músico / Bardo (${instPreset.label})`,
+            nature: nextNature,
             musicianInstrument: instId,
-            notes: `Músico · ${instPreset.label} (${instPreset.family})`,
-            knownSpells: [...new Set([...wordSpells.map((s: Spell) => s.id), ...keptKnown])],
+            unlockedNatures: [...new Set([...(c.unlockedNatures || []), 'musico'])],
+            notes: `${c.notes ? `${c.notes} · ` : ''}${instPreset.label} (${instPreset.family})`,
+            knownSpells: [...new Set([...wordSpells.map((s: Spell) => s.id), ...c.knownSpells])],
           };
         })
       );
@@ -1309,6 +1354,9 @@ const handleApplyNatureToCharacter = (
     setCombatants((prev) => prev.filter((cb) => cb.characterId !== id));
     if (activeCharacterId === id) {
       setActiveCharacterId(remaining[0].id);
+    }
+    if (lastMasteryReset?.characterId === id) {
+      setLastMasteryReset(null);
     }
   };
 
@@ -8042,6 +8090,7 @@ const handleExportCustomSpells = (): { ok: boolean; count: number; message: stri
 };
   const handleResetAllData = () => {
     const snapshot: PersistedState = {
+      
       characters: JSON.parse(JSON.stringify(characters)),
       activeCharacterId,
       spells: JSON.parse(JSON.stringify(spells)),
@@ -8068,6 +8117,7 @@ const handleExportCustomSpells = (): { ok: boolean; count: number; message: stri
       },
       globalSpellOrder: [...globalSpellOrder],
       knowledgeTreeSettings: normalizeKnowledgeTreeSettings(knowledgeTreeSettings),
+      customBeasts: JSON.parse(JSON.stringify(customBeasts))
     };
     localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(snapshot));
     setUndoSnapshot(snapshot);
@@ -8093,6 +8143,7 @@ const handleExportCustomSpells = (): { ok: boolean; count: number; message: stri
     setEditingSpell(null);
     setShowEditor(false);
     setLogs([]);
+    setCustomBeasts([]);
   };
 
   const handleRevertReset = () => {
@@ -8124,6 +8175,7 @@ const handleExportCustomSpells = (): { ok: boolean; count: number; message: stri
     localStorage.removeItem(UNDO_STORAGE_KEY);
     setUndoSnapshot(null);
     setShowRevertBanner(false);
+    setCustomBeasts(Array.isArray(undoSnapshot.customBeasts) ? undoSnapshot.customBeasts : []);
   };
 
   const handleExportBackup = () => {
@@ -8147,6 +8199,7 @@ const handleExportCustomSpells = (): { ok: boolean; count: number; message: stri
       theme,
       globalSpellOrder,
       knowledgeTreeSettings,
+      customBeasts,
     },
   };
   return encodeShareCode(JSON.stringify(backupPayload));
@@ -8202,6 +8255,7 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
           theme,
           globalSpellOrder,
           knowledgeTreeSettings,
+          customBeasts: JSON.parse(JSON.stringify(customBeasts)),
         };
         localStorage.setItem(UNDO_STORAGE_KEY, JSON.stringify(currentSnapshot));
       } catch {
@@ -8308,7 +8362,9 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
 
       return { ok: true, message: 'Copia importada correctamente.' };
     }
-
+    if (Array.isArray(data.customBeasts)) {
+        setCustomBeasts(data.customBeasts);
+      }
     if (Array.isArray(data.arcane_spells_v3)) {
       const importedSpells: Spell[] = data.arcane_spells_v3.map(
         (old: Record<string, unknown>) => ({
@@ -8348,6 +8404,7 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
   }
 };
   const activeIsPJ = activeCharacter?.kind === 'mage';
+  const activeIsBeast = Boolean(activeCharacter?.isBeastProfile);
   const activeCombatantForVisual = combatants.find(
     (cb) => cb.characterId === activeCharacter?.id
   );
@@ -8823,8 +8880,45 @@ const handleSummonBeastProfile = (
       initiative?: number;
     }
   ) => {
+    const rawBaseName = options?.customName?.trim() || profile.name;
+    const normalizedBase = rawBaseName.replace(/\s+#\d+$/i, '').trim();
+
+    const matchingCount = characters.filter((c) => {
+      const cleanExisting = c.name.replace(/\s+#\d+$/i, '').trim();
+      return (
+        cleanExisting.toLowerCase() === normalizedBase.toLowerCase() ||
+        c.name.toLowerCase().startsWith(`${normalizedBase.toLowerCase()} #`)
+      );
+    }).length;
+
+    const existingExact = characters.some(
+      (c) => c.name.toLowerCase() === normalizedBase.toLowerCase()
+    );
+
+    let resolvedName = rawBaseName;
+    if (!options?.customName?.trim()) {
+      if (matchingCount > 0) {
+        if (matchingCount === 1 && existingExact) {
+          // Renombra la primera a "#1" para que ambas queden claramente distinguidas
+          const firstMatchIndex = characters.findIndex(
+            (c) => c.name.toLowerCase() === normalizedBase.toLowerCase()
+          );
+          if (firstMatchIndex !== -1) {
+            setCharacters((prev) =>
+              prev.map((c, idx) =>
+                idx === firstMatchIndex ? { ...c, name: `${normalizedBase} #1` } : c
+              )
+            );
+          }
+          resolvedName = `${normalizedBase} #2`;
+        } else {
+          resolvedName = `${normalizedBase} #${matchingCount + 1}`;
+        }
+      }
+    }
+
     const beastChar = createCharacterFromBeastProfile(profile, {
-      customName: options?.customName,
+      customName: resolvedName,
       masterId: activeCharacter?.id,
       setLinkedStatus: options?.setLinkedStatus,
     });
@@ -8840,7 +8934,7 @@ const handleSummonBeastProfile = (
             duration: 'Hasta ser disipado',
             effectDescription: `Vinculado a ${
               activeCharacter?.name || 'su controlador'
-            } mediante canalización o efecto (permanece activo hasta disiparse).`,
+            } mediante canalización o efecto (permanece activo hasta ser disipado).`,
             isMagical: true,
             isLinked: true,
             linkedSourceName: activeCharacter?.name,
@@ -8952,18 +9046,26 @@ const handleSummonBeastProfile = (
 
       {/* Barra de personaje actuando con distinción PJ vs PNJ y ajuste rápido de fórmula */}
       <div
-      className={`arc-no-print border-b ${
-      activeIsPJ ? 'border-[#3a5736] bg-[#151e14]' : 'border-[#6b362b] bg-[#211412]'
-      }`}
+        className={`arc-no-print border-b ${
+          activeIsPJ
+            ? 'border-[#3a5736] bg-[#151e14]'
+            : activeIsBeast
+              ? 'border-[#2e6f65] bg-[#102421]'
+              : 'border-[#6b362b] bg-[#211412]'
+        }`}
       >
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2.5 sm:gap-4 px-4 sm:px-6 py-2.5 sm:py-3 text-xs">
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <span
               className={`font-bold uppercase tracking-wide ${
-                activeIsPJ ? 'text-[#9ad489]' : 'text-[#f09a82]'
+                activeIsPJ
+                  ? 'text-[#9ad489]'
+                  : activeIsBeast
+                    ? 'text-[#5eead4]'
+                    : 'text-[#f09a82]'
               }`}
             >
-              {activeIsPJ ? 'PJ' : 'PNJ'}
+              {activeIsPJ ? 'PJ' : activeIsBeast ? 'BESTIA' : 'PNJ'}
             </span>
             <label htmlFor="global-actor" className="hidden sm:inline font-semibold text-[#c7b9a1]">
               Actuando:
@@ -8976,7 +9078,7 @@ const handleSummonBeastProfile = (
             >
               {characters.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.kind === 'mage' ? 'PJ' : 'PNJ'})
+                  {c.name || 'Sin nombre'} ({c.kind === 'mage' ? 'PJ' : c.isBeastProfile ? 'Bestia' : 'PNJ'})
                 </option>
               ))}
             </select>
@@ -9448,6 +9550,10 @@ const handleSummonBeastProfile = (
             onResetResources={resetResources}
             onAddToCombat={(id) => handleAddToCombat(id, 0)}
             onSummonBeastProfile={handleSummonBeastProfile}
+            customBeasts={customBeasts}
+            onCreateCustomBeast={(beast: BeastProfile) =>
+              setCustomBeasts((prev) => [...prev, beast])
+            }
           />
         )}
 
