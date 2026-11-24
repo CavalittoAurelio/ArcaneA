@@ -104,24 +104,25 @@ export function WeaponArsenal({
   };
 
   return (
-    <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
+    <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3.5">
-        <div>
-          <h2 className="font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)]">
+        <div className="min-w-0">
+          <h2 className="font-display text-base sm:text-xl font-bold text-[var(--arc-accent)] break-words">
             Armas, Catalizadores e Imbuición
           </h2>
-          <p className="text-[13px] text-[var(--arc-muted)] mt-0.5">
-            Imbuir convierte el daño en <strong className="text-[var(--arc-text)]">mágico</strong>. Las
-            armas comunes imbuidas se desintegran tras <strong className="text-[var(--arc-text)]">1 ataque</strong>{' '}
-            (acierte o falle).
+          <p className="text-xs sm:text-[13px] text-[var(--arc-muted)] mt-0.5">
+            Imbuir convierte el daño en{' '}
+            <strong className="text-[var(--arc-text)]">mágico</strong>. Las armas comunes
+            imbuidas se desintegran tras{' '}
+            <strong className="text-[var(--arc-text)]">1 ataque</strong> (acierte o falle).
           </p>
         </div>
       </div>
 
       {isDisarmed && (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#7a3f28] bg-[#2a150e] px-3.5 py-2.5 text-xs text-[#ffd2be]">
-          <span className="inline-flex items-center gap-1.5 font-medium">
-            <Lock className="h-3.5 w-3.5 text-[#ff9a76] shrink-0" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-lg border border-[#7a3f28] bg-[#2a150e] px-3.5 py-2.5 text-xs text-[#ffd2be]">
+          <span className="inline-flex items-start gap-1.5 font-medium leading-relaxed">
+            <Lock className="h-3.5 w-3.5 text-[#ff9a76] shrink-0 mt-0.5" />
             <span>
               <strong>Desarmado:</strong> {activeCharacter.name} soltó su arma/escudo y no puede
               usarlos hasta gastar 1 acción en su turno para recuperarlos (armas naturales siguen
@@ -140,23 +141,23 @@ export function WeaponArsenal({
                     ? `Bloqueado por ${activeStatusEffects.cannotActReasons.join(', ')}`
                     : 'Gastar 1 acción de tu turno para recuperar tu arma y escudo'
               }
-              className="min-h-[32px] inline-flex items-center gap-1.5 rounded-md bg-[#7c4820] px-3 text-xs font-semibold text-[#fff2de] hover:bg-[#945829] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[34px] w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-md bg-[#7c4820] px-3 text-xs font-semibold text-[#fff2de] hover:bg-[#945829] disabled:opacity-40 disabled:cursor-not-allowed shrink-0 transition-colors"
             >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Recuperar arma/escudo (1 acción)
+              <RotateCcw className="h-3.5 w-3.5 shrink-0" />
+              <span>Recuperar arma/escudo (1 acción)</span>
             </button>
           )}
         </div>
       )}
 
-      {/* Selector para agregar armas o catalizadores (sin recuadro anidado) */}
+      {/* Selector para agregar armas o catalizadores */}
       <div className="space-y-2 border-b border-[var(--arc-border)] pb-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <select
             value={selectedPresetId}
             onChange={(e) => setSelectedPresetId(e.target.value)}
             aria-label="Seleccionar categoría de arma o catalizador"
-            className="w-full sm:w-auto sm:flex-1 min-h-[40px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
+            className="w-full sm:flex-1 min-w-0 min-h-[40px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
           >
             <optgroup label="Armas cuerpo a cuerpo">
               {meleePresets.map((p) => (
@@ -194,10 +195,10 @@ export function WeaponArsenal({
           <button
             type="button"
             onClick={() => onAddWeapon(selectedPresetId)}
-            className="min-h-[40px] w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
+            className="min-h-[40px] w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm shrink-0 transition-colors"
           >
-            <Plus className="h-4 w-4" />
-            Equipar a {activeCharacter.name}
+            <Plus className="h-4 w-4 shrink-0" />
+            <span>Equipar a {activeCharacter.name}</span>
           </button>
         </div>
 
@@ -208,7 +209,7 @@ export function WeaponArsenal({
 
       {/* Lista de armas equipadas */}
       {weapons.length === 0 ? (
-        <div className="rounded-lg bg-[var(--arc-surface-alt)] p-5 text-center text-[13px] text-[var(--arc-muted)]">
+        <div className="rounded-lg bg-[var(--arc-surface-alt)] p-5 text-center text-xs sm:text-[13px] text-[var(--arc-muted)]">
           {activeCharacter.name} no tiene armas ni catalizadores equipados todavía. Elegí uno arriba
           para atacar o imbuir elementos.
         </div>
@@ -233,7 +234,7 @@ export function WeaponArsenal({
             return (
               <article
                 key={weapon.id}
-                className={`rounded-xl border p-4 space-y-3 ${
+                className={`rounded-xl border p-3.5 sm:p-4 space-y-3 ${
                   weapon.destroyed
                     ? 'border-[#5a2c22] bg-[#1e1210] opacity-75'
                     : isMagicalWeapon
@@ -241,11 +242,11 @@ export function WeaponArsenal({
                       : 'border-[var(--arc-phys-border)] bg-[var(--arc-phys-bg)]'
                 }`}
               >
-                <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                       <h3
-                        className={`text-base font-bold break-words ${
+                        className={`text-sm sm:text-base font-bold break-words ${
                           isMagicalWeapon
                             ? 'text-[var(--arc-magic-accent)]'
                             : 'text-[var(--arc-phys-accent)]'
@@ -270,17 +271,17 @@ export function WeaponArsenal({
                     </div>
 
                     {weapon.destroyed ? (
-                      <p className="mt-1 text-[13px] text-[#f09a82]">
+                      <p className="mt-1 text-xs sm:text-[13px] text-[#f09a82]">
                         Desintegrada: {weapon.destroyedReason || 'consumida tras el ataque imbuido'}.
                       </p>
                     ) : isShield ? (
-                      <p className="mt-1 text-[13px] text-[var(--arc-magic-text)] leading-relaxed">
+                      <p className="mt-1 text-xs sm:text-[13px] text-[var(--arc-magic-text)] leading-relaxed">
                         Reduce en <strong className="font-mono-num">1</strong> el costo de maná de
                         hechizos de protección/defensa. Se expande según el maná que gastes.
                       </p>
                     ) : (
                       <div
-                        className={`mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[13px] font-mono-num ${
+                        className={`mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs sm:text-[13px] font-mono-num ${
                           isMagicalWeapon
                             ? 'text-[var(--arc-magic-text)]'
                             : 'text-[var(--arc-phys-text)]'
@@ -300,7 +301,7 @@ export function WeaponArsenal({
                     {!weapon.destroyed && weapon.imbued && (
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                         <span className="inline-flex items-center gap-1 rounded-md bg-[var(--arc-magic-raised)] px-2.5 py-0.5 font-semibold text-[var(--arc-magic-text)]">
-                          <Flame className="h-3.5 w-3.5 text-[var(--arc-magic-accent)]" />
+                          <Flame className="h-3.5 w-3.5 text-[var(--arc-magic-accent)] shrink-0" />
                           Imbuida: {weapon.imbued.element} (1 ataque)
                         </span>
                         {weapon.imbued.disintegratesAfterAttack && (
@@ -312,7 +313,7 @@ export function WeaponArsenal({
                     )}
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     {weapon.destroyed && (
                       <button
                         type="button"
@@ -361,12 +362,12 @@ export function WeaponArsenal({
                             }))
                           }
                           aria-label="Maná para expandir rodela"
-                          className="font-mono-num w-16 min-h-[34px] rounded-md border border-[var(--arc-magic-border)] bg-[var(--arc-input)] px-2 text-center text-xs text-[var(--arc-text)]"
+                          className="font-mono-num w-16 min-h-[36px] rounded-md border border-[var(--arc-magic-border)] bg-[var(--arc-input)] px-2 text-center text-xs text-[var(--arc-text)]"
                         />
                         <button
                           type="button"
                           onClick={() => onExpandShield(weapon, shieldMana)}
-                          className="min-h-[38px] rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
+                          className="min-h-[36px] inline-flex items-center justify-center rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
                         >
                           Expandir ({shieldMana} maná)
                         </button>
@@ -376,86 +377,92 @@ export function WeaponArsenal({
                 )}
 
                 {/* Controles de Imbuir / Atacar */}
-                {!weapon.destroyed && !isShield && (() => {
-                  const weaponBlockedByDisarm = isDisarmed && !weapon.isNatural;
-                  const attackDisabled =
-                    outOfTurnActions || cannotAttackByStatus || weaponBlockedByDisarm;
-                  const disabledTitle = weaponBlockedByDisarm
-                    ? 'Desarmado: gastá 1 acción en tu turno para recuperar el arma'
-                    : cannotAttackByStatus
-                      ? `No podés atacar (${activeStatusEffects?.cannotAttackReasons.join(', ')})`
-                      : outOfTurnActions
-                        ? 'Sin acciones restantes este turno — activá Hechizo Veloz o pasá el turno'
-                        : undefined;
-                  return (
-                  <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
-                    <select
-                      value={statChoice}
-                      onChange={(e) =>
-                        setWeaponStatOverrides((prev) => ({
-                          ...prev,
-                          [weapon.id]: e.target.value as StatKey | 'highest',
-                        }))
-                      }
-                      aria-label={`Atributo de ataque para ${weapon.name}`}
-                      className="min-h-[38px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
-                    >
-                      {weapon.isMagicalCatalyst && (
-                        <option value="highest">
-                          Mayor del PJ ({highestStatInfo.dice}d6 · {highestTiedLabel})
-                        </option>
-                      )}
-                      <option value="fisico">Con Físico</option>
-                      <option value="manipulacion">Con Manipulación</option>
-                      <option value="influencia">Con Influencia</option>
-                    </select>
+                {!weapon.destroyed &&
+                  !isShield &&
+                  (() => {
+                    const weaponBlockedByDisarm = isDisarmed && !weapon.isNatural;
+                    const attackDisabled =
+                      outOfTurnActions || cannotAttackByStatus || weaponBlockedByDisarm;
+                    const disabledTitle = weaponBlockedByDisarm
+                      ? 'Desarmado: gastá 1 acción en tu turno para recuperar el arma'
+                      : cannotAttackByStatus
+                        ? `No podés atacar (${activeStatusEffects?.cannotAttackReasons.join(', ')})`
+                        : outOfTurnActions
+                          ? 'Sin acciones restantes este turno — activá Hechizo Veloz o pasá el turno'
+                          : undefined;
+                    return (
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 border-t border-white/10 pt-3">
+                        <select
+                          value={statChoice}
+                          onChange={(e) =>
+                            setWeaponStatOverrides((prev) => ({
+                              ...prev,
+                              [weapon.id]: e.target.value as StatKey | 'highest',
+                            }))
+                          }
+                          aria-label={`Atributo de ataque para ${weapon.name}`}
+                          className="w-full sm:w-auto min-w-0 min-h-[38px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                        >
+                          {weapon.isMagicalCatalyst && (
+                            <option value="highest">
+                              Mayor del PJ ({highestStatInfo.dice}d6 · {highestTiedLabel})
+                            </option>
+                          )}
+                          <option value="fisico">Con Físico</option>
+                          <option value="manipulacion">Con Manipulación</option>
+                          <option value="influencia">Con Influencia</option>
+                        </select>
 
-                    <button
-                      type="button"
-                      disabled={attackDisabled}
-                      title={disabledTitle}
-                      onClick={() => onAttackWithWeapon(weapon, attackStat)}
-                      className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed shadow-sm whitespace-nowrap shrink-0 transition-colors"
-                    >
-                      {weaponBlockedByDisarm || cannotAttackByStatus ? (
-                        <Lock className="h-3.5 w-3.5" />
-                      ) : (
-                        <Swords className="h-3.5 w-3.5" />
-                      )}
-                      {weaponBlockedByDisarm
-                        ? 'Soltada (Desarmado)'
-                        : cannotAttackByStatus
-                          ? `Bloqueado (${activeStatusEffects?.cannotAttackReasons[0]})`
-                          : `Atacar (${isAttackLethal ? 'Letal' : 'No letal'})`}
-                    </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={attackDisabled}
+                            title={disabledTitle}
+                            onClick={() => onAttackWithWeapon(weapon, attackStat)}
+                            className="flex-1 sm:flex-initial min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-colors"
+                          >
+                            {weaponBlockedByDisarm || cannotAttackByStatus ? (
+                              <Lock className="h-3.5 w-3.5 shrink-0" />
+                            ) : (
+                              <Swords className="h-3.5 w-3.5 shrink-0" />
+                            )}
+                            <span>
+                              {weaponBlockedByDisarm
+                                ? 'Soltada (Desarmado)'
+                                : cannotAttackByStatus
+                                  ? `Bloqueado (${activeStatusEffects?.cannotAttackReasons[0]})`
+                                  : `Atacar (${isAttackLethal ? 'Letal' : 'No letal'})`}
+                            </span>
+                          </button>
 
-                    {!weapon.imbued ? (
-                      <button
-                        type="button"
-                        disabled={weaponBlockedByDisarm}
-                        onClick={() => openImbueForm(weapon)}
-                        className="min-h-[38px] inline-flex items-center gap-1.5 rounded-lg bg-transparent px-3 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Imbuir elemento
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onClearImbuement(weapon.id)}
-                        className="min-h-[38px] rounded-lg bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
-                      >
-                        Quitar imbuición
-                      </button>
-                    )}
-                  </div>
-                  );
-                })()}
+                          {!weapon.imbued ? (
+                            <button
+                              type="button"
+                              disabled={weaponBlockedByDisarm}
+                              onClick={() => openImbueForm(weapon)}
+                              className="flex-1 sm:flex-initial min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-surface-alt)] sm:bg-transparent px-3 text-xs font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                              <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                              <span>Imbuir elemento</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onClearImbuement(weapon.id)}
+                              className="min-h-[38px] rounded-lg bg-[var(--arc-surface-alt)] sm:bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+                            >
+                              Quitar imbuición
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
-                {/* Formulario inline para imbuir el arma (divisor sutil, sin recuadro extra) */}
+                {/* Formulario inline para imbuir el arma */}
                 {isImbueOpen && !weapon.destroyed && (
                   <div className="border-t border-[var(--arc-border)] pt-3 space-y-2.5">
-                    <div className="grid gap-2.5 sm:grid-cols-12">
+                    <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-12">
                       <div className="sm:col-span-7">
                         <label className="block text-xs font-semibold text-[var(--arc-muted)] mb-1">
                           Elemento o propiedad a imbuir
@@ -501,15 +508,16 @@ export function WeaponArsenal({
                       />
                     )}
 
-                    <label className="inline-flex items-center gap-2 text-xs text-[var(--arc-text)] opacity-90 cursor-pointer">
+                    <label className="inline-flex items-start gap-2 text-xs text-[var(--arc-text)] opacity-90 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={disintegrates}
                         onChange={(e) => setDisintegrates(e.target.checked)}
-                        className="h-3.5 w-3.5 accent-[var(--arc-accent)]"
+                        className="h-3.5 w-3.5 accent-[var(--arc-accent)] shrink-0 mt-0.5"
                       />
                       <span>
-                        Se desintegra tras 1 ataque (p. ej. se derrite/oxida sin importar si acierta)
+                        Se desintegra tras 1 ataque (p. ej. se derrite/oxida sin importar si
+                        acierta)
                       </span>
                     </label>
 
@@ -517,14 +525,14 @@ export function WeaponArsenal({
                       <button
                         type="button"
                         onClick={() => handleConfirmImbue(weapon.id)}
-                        className="min-h-[38px] rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
+                        className="min-h-[36px] rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
                       >
                         Confirmar imbuición
                       </button>
                       <button
                         type="button"
                         onClick={() => setImbuingWeaponId(null)}
-                        className="min-h-[38px] rounded-lg bg-transparent px-3 text-xs text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+                        className="min-h-[36px] rounded-lg bg-transparent px-3 text-xs text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
                       >
                         Cancelar
                       </button>

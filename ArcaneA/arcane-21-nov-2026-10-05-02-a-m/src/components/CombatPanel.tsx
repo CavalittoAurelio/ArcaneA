@@ -96,7 +96,6 @@ import {
 } from '../utils/combatMechanics';
 
 interface CombatPanelProps {
-  
   round: number;
   manaMode: ManaDiscountMode;
   irlCombat?: boolean;
@@ -339,10 +338,7 @@ export function CombatPanel({
   irlLastHeal,
   onApplyIrlSelfHeal,
   onDismissIrlLastHeal,
-  
-} 
-
-: CombatPanelProps) {
+}: CombatPanelProps) {
   const [selectedAddId, setSelectedAddId] = useState('');
   const [addInitiative, setAddInitiative] = useState(0);
   const [defendingTargetId, setDefendingTargetId] = useState<string | null>(null);
@@ -376,7 +372,7 @@ export function CombatPanel({
   const [directDmgLethal, setDirectDmgLethal] = useState<boolean>(false);
   const [directDmgLabel, setDirectDmgLabel] = useState<string>('');
   const [directDmgProtStacks, setDirectDmgProtStacks] = useState<number>(0);
-    
+
   // Configuración de práctica contra la máquina (PvE)
   const [showBotSetup, setShowBotSetup] = useState(false);
   const [botPlayerCharId, setBotPlayerCharId] = useState('');
@@ -408,33 +404,33 @@ export function CombatPanel({
     }
   }, [irlCombat]);
 
- useEffect(() => {
-  const needsDefenseOrDamageDecision = Boolean(
-    pendingAttack &&
-      !pendingAttack.resolved &&
-      (!pendingAttack.defenseRoll || pendingAttack.pendingDamage)
-  );
-  if (!needsDefenseOrDamageDecision) return;
+  useEffect(() => {
+    const needsDefenseOrDamageDecision = Boolean(
+      pendingAttack &&
+        !pendingAttack.resolved &&
+        (!pendingAttack.defenseRoll || pendingAttack.pendingDamage)
+    );
+    if (!needsDefenseOrDamageDecision) return;
 
-  const timer = window.setTimeout(() => {
-    const targetEl = duelResolutionRef.current || combatSectionRef.current;
-    if (!targetEl) return;
-    const rect = targetEl.getBoundingClientRect();
-    const isAlreadyComfortablyVisible =
-      rect.top >= 0 && rect.top < window.innerHeight * 0.5 && rect.bottom > 140;
+    const timer = window.setTimeout(() => {
+      const targetEl = duelResolutionRef.current || combatSectionRef.current;
+      if (!targetEl) return;
+      const rect = targetEl.getBoundingClientRect();
+      const isAlreadyComfortablyVisible =
+        rect.top >= 0 && rect.top < window.innerHeight * 0.5 && rect.bottom > 140;
 
-    if (!isAlreadyComfortablyVisible) {
-      targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-  }, 180);
+      if (!isAlreadyComfortablyVisible) {
+        targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 180);
 
-  return () => window.clearTimeout(timer);
-}, [
-  pendingAttack?.id,
-  pendingAttack?.resolved,
-  Boolean(pendingAttack?.defenseRoll),
-  Boolean(pendingAttack?.pendingDamage),
-]);
+    return () => window.clearTimeout(timer);
+  }, [
+    pendingAttack?.id,
+    pendingAttack?.resolved,
+    Boolean(pendingAttack?.defenseRoll),
+    Boolean(pendingAttack?.pendingDamage),
+  ]);
 
   useEffect(() => {
     const newFloats: Array<{
@@ -686,13 +682,13 @@ export function CombatPanel({
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5">
             {onToggleLethal && !chainListCollapsed && hasRemainingAction && (
               <div className="inline-flex rounded-md bg-[var(--arc-input)] p-0.5">
                 <button
                   type="button"
                   onClick={() => onToggleLethal(false)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                     !isAttackLethal
                       ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                       : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -703,7 +699,7 @@ export function CombatPanel({
                 <button
                   type="button"
                   onClick={() => onToggleLethal(true)}
-                  className={`px-2 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                  className={`px-2 py-0.5 rounded text-[11px] font-semibold transition-colors ${
                     isAttackLethal
                       ? 'bg-[#7a2e1f] text-[#ffe1d8]'
                       : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -717,7 +713,7 @@ export function CombatPanel({
             <button
               type="button"
               onClick={() => setChainListCollapsed((v) => !v)}
-              className="min-h-[28px] inline-flex items-center gap-1 rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[28px] inline-flex items-center gap-1 rounded-md px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
             >
               {chainListCollapsed ? (
                 <>
@@ -735,8 +731,8 @@ export function CombatPanel({
         </div>
 
         {!hasRemainingAction && (
-          <div className="flex items-center gap-2 border-b border-[var(--arc-border)] bg-[#33220c] px-3 py-2 text-xs text-[#ffd28a]">
-            <Lock className="h-3.5 w-3.5 shrink-0 text-[#f0a83a]" />
+          <div className="flex items-start gap-2 border-b border-[var(--arc-border)] bg-[#33220c] px-3 py-2 text-xs text-[#ffd28a]">
+            <Lock className="h-3.5 w-3.5 shrink-0 text-[#f0a83a] mt-0.5" />
             <span>
               {turnStatus.hasElevarLimite
                 ? `Acciones agotadas (${turnStatus.used}/${turnStatus.max}). Elevar el Límite solo otorga 1 acción extra — avanzá el turno para volver a lanzar.`
@@ -794,13 +790,13 @@ export function CombatPanel({
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                               <span
-                                className={`inline-flex items-center gap-1.5 font-bold truncate ${group.style.accent}`}
+                                className={`inline-flex items-center gap-1.5 font-bold ${group.style.accent}`}
                               >
                                 <SpellCategoryIcon
                                   category={group.category}
-                                  className="h-3.5 w-3.5"
+                                  className="h-3.5 w-3.5 shrink-0"
                                 />
-                                {spell.name}
+                                <span className="break-words">{spell.name}</span>
                               </span>
                               <span className={`font-medium opacity-85 ${group.style.text}`}>
                                 {typeIsMagic ? 'Mágico' : 'Físico'}
@@ -832,7 +828,7 @@ export function CombatPanel({
                                 type="button"
                                 disabled
                                 title={depCheck.missingReason || `Requiere: ${depCheck.requiredName}`}
-                                className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-raised)] px-2.5 text-xs font-semibold text-[#f3b562] opacity-85 cursor-not-allowed whitespace-nowrap shrink-0"
+                                className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-raised)] px-2.5 text-xs font-semibold text-[#f3b562] opacity-85 cursor-not-allowed"
                               >
                                 <Lock className="h-3 w-3 shrink-0" />
                                 Bloqueado
@@ -844,7 +840,7 @@ export function CombatPanel({
                                     type="button"
                                     disabled={!hasRemainingAction}
                                     onClick={() => onChainAttackSpell(spell, casterChar.id)}
-                                    className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                    className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                   >
                                     <Swords className="h-3 w-3" />
                                     Atacar
@@ -856,7 +852,7 @@ export function CombatPanel({
                                     type="button"
                                     disabled={!hasRemainingAction}
                                     onClick={() => onChainDefendSpell(spell, casterChar.id)}
-                                    className="min-h-[30px] inline-flex items-center gap-1 rounded-md border border-[var(--arc-cat-defense-border)] bg-[var(--arc-input)]/80 px-2.5 text-xs font-semibold text-[var(--arc-cat-defense-accent)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-all"
+                                    className="min-h-[30px] inline-flex items-center gap-1 rounded-md border border-[var(--arc-cat-defense-border)] bg-[var(--arc-input)]/80 px-2.5 text-xs font-semibold text-[var(--arc-cat-defense-accent)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                   >
                                     <Shield className="h-3 w-3" />
                                     Defender
@@ -868,7 +864,7 @@ export function CombatPanel({
                                     type="button"
                                     disabled={!hasRemainingAction}
                                     onClick={() => onChainHealSpell(spell, casterChar.id)}
-                                    className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                    className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                   >
                                     <HeartPulse className="h-3 w-3" />
                                     Curar
@@ -883,7 +879,7 @@ export function CombatPanel({
                                       type="button"
                                       disabled={!hasRemainingAction}
                                       onClick={() => onChainApplyStatusSpell(spell, casterChar.id)}
-                                      className="min-h-[30px] inline-flex items-center gap-1 rounded-md border border-[var(--arc-cat-debuff-border)] bg-[var(--arc-input)]/80 px-2.5 text-xs font-semibold text-[var(--arc-cat-debuff-accent)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-all"
+                                      className="min-h-[30px] inline-flex items-center gap-1 rounded-md border border-[var(--arc-cat-debuff-border)] bg-[var(--arc-input)]/80 px-2.5 text-xs font-semibold text-[var(--arc-cat-debuff-accent)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                     >
                                       <Dices className="h-3 w-3" />
                                       Aplicar
@@ -898,7 +894,7 @@ export function CombatPanel({
                                       type="button"
                                       disabled={!hasRemainingAction}
                                       onClick={() => onChainCastSpell(spell, casterChar.id)}
-                                      className={`min-h-[30px] inline-flex items-center gap-1 rounded-md border ${group.style.border} bg-[var(--arc-input)]/80 px-2.5 text-xs font-semibold ${group.style.accent} hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-all`}
+                                      className={`min-h-[30px] inline-flex items-center gap-1 rounded-md border ${group.style.border} bg-[var(--arc-input)]/80 px-2.5 text-xs font-semibold ${group.style.accent} hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all`}
                                     >
                                       <Sparkles className="h-3 w-3" />
                                       Activar
@@ -1078,25 +1074,25 @@ export function CombatPanel({
     <section
       ref={combatSectionRef}
       id="arcane-combat-arena"
-      className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4 scroll-mt-4"
+      className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-5 space-y-4 scroll-mt-4"
     >
       {/* Cabecera de combate, cola de turnos y modo de maná */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--arc-border)] pb-3.5">
-        <div>
+        <div className="min-w-0">
           <h2
             key={round}
-            className="animate-arcane-die font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)]"
+            className="animate-arcane-die font-display text-base sm:text-xl font-bold text-[var(--arc-accent)]"
           >
             {isFocusedIrlView ? `Mesa IRL · Ronda ${round}` : `Mesa de Combate · Ronda ${round}`}
           </h2>
-          <p className="text-[13px] text-[var(--arc-muted)] mt-0.5">
+          <p className="text-xs sm:text-[13px] text-[var(--arc-muted)] mt-0.5">
             {isFocusedIrlView
               ? 'Vista limpia para jugar en mesa: controlá tu personaje, ronda y reacciones rápidas'
               : 'Cola de iniciativa por turnos · al cerrar cada ronda se descuentan duraciones y hechizos preparados'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           {!isFocusedIrlView && (
             <>
               <div className="flex items-center gap-1.5 text-xs">
@@ -1105,7 +1101,7 @@ export function CombatPanel({
                   <button
                     type="button"
                     onClick={() => onChangeManaMode('auto')}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                       manaMode === 'auto'
                         ? 'bg-[var(--arc-magic-raised)] text-[var(--arc-magic-text)]'
                         : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -1116,7 +1112,7 @@ export function CombatPanel({
                   <button
                     type="button"
                     onClick={() => onChangeManaMode('manual')}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                       manaMode === 'manual'
                         ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                         : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -1135,7 +1131,7 @@ export function CombatPanel({
                       type="button"
                       onClick={() => onToggleAutoPassTurn(true)}
                       title="Pasa el turno automáticamente al agotar tus acciones"
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                         autoPassTurn
                           ? 'bg-[var(--arc-action)] text-[var(--arc-action-text)]'
                           : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -1147,7 +1143,7 @@ export function CombatPanel({
                       type="button"
                       onClick={() => onToggleAutoPassTurn(false)}
                       title="Avanzás cada turno manualmente con el botón Siguiente turno"
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                         !autoPassTurn
                           ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                           : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -1161,13 +1157,13 @@ export function CombatPanel({
             </>
           )}
 
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
             <button
               type="button"
               onClick={() => onChangeRound(-1)}
               title="Ronda anterior"
               aria-label="Ronda anterior"
-              className="min-h-[38px] w-9 inline-flex items-center justify-center rounded-lg bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
+              className="min-h-[36px] w-9 inline-flex items-center justify-center rounded-lg bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -1175,40 +1171,42 @@ export function CombatPanel({
               <button
                 type="button"
                 onClick={() => (onAdvanceTurn ? onAdvanceTurn() : onChangeRound(1))}
-                className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
+                className="flex-1 sm:flex-initial min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
               >
-                <SkipForward className="h-3.5 w-3.5" />
-                Siguiente turno
+                <SkipForward className="h-3.5 w-3.5 shrink-0" />
+                <span>Siguiente turno</span>
               </button>
             )}
             <button
               type="button"
               onClick={() => onChangeRound(1)}
               title="Avanzar 1 ronda completa ahora (descuenta todas las duraciones)"
-              className="min-h-[38px] inline-flex items-center gap-1 rounded-lg bg-[var(--arc-raised)]/80 px-2.5 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] whitespace-nowrap shrink-0 transition-colors"
+              className="min-h-[36px] inline-flex items-center gap-1 rounded-lg bg-[var(--arc-raised)]/80 px-2.5 text-xs font-semibold text-[var(--arc-text)] hover:bg-[var(--arc-raised)] transition-colors"
             >
-              <Timer className="h-3.5 w-3.5 text-[var(--arc-accent)]" />
-              +1R
+              <Timer className="h-3.5 w-3.5 text-[var(--arc-accent)] shrink-0" />
+              <span>+1R</span>
             </button>
             <button
               type="button"
               onClick={() => setShowStatusesPanel((v) => !v)}
               title="Abrir consola de estados en combate (activos, aplicar y reglas)"
-              className={`min-h-[38px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+              className={`min-h-[36px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition-colors ${
                 showStatusesPanel
                   ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                   : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-text)] hover:bg-[var(--arc-raised)]'
               }`}
             >
-              <Activity className="h-3.5 w-3.5" />
-              Estados ({combatants.reduce((acc, cb) => acc + (cb.activeStatuses?.length || 0), 0)})
+              <Activity className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                Estados ({combatants.reduce((acc, cb) => acc + (cb.activeStatuses?.length || 0), 0)})
+              </span>
             </button>
             <button
               type="button"
               onClick={onResetCombat}
               title="Reiniciar combate"
               aria-label="Reiniciar combate"
-              className="min-h-[38px] w-9 inline-flex items-center justify-center rounded-lg bg-transparent text-[var(--arc-muted)] hover:bg-[#361912] hover:text-[#e88a70] transition-colors"
+              className="min-h-[36px] w-9 inline-flex items-center justify-center rounded-lg bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-muted)] hover:bg-[#361912] hover:text-[#e88a70] transition-colors"
             >
               <RotateCcw className="h-4 w-4" />
             </button>
@@ -1355,8 +1353,8 @@ export function CombatPanel({
 
               {/* Estado rápido del personaje activo en IRL */}
               {irlChar ? (
-                <div className="grid gap-3 sm:grid-cols-2 items-center">
-                  <div className="space-y-1">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 items-center">
+                  <div className="space-y-1 min-w-0">
                     <div className="flex flex-wrap items-center justify-between gap-1 text-xs font-mono-num">
                       <span className="font-sans text-sm font-bold text-[#efe6d5]">
                         {irlChar.name}{' '}
@@ -1372,7 +1370,7 @@ export function CombatPanel({
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#120d09]">
                         <div className="h-full bg-[#d85a3a]" style={{ width: `${irlHpPct}%` }} />
                       </div>
-                      <div className="flex items-center gap-0.5 font-mono-num">
+                      <div className="flex items-center gap-0.5 font-mono-num shrink-0">
                         {[-5, -1, 1, 5].map((d) => (
                           <button
                             key={d}
@@ -1387,7 +1385,7 @@ export function CombatPanel({
                     </div>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0">
                     <div className="flex items-center justify-between text-xs font-mono-num">
                       <span className="text-[#cbb893] font-sans font-semibold">Reserva de Maná</span>
                       <span className="text-[#d6c9b3] font-semibold">
@@ -1398,7 +1396,7 @@ export function CombatPanel({
                       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#120d09]">
                         <div className="h-full bg-[#5282d6]" style={{ width: `${irlManaPct}%` }} />
                       </div>
-                      <div className="flex items-center gap-0.5 font-mono-num">
+                      <div className="flex items-center gap-0.5 font-mono-num shrink-0">
                         {[-3, -1, 1, 3].map((d) => (
                           <button
                             key={d}
@@ -1500,11 +1498,11 @@ export function CombatPanel({
 
                   {irlLastActionNote && (
                     <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/35 px-2.5 py-1.5 text-xs font-mono-num text-[#ffd996]">
-                      <span>{irlLastActionNote}</span>
+                      <span className="break-words">{irlLastActionNote}</span>
                       <button
                         type="button"
                         onClick={() => setIrlLastActionNote(null)}
-                        className="font-sans text-[11px] text-[#cbb893] hover:text-white"
+                        className="font-sans text-[11px] text-[#cbb893] hover:text-white shrink-0"
                       >
                         Limpiar
                       </button>
@@ -1573,7 +1571,7 @@ export function CombatPanel({
 
       {/* Banner cuando el usuario expandió la lista completa estando en Combate IRL */}
       {irlCombat && showFullVirtualTableInIrl && (
-        <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-[#cbb893]">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-[#cbb893]">
           <span>Mostrando lista completa del encuentro dentro de Combate IRL.</span>
           <button
             type="button"
@@ -1614,7 +1612,8 @@ export function CombatPanel({
                   </span>
                 ) : botBattleOutcome === 'defeat' ? (
                   <span className="font-semibold">
-                    Derrota en práctica. Podés pedir revancha para restaurar PV/Maná y volver a intentar.
+                    Derrota en práctica. Podés pedir revancha para restaurar PV/Maná y volver a
+                    intentar.
                   </span>
                 ) : (
                   <span>
@@ -1628,12 +1627,12 @@ export function CombatPanel({
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {onRematchBotPractice && (
                   <button
                     type="button"
                     onClick={onRematchBotPractice}
-                    className="min-h-[32px] inline-flex items-center gap-1 rounded-lg bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] whitespace-nowrap shrink-0 transition-colors"
+                    className="min-h-[32px] inline-flex items-center gap-1 rounded-lg bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Revancha
@@ -1643,7 +1642,7 @@ export function CombatPanel({
                   <button
                     type="button"
                     onClick={onEndBotPractice}
-                    className="min-h-[32px] inline-flex items-center gap-1 rounded-lg bg-black/25 px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-black/40 hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+                    className="min-h-[32px] inline-flex items-center gap-1 rounded-lg bg-black/25 px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-black/40 hover:text-[var(--arc-text)] transition-colors"
                   >
                     Salir de práctica
                   </button>
@@ -1682,7 +1681,7 @@ export function CombatPanel({
                           ? `Turno actual de ${ch.name}`
                           : `Saltar al turno de ${ch.name} (Ini ${cb.initiative})`
                       }
-                      className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors whitespace-nowrap shrink-0 ${
+                      className={`min-h-[34px] max-w-full inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${
                         isCurrentTurn
                           ? 'animate-arcane-turn border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-text)] font-bold'
                           : isIncapacitated
@@ -1698,12 +1697,12 @@ export function CombatPanel({
                       {cb.isBotControlled && (
                         <Bot className="h-3.5 w-3.5 text-[var(--arc-accent)] shrink-0" />
                       )}
-                      <span>{ch.name}</span>
-                      <span className="font-mono-num text-[11px] text-[var(--arc-accent)]">
+                      <span className="truncate">{ch.name}</span>
+                      <span className="font-mono-num text-[11px] text-[var(--arc-accent)] shrink-0">
                         Ini {cb.initiative}
                       </span>
                       {isCurrentTurn && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--arc-accent)]">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--arc-accent)] shrink-0">
                           · En turno
                         </span>
                       )}
@@ -1721,7 +1720,7 @@ export function CombatPanel({
           {activeCombatant && activeChar && (
             <div className="border-b border-[var(--arc-border)] pb-3.5 space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2.5">
-                <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--arc-text)]">
                     <Zap className="h-4 w-4 text-[var(--arc-accent)] shrink-0" />
                     <span>Acciones de {activeChar.name} este turno:</span>
@@ -1764,16 +1763,18 @@ export function CombatPanel({
                         setChainListCollapsed(false);
                         onQuickCastTurnBuff(hechizoVelozSpell, activeChar.id);
                       }}
-                      className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                      className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
                         activeTurnStatus.hasHechizoVeloz
                           ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)] opacity-75 cursor-default'
                           : 'bg-[var(--arc-magic-raised)] text-[var(--arc-magic-text)] hover:brightness-110'
                       }`}
                     >
-                      <Zap className="h-3.5 w-3.5" />
-                      {activeTurnStatus.hasHechizoVeloz
-                        ? 'Hechizo Veloz activo (2/2)'
-                        : 'Hechizo Veloz (-3)'}
+                      <Zap className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {activeTurnStatus.hasHechizoVeloz
+                          ? 'Hechizo Veloz activo (2/2)'
+                          : 'Hechizo Veloz (-3)'}
+                      </span>
                     </button>
                   )}
 
@@ -1792,7 +1793,7 @@ export function CombatPanel({
                             ? 'Bloqueado: requiere activar Hechizo Veloz primero en este turno'
                             : 'Activar Elevar el Límite (-5 maná) para habilitar una 3ra acción ofensiva'
                       }
-                      className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                      className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-colors ${
                         activeTurnStatus.hasElevarLimite
                           ? 'bg-[var(--arc-raised)] text-[var(--arc-accent)] opacity-75 cursor-default'
                           : !activeTurnStatus.hasHechizoVeloz
@@ -1801,13 +1802,15 @@ export function CombatPanel({
                       }`}
                     >
                       {!activeTurnStatus.hasHechizoVeloz ? (
-                        <Lock className="h-3.5 w-3.5" />
+                        <Lock className="h-3.5 w-3.5 shrink-0" />
                       ) : (
-                        <Zap className="h-3.5 w-3.5" />
+                        <Zap className="h-3.5 w-3.5 shrink-0" />
                       )}
-                      {activeTurnStatus.hasElevarLimite
-                        ? 'Elevar el Límite activo (3/3)'
-                        : 'Elevar el Límite (-5)'}
+                      <span>
+                        {activeTurnStatus.hasElevarLimite
+                          ? 'Elevar el Límite activo (3/3)'
+                          : 'Elevar el Límite (-5)'}
+                      </span>
                     </button>
                   )}
 
@@ -1816,7 +1819,7 @@ export function CombatPanel({
                       type="button"
                       onClick={() => onResetTurnActions(activeCombatant.id)}
                       title="Reiniciar contador de acciones ofensivas usadas en este turno"
-                      className="min-h-[34px] inline-flex items-center gap-1 rounded-lg bg-transparent px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
+                      className="min-h-[34px] inline-flex items-center gap-1 rounded-lg bg-transparent px-2 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       Reiniciar
@@ -1827,8 +1830,8 @@ export function CombatPanel({
 
               {activeTurnStatus.remaining === 0 && (
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[#33220c] px-3 py-2 text-xs text-[#ffd28a]">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <AlertTriangle className="h-3.5 w-3.5 text-[#f0a83a] shrink-0" />
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    <AlertTriangle className="h-3.5 w-3.5 text-[#f0a83a] shrink-0 mt-0.5" />
                     <span>
                       {autoPassSecondsLeft !== null &&
                       currentTurnCombatantId === activeCombatant.id ? (
@@ -1853,14 +1856,14 @@ export function CombatPanel({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5">
                     {autoPassSecondsLeft !== null &&
                       currentTurnCombatantId === activeCombatant.id &&
                       onPauseAutoPass && (
                         <button
                           type="button"
                           onClick={onPauseAutoPass}
-                          className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-black/30 px-2.5 text-xs font-semibold text-[#ffd28a] hover:bg-black/50 whitespace-nowrap shrink-0 transition-colors"
+                          className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-black/30 px-2.5 text-xs font-semibold text-[#ffd28a] hover:bg-black/50 transition-colors"
                         >
                           <Pause className="h-3 w-3" />
                           Pausar
@@ -1870,7 +1873,7 @@ export function CombatPanel({
                       <button
                         type="button"
                         onClick={onAdvanceTurn}
-                        className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] whitespace-nowrap shrink-0 transition-colors"
+                        className="min-h-[30px] inline-flex items-center gap-1 rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
                       >
                         <SkipForward className="h-3 w-3" />
                         Pasar ahora
@@ -1891,12 +1894,12 @@ export function CombatPanel({
           )}
 
           {/* Agregar PJs o PNJs al combate */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
             <select
               value={selectedAddId || availableToAdd[0]?.id || ''}
               onChange={(e) => setSelectedAddId(e.target.value)}
               aria-label="Seleccionar personaje o PNJ para agregar al combate"
-              className="w-full sm:w-auto sm:flex-1 min-h-[40px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
+              className="w-full sm:w-auto sm:flex-1 min-w-0 min-h-[40px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-3 text-xs text-[var(--arc-text)]"
             >
               {availableToAdd.length === 0 ? (
                 <option value="">Todos los personajes creados ya están en combate</option>
@@ -1909,73 +1912,75 @@ export function CombatPanel({
               )}
             </select>
 
-            <div className="flex items-center gap-1.5">
-              <label htmlFor="combat-init" className="text-xs text-[var(--arc-muted)]">
-                Iniciativa
-              </label>
-              <input
-                id="combat-init"
-                type="number"
-                value={addInitiative}
-                onChange={(e) => setAddInitiative(parseInt(e.target.value, 10) || 0)}
-                className="font-mono-num w-16 min-h-[40px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-center text-sm text-[var(--arc-text)]"
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <label htmlFor="combat-init" className="text-xs text-[var(--arc-muted)]">
+                  Iniciativa
+                </label>
+                <input
+                  id="combat-init"
+                  type="number"
+                  value={addInitiative}
+                  onChange={(e) => setAddInitiative(parseInt(e.target.value, 10) || 0)}
+                  className="font-mono-num w-16 min-h-[38px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-center text-sm text-[var(--arc-text)]"
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={availableToAdd.length === 0}
+                onClick={handleAdd}
+                className="flex-1 sm:flex-initial min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-raised)] px-3 text-xs font-semibold text-[var(--arc-text)] hover:brightness-110 disabled:opacity-40 transition-all"
+              >
+                <Plus className="h-3.5 w-3.5 shrink-0" />
+                <span>Añadir al combate</span>
+              </button>
+
+              {onStartBotPractice && (
+                <button
+                  type="button"
+                  onClick={() => setShowBotSetup((v) => !v)}
+                  className={`min-h-[38px] inline-flex items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-colors ${
+                    showBotSetup || hasBotModeActive
+                      ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                      : 'border-[var(--arc-border)] bg-[var(--arc-surface-alt)] text-[var(--arc-text)] hover:bg-[var(--arc-raised)]'
+                  }`}
+                >
+                  <Bot className="h-3.5 w-3.5 shrink-0" />
+                  <span>Vs Máquina</span>
+                </button>
+              )}
+
+              {onApplyCollateralDamage && combatants.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!showCollateralPanel && !colTargetId) {
+                      const actorCb = combatants.find((c) => c.characterId === activeCharacterId);
+                      setColTargetId(actorCb?.id || combatants[0]?.id || '');
+                    }
+                    setShowCollateralPanel((v) => !v);
+                  }}
+                  className={`min-h-[38px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
+                    showCollateralPanel
+                      ? 'bg-[#662b0f] text-[#ffe0cc]'
+                      : 'bg-transparent text-[#f3be8d] hover:bg-[#3b1f10]'
+                  }`}
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>Daño colateral</span>
+                </button>
+              )}
             </div>
-
-            <button
-              type="button"
-              disabled={availableToAdd.length === 0}
-              onClick={handleAdd}
-              className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-raised)] px-3.5 text-xs font-semibold text-[var(--arc-text)] hover:brightness-110 disabled:opacity-40 whitespace-nowrap shrink-0 transition-all"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Añadir al combate
-            </button>
-
-            {onStartBotPractice && (
-              <button
-                type="button"
-                onClick={() => setShowBotSetup((v) => !v)}
-                className={`min-h-[40px] inline-flex items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
-                  showBotSetup || hasBotModeActive
-                    ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
-                    : 'border-[var(--arc-border)] bg-[var(--arc-surface-alt)] text-[var(--arc-text)] hover:bg-[var(--arc-raised)]'
-                }`}
-              >
-                <Bot className="h-3.5 w-3.5" />
-                Vs Máquina
-              </button>
-            )}
-
-            {onApplyCollateralDamage && combatants.length > 0 && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (!showCollateralPanel && !colTargetId) {
-                    const actorCb = combatants.find((c) => c.characterId === activeCharacterId);
-                    setColTargetId(actorCb?.id || combatants[0]?.id || '');
-                  }
-                  setShowCollateralPanel((v) => !v);
-                }}
-                className={`min-h-[40px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
-                  showCollateralPanel
-                    ? 'bg-[#662b0f] text-[#ffe0cc]'
-                    : 'bg-transparent text-[#f3be8d] hover:bg-[#3b1f10]'
-                }`}
-              >
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Daño colateral
-              </button>
-            )}
           </div>
 
           {/* Panel de configuración: Combate de Práctica contra la Máquina */}
           {showBotSetup && onStartBotPractice && (
-            <div className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-4 space-y-4">
+            <div className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] p-3.5 sm:p-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-2.5">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <Bot className="h-4 w-4 text-[var(--arc-accent)] shrink-0" />
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="text-sm font-bold text-[var(--arc-text)]">
                       Práctica contra la máquina
                     </h3>
@@ -1993,7 +1998,7 @@ export function CombatPanel({
                 </button>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-12 items-end">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-12 items-end">
                 <div className="sm:col-span-5">
                   <label
                     htmlFor="bot-player-select"
@@ -2073,7 +2078,7 @@ export function CombatPanel({
                   </span>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                   {BOT_ENEMY_PRESETS.map((preset) => {
                     const count = botPresetCounts[preset.id] || 0;
                     return (
@@ -2163,7 +2168,7 @@ export function CombatPanel({
                                 : [...prev, c.id]
                             )
                           }
-                          className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${
+                          className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors ${
                             selected
                               ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-text)] font-semibold'
                               : 'border-[var(--arc-border)]/70 bg-[var(--arc-input)] text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
@@ -2200,11 +2205,13 @@ export function CombatPanel({
                     });
                     setShowBotSetup(false);
                   }}
-                  className="min-h-[38px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 whitespace-nowrap shrink-0 shadow-sm transition-colors"
+                  className="w-full sm:w-auto min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] disabled:opacity-40 shadow-sm transition-colors"
                 >
-                  <Play className="h-3.5 w-3.5" />
-                  Iniciar práctica ({totalSelectedBotEnemies}{' '}
-                  {totalSelectedBotEnemies === 1 ? 'enemigo' : 'enemigos'})
+                  <Play className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    Iniciar práctica ({totalSelectedBotEnemies}{' '}
+                    {totalSelectedBotEnemies === 1 ? 'enemigo' : 'enemigos'})
+                  </span>
                 </button>
               </div>
             </div>
@@ -2212,10 +2219,10 @@ export function CombatPanel({
 
           {/* Panel de Daño Colateral */}
           {showCollateralPanel && onApplyCollateralDamage && combatants.length > 0 && (
-            <div className="rounded-xl border border-[#7d4423] bg-[#1f130c] p-4 space-y-3">
+            <div className="rounded-xl border border-[#7d4423] bg-[#1f130c] p-3.5 sm:p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#4a2b18] pb-2.5">
-                <div className="flex items-center gap-2 text-xs font-bold text-[#ffbe94]">
-                  <AlertTriangle className="h-4 w-4 text-[#ff8748]" />
+                <div className="flex items-center gap-2 text-xs font-bold text-[#ffbe94] min-w-0">
+                  <AlertTriangle className="h-4 w-4 text-[#ff8748] shrink-0" />
                   <span>Daño colateral (hechizo muy cercano, explosión o efecto por turnos)</span>
                 </div>
                 <button
@@ -2230,7 +2237,7 @@ export function CombatPanel({
                 </button>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-12">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-12">
                 <div className="sm:col-span-5">
                   <label className="block text-xs font-semibold text-[#d6b18f] mb-1">
                     Afectado (puede ser el mismo lanzador)
@@ -2500,1295 +2507,1323 @@ export function CombatPanel({
                     });
                     setColProtectionStacks(0);
                   }}
-                  className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[#b85a3a] px-4 text-xs font-semibold text-white hover:bg-[#cc6644] shadow-sm transition-colors"
+                  className="w-full sm:w-auto min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#b85a3a] px-4 text-xs font-semibold text-white hover:bg-[#cc6644] shadow-sm transition-colors"
                 >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  {colDurationType === 'instant'
-                    ? 'Aplicar impacto colateral'
-                    : `Aplicar colateral (${colTurns}t)`}
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                  <span>
+                    {colDurationType === 'instant'
+                      ? 'Aplicar impacto colateral'
+                      : `Aplicar colateral (${colTurns}t)`}
+                  </span>
                 </button>
               </div>
             </div>
           )}
 
           {/* Resolución de Ataque pendiente vs Defensa — Duelo Dividido */}
-          {pendingAttack && !pendingAttack.resolved && (() => {
-            const isPendingMagical = isSpellMagical(pendingAttack.spell);
-            const pendingDmgKind = getEffectiveSpellDamageKind(pendingAttack.spell);
-            const atkNet = pendingAttack.attackRoll.net;
-            const atkNetFmt = atkNet > 0 ? `+${atkNet}` : `${atkNet}`;
+          {pendingAttack &&
+            !pendingAttack.resolved &&
+            (() => {
+              const pendingDmgKind = getEffectiveSpellDamageKind(pendingAttack.spell);
+              const atkNet = pendingAttack.attackRoll.net;
+              const atkNetFmt = atkNet > 0 ? `+${atkNet}` : `${atkNet}`;
 
-            const attackerCb = combatants.find((c) => c.id === pendingAttack.attackerCombatantId);
-            const attackerChar = characters.find((c) => c.id === pendingAttack.attackerCharacterId);
-            const attackerTurnStatus = getCombatantTurnActionStatus(attackerCb);
-            const attackerCanCastTurnBuffs = Boolean(
-              onQuickCastTurnBuff &&
-                attackerChar &&
-                attackerChar.condition === 'active' &&
-                (attackerChar.mana.max > 0 ||
-                  attackerChar.knownSpells.includes('basic_hechizo_veloz') ||
-                  attackerChar.knownSpells.includes('basic_elevar_limite'))
-            );
+              const attackerCb = combatants.find(
+                (c) => c.id === pendingAttack.attackerCombatantId
+              );
+              const attackerChar = characters.find(
+                (c) => c.id === pendingAttack.attackerCharacterId
+              );
+              const attackerTurnStatus = getCombatantTurnActionStatus(attackerCb);
+              const attackerCanCastTurnBuffs = Boolean(
+                onQuickCastTurnBuff &&
+                  attackerChar &&
+                  attackerChar.condition === 'active' &&
+                  (attackerChar.mana.max > 0 ||
+                    attackerChar.knownSpells.includes('basic_hechizo_veloz') ||
+                    attackerChar.knownSpells.includes('basic_elevar_limite'))
+              );
 
-            const resolvedTargetCb = pendingAttack.targetCombatantId
-              ? combatants.find((c) => c.id === pendingAttack.targetCombatantId)
-              : defendingCombatant;
-            const resolvedTargetChar = resolvedTargetCb
-              ? characters.find((c) => c.id === resolvedTargetCb.characterId)
-              : defendingChar;
-            const activeDefenderName =
-              pendingAttack.defenseRoll?.defenderName ||
-              resolvedTargetChar?.name ||
-              'Seleccionar objetivo';
+              const resolvedTargetCb = pendingAttack.targetCombatantId
+                ? combatants.find((c) => c.id === pendingAttack.targetCombatantId)
+                : defendingCombatant;
+              const resolvedTargetChar = resolvedTargetCb
+                ? characters.find((c) => c.id === resolvedTargetCb.characterId)
+                : defendingChar;
+              const activeDefenderName =
+                pendingAttack.defenseRoll?.defenderName ||
+                resolvedTargetChar?.name ||
+                'Seleccionar objetivo';
 
-            const pendingDmg = pendingAttack.pendingDamage;
-            const isAwaitingDamageDecision = Boolean(pendingDmg);
-            const isAwaitingDefenseRoll = !pendingAttack.defenseRoll && !isAwaitingDamageDecision;
-            const isAwaitingDamageRoll = Boolean(
-              pendingAttack.defenseRoll && !isAwaitingDamageDecision
-            );
+              const pendingDmg = pendingAttack.pendingDamage;
+              const isAwaitingDamageDecision = Boolean(pendingDmg);
+              const isAwaitingDefenseRoll =
+                !pendingAttack.defenseRoll && !isAwaitingDamageDecision;
+              const isAwaitingDamageRoll = Boolean(
+                pendingAttack.defenseRoll && !isAwaitingDamageDecision
+              );
 
-            const defNet = pendingAttack.defenseRoll?.roll.net;
-            const defNetFmt =
-              defNet !== undefined ? (defNet > 0 ? `+${defNet}` : `${defNet}`) : '';
-            const isTrueTie =
-              pendingAttack.defenseRoll?.outcome === 'tie_verify_damage' && defNet === atkNet;
+              const defNet = pendingAttack.defenseRoll?.roll.net;
+              const defNetFmt =
+                defNet !== undefined ? (defNet > 0 ? `+${defNet}` : `${defNet}`) : '';
+              const isTrueTie =
+                pendingAttack.defenseRoll?.outcome === 'tie_verify_damage' && defNet === atkNet;
 
-            const resolvedTargetEffects = getCombatantStatusEffects(
-              resolvedTargetCb,
-              resolvedTargetChar
-            );
-            const defendingEffects = getCombatantStatusEffects(defendingCombatant, defendingChar);
-            const defenderCannotUseProtection =
-              resolvedTargetEffects.cannotReact || resolvedTargetEffects.cannotCastMagic;
+              const resolvedTargetEffects = getCombatantStatusEffects(
+                resolvedTargetCb,
+                resolvedTargetChar
+              );
+              const defendingEffects = getCombatantStatusEffects(
+                defendingCombatant,
+                defendingChar
+              );
+              const defenderCannotUseProtection =
+                resolvedTargetEffects.cannotReact || resolvedTargetEffects.cannotCastMagic;
 
-            const maxProtStacks =
-              resolvedTargetChar && !defenderCannotUseProtection
-                ? getMaxAffordableProtectionStacks(
-                    resolvedTargetChar,
-                    spells,
-                    manaMode,
-                    undefined,
-                    resolvedTargetEffects.disarmed
-                  )
+              const maxProtStacks =
+                resolvedTargetChar && !defenderCannotUseProtection
+                  ? getMaxAffordableProtectionStacks(
+                      resolvedTargetChar,
+                      spells,
+                      manaMode,
+                      undefined,
+                      resolvedTargetEffects.disarmed
+                    )
+                  : 0;
+              const effectiveProtStacks = Math.min(pendingProtStacks, maxProtStacks);
+              const protSummary = calcDirectProtectionSummary(
+                resolvedTargetChar,
+                spells,
+                pendingDmgKind,
+                effectiveProtStacks,
+                resolvedTargetEffects.disarmed
+              );
+              const stepRed = pendingDmgKind === 'magico' ? 3 : 5;
+              const protSpell = spells.find((s) => s.id === 'basic_proteccion');
+              const nextProtMana =
+                effectiveProtStacks === 0 && resolvedTargetChar && protSpell
+                  ? getEffectiveDefenseManaCost(
+                      resolvedTargetChar,
+                      protSpell,
+                      resolvedTargetEffects.disarmed
+                    ).cost
+                  : 1;
+
+              const rawDamageTotal = pendingDmg ? pendingDmg.rawSummary.total : 0;
+              const totalPreviewReduction = effectiveReduction + protSummary.reduction;
+              const previewFinalDamage = pendingDmg
+                ? damageDivisor === 0
+                  ? 0
+                  : damageDivisor > 1
+                    ? Math.floor(
+                        Math.max(0, rawDamageTotal - totalPreviewReduction) / damageDivisor
+                      )
+                    : Math.max(0, rawDamageTotal - totalPreviewReduction)
                 : 0;
-            const effectiveProtStacks = Math.min(pendingProtStacks, maxProtStacks);
-            const protSummary = calcDirectProtectionSummary(
-              resolvedTargetChar,
-              spells,
-              pendingDmgKind,
-              effectiveProtStacks,
-              resolvedTargetEffects.disarmed
-            );
-            const stepRed = pendingDmgKind === 'magico' ? 3 : 5;
-            const protSpell = spells.find((s) => s.id === 'basic_proteccion');
-            const nextProtMana =
-              effectiveProtStacks === 0 && resolvedTargetChar && protSpell
-                ? getEffectiveDefenseManaCost(
-                    resolvedTargetChar,
-                    protSpell,
-                    resolvedTargetEffects.disarmed
-                  ).cost
-                : 1;
+              const previewResultingHp = resolvedTargetChar
+                ? Math.max(0, resolvedTargetChar.hp.current - previewFinalDamage)
+                : 0;
 
-            const rawDamageTotal = pendingDmg ? pendingDmg.rawSummary.total : 0;
-            const totalPreviewReduction = effectiveReduction + protSummary.reduction;
-            const previewFinalDamage = pendingDmg
-              ? damageDivisor === 0
-                ? 0
-                : damageDivisor > 1
-                  ? Math.floor(Math.max(0, rawDamageTotal - totalPreviewReduction) / damageDivisor)
-                  : Math.max(0, rawDamageTotal - totalPreviewReduction)
-              : 0;
-            const previewResultingHp = resolvedTargetChar
-              ? Math.max(0, resolvedTargetChar.hp.current - previewFinalDamage)
-              : 0;
-
-            return (
-              <div ref={duelResolutionRef}
-              className="rounded-xl border border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] overflow-hidden scroll-mt-4">
-                
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3">
-                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[var(--arc-muted)]">
-                      {isAwaitingDamageDecision ? 'Decisión de daño' : 'Duelo en curso'}
-                    </span>
-                    <span className="inline-flex items-center gap-1 font-bold text-[var(--arc-atk-accent)]">
-                      <Swords className="h-3.5 w-3.5 shrink-0" />
-                      {pendingAttack.attackerName}
-                    </span>
-                    <ArrowRight className="h-3.5 w-3.5 text-[var(--arc-muted)] shrink-0" />
-                    <span className="inline-flex items-center gap-1 font-bold text-[var(--arc-def-accent)]">
-                      <Shield className="h-3.5 w-3.5 shrink-0" />
-                      {activeDefenderName}
-                    </span>
-                    <span className="text-[var(--arc-border-strong)]">·</span>
-                    <span
-                      className={`text-xs font-semibold ${
-                        pendingDmgKind === 'magico'
-                          ? 'text-[var(--arc-magic-accent)]'
-                          : 'text-[var(--arc-phys-accent)]'
-                      }`}
-                    >
-                      Daño {pendingDmgKind === 'magico' ? 'Mágico' : 'Físico'}
-                    </span>
-                    <span className="text-xs text-[var(--arc-muted)]">
-                      · {pendingAttack.isLethal ? 'Letal' : 'No letal'}
-                    </span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setDefendingTargetId(null);
-                      setPendingProtStacks(0);
-                      setManualDmgInput('');
-                      onDismissPendingAttack();
-                    }}
-                    className="min-h-[32px] rounded-md bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] whitespace-nowrap shrink-0 transition-colors"
-                  >
-                    Cerrar
-                  </button>
-                </div>
-
-                {(pendingAttack.spell.areaConfig?.enabled ||
-                  (pendingAttack.areaTargetIds && pendingAttack.areaTargetIds.length > 0) ||
-                  (pendingAttack.areaResolvedTargets &&
-                    pendingAttack.areaResolvedTargets.length > 0)) &&
-                  (() => {
-                    const queuedIds = pendingAttack.areaTargetIds || [];
-                    const resolvedList = pendingAttack.areaResolvedTargets || [];
-                    const resolvedIdSet = new Set(resolvedList.map((r) => r.combatantId));
-                    const activeId = pendingAttack.targetCombatantId;
-                    const eligibleTargets = combatants.filter(
-                      (cb) => cb.id !== pendingAttack.attackerCombatantId
-                    );
-                    const totalRemaining = (activeId ? 1 : 0) + queuedIds.length;
-
-                    return (
-                      <div className="border-b border-[var(--arc-border)] bg-[var(--arc-input)]/60 px-4 py-2.5 space-y-2 text-xs">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                            <span className="font-bold text-[#9fd2ff]">
-                              {pendingAttack.areaLabel || 'Ataque en área / Multi-objetivo'}
-                            </span>
-                            <span aria-hidden="true" className="text-[var(--arc-muted)]">
-                              ·
-                            </span>
-                            <span className="font-mono-num text-[var(--arc-muted)]">
-                              Pendientes: {totalRemaining}
-                              {resolvedList.length > 0
-                                ? ` · Resueltos: ${resolvedList.length}`
-                                : ''}
-                            </span>
-                          </div>
-
-                          {isAwaitingDefenseRoll &&
-                            onResolveAllAreaDirect &&
-                            totalRemaining > 1 && (
-                              <button
-                                type="button"
-                                onClick={onResolveAllAreaDirect}
-                                className="min-h-[30px] rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] whitespace-nowrap shrink-0 transition-colors"
-                              >
-                                Daño directo a los {totalRemaining} restantes
-                              </button>
-                            )}
-                        </div>
-
-                        {onToggleAreaTarget && eligibleTargets.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[11px] font-semibold text-[var(--arc-muted)] mr-1">
-                              Blancos en el área:
-                            </span>
-                            {eligibleTargets.map((cb) => {
-                              const ch = characters.find((c) => c.id === cb.characterId);
-                              if (!ch) return null;
-                              const isCurrent = cb.id === activeId;
-                              const isQueued = queuedIds.includes(cb.id);
-                              const isDone = resolvedIdSet.has(cb.id);
-                              const isElectrified = (cb.activeStatuses || []).some(
-                                (st) => getStatusElementalKind(st) === 'electrified'
-                              );
-                              return (
-                                <button
-                                  key={cb.id}
-                                  type="button"
-                                  disabled={isDone || (isCurrent && !isAwaitingDefenseRoll)}
-                                  onClick={() => onToggleAreaTarget(cb.id)}
-                                  className={`min-h-[28px] rounded-md border px-2 text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                                    isDone
-                                      ? 'border-[var(--arc-border)] bg-[var(--arc-surface)] text-[var(--arc-muted)] line-through opacity-60 cursor-default'
-                                      : isCurrent
-                                        ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
-                                        : isQueued
-                                          ? 'border-[#5a8fd6] bg-[#16273d] text-[#cfe4ff] hover:brightness-110'
-                                          : 'border-[var(--arc-border)] bg-[var(--arc-surface)] text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-                                  }`}
-                                >
-                                  {isCurrent ? '▶ ' : isQueued ? '✓ ' : '+ '}
-                                  {ch.name}
-                                  {isElectrified ? ' ⚡' : ''}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {resolvedList.length > 0 && (
-                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--arc-muted)]">
-                            <span>Resueltos:</span>
-                            {resolvedList.map((r) => (
-                              <span
-                                key={r.combatantId}
-                                className="font-mono-num text-[var(--arc-text)]"
-                              >
-                                {r.name}: {r.outcome === 'blocked' ? 'Bloqueó' : `-${r.damage} PV`}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[var(--arc-border)]">
-                  {/* COLUMNA IZQUIERDA — ATACA */}
-                  <div className="bg-[var(--arc-atk-bg)] p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--arc-atk-accent)]">
-                          <Swords className="h-3.5 w-3.5 shrink-0" />
-                          Ataca
-                        </div>
-                        <h3 className="text-base font-bold text-[var(--arc-atk-text)] mt-0.5 leading-snug">
-                          {pendingAttack.attackerName}
-                        </h3>
-                        <p className="text-[13px] font-medium text-[var(--arc-atk-text)] opacity-85">
-                          {pendingAttack.spell.name}
-                        </p>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="text-[11px] uppercase tracking-wider text-[var(--arc-atk-text)] opacity-70">
-                          Neto ataque
-                        </div>
-                        <div className="font-mono-num text-2xl font-bold leading-none text-[var(--arc-atk-accent)] mt-0.5">
-                          {atkNetFmt}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {pendingAttack.attackRoll.rolls.map((val, idx) => {
-                          const dieStyle =
-                            val === 1
-                              ? 'border-[var(--arc-atk-border)] bg-[var(--arc-atk-raised)] text-[var(--arc-atk-accent)]'
-                              : val >= 5
-                                ? 'border-[#4a7a30] bg-[#1e3818] text-[#c4f2a4]'
-                                : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-muted)]';
-                          return (
-                            <span
-                              key={`${pendingAttack.id}-${idx}-${val}`}
-                              style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
-                              className={`animate-arcane-die font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${
-                                val === 6
-                                  ? 'ring-1 ring-[#9be870]/70 '
-                                  : val === 1
-                                    ? 'ring-1 ring-[#ff8b6b]/70 '
-                                    : ''
-                              }${dieStyle}`}
-                            >
-                              {val}
-                            </span>
-                          );
-                        })}
-                        {pendingAttack.attackRoll.assured > 0 && (
-                          <span className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[var(--arc-atk-border)] bg-[var(--arc-atk-raised)] px-2 text-xs font-bold text-[var(--arc-atk-accent)]">
-                            +{pendingAttack.attackRoll.assured} aseg.
-                          </span>
-                        )}
-                        {pendingAttack.attackRoll.statusAutoFails &&
-                          pendingAttack.attackRoll.statusAutoFails > 0 && (
-                            <span
-                              title={pendingAttack.attackRoll.statusPenaltyNotes?.join(' · ')}
-                              className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[#8a3525] bg-[#361611] px-2 text-xs font-bold text-[#ff9a7a]"
-                            >
-                              +{pendingAttack.attackRoll.statusAutoFails} fallo
-                              {pendingAttack.attackRoll.statusAutoFails > 1 ? 's' : ''} auto.
-                            </span>
-                          )}
-                      </div>
-                      <p className="text-xs font-mono-num text-[var(--arc-atk-text)] opacity-85">
-                        {pendingAttack.attackRoll.successes} éxito(s) ·{' '}
-                        {pendingAttack.attackRoll.fails} fallo(s)
-                        {pendingAttack.attackRoll.statusPenaltyNotes &&
-                        pendingAttack.attackRoll.statusPenaltyNotes.length > 0
-                          ? ` [${pendingAttack.attackRoll.statusPenaltyNotes.join(', ')}]`
-                          : ''}
-                        {pendingAttack.attackRoll.breakdown &&
-                        pendingAttack.attackRoll.breakdown.length > 0
-                          ? ` · ${pendingAttack.attackRoll.breakdown
-                              .map((b) => `${STAT_NAMES[b.stat]} ${b.dice}d6`)
-                              .join(' + ')}`
-                          : ''}
-                      </p>
-                    </div>
-
-                    {pendingDmg && (
-                      <div
-                        key={`dmg-raw-${pendingAttack.id}-${rawDamageTotal}`}
-                        className="animate-arcane-die border-t border-[var(--arc-atk-border)]/45 pt-2.5 space-y-1"
+              return (
+                <div
+                  ref={duelResolutionRef}
+                  className="rounded-xl border border-[var(--arc-border-strong)] bg-[var(--arc-surface-alt)] overflow-hidden scroll-mt-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] bg-[var(--arc-surface)] px-3.5 sm:px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm min-w-0">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--arc-muted)]">
+                        {isAwaitingDamageDecision ? 'Decisión de daño' : 'Duelo en curso'}
+                      </span>
+                      <span className="inline-flex items-center gap-1 font-bold text-[var(--arc-atk-accent)]">
+                        <Swords className="h-3.5 w-3.5 shrink-0" />
+                        <span>{pendingAttack.attackerName}</span>
+                      </span>
+                      <ArrowRight className="h-3.5 w-3.5 text-[var(--arc-muted)] shrink-0" />
+                      <span className="inline-flex items-center gap-1 font-bold text-[var(--arc-def-accent)]">
+                        <Shield className="h-3.5 w-3.5 shrink-0" />
+                        <span>{activeDefenderName}</span>
+                      </span>
+                      <span className="text-[var(--arc-border-strong)]">·</span>
+                      <span
+                        className={`text-xs font-semibold ${
+                          pendingDmgKind === 'magico'
+                            ? 'text-[var(--arc-magic-accent)]'
+                            : 'text-[var(--arc-phys-accent)]'
+                        }`}
                       >
-                        {pendingDmg.rawSummary.isCriticalHit && (
-                          <div className="inline-flex items-center gap-1.5 rounded bg-[#5e1c14] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffd6c9]">
-                            <Zap className="h-3 w-3 shrink-0" />
-                            Crítico automático
-                            {pendingDmg.rawSummary.criticalReason
-                              ? ` (${pendingDmg.rawSummary.criticalReason})`
-                              : ''}
-                          </div>
-                        )}
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="text-xs font-bold uppercase tracking-wider text-[var(--arc-atk-accent)]">
-                            Daño entrante tirado
-                          </span>
-                          <span className="font-mono-num text-xl font-bold text-[var(--arc-atk-accent)]">
-                            {rawDamageTotal} PV
-                          </span>
-                        </div>
-                        <div className="text-xs font-mono-num text-[var(--arc-atk-text)] opacity-90">
-                          <span
-                            className={`mr-1.5 font-semibold ${
-                              pendingDmgKind === 'magico'
-                                ? 'text-[var(--arc-magic-accent)]'
-                                : 'text-[var(--arc-phys-accent)]'
-                            }`}
-                          >
-                            [{pendingDmgKind === 'magico' ? 'Mágico' : 'Físico'}]
-                          </span>
-                          {pendingDmg.rawSummary.isManual
-                            ? `Total manual: ${rawDamageTotal}`
-                            : `${pendingDmg.rawSummary.parts.join(' + ')}${
-                                pendingDmg.rawSummary.bonus
-                                  ? ` + ${pendingDmg.rawSummary.bonus}`
-                                  : ''
-                              } = ${rawDamageTotal}`}
-                          {pendingDmg.rawSummary.notes ? ` (${pendingDmg.rawSummary.notes})` : ''}
-                        </div>
-                        {isFireDamageSpell(pendingAttack.spell) &&
-                          (pendingDmg.rawSummary.maxDieCount || 0) > 0 && (
-                            <p className="text-xs font-semibold text-[#ffae7a] flex items-center gap-1.5 pt-0.5">
-                              <Flame className="h-3.5 w-3.5 shrink-0" />
-                              Dado máximo de fuego (×{pendingDmg.rawSummary.maxDieCount}): aplicará
-                              Quemadura si entra daño (&gt; 0 PV).
-                            </p>
-                          )}
-                      </div>
-                    )}
-
-                    {!pendingDmg && isFireDamageSpell(pendingAttack.spell) && (
-                      <p className="text-xs font-medium text-[var(--arc-atk-text)] opacity-90 flex items-start gap-1.5">
-                        <Flame className="h-3.5 w-3.5 shrink-0 mt-0.5 text-[var(--arc-atk-accent)]" />
-                        <span>
-                          Daño de fuego: cada dado máximo aplica +1 carga de Quemadura (1d4 × 2t,
-                          máx. 10).
-                        </span>
-                      </p>
-                    )}
-
-                    {!pendingDmg &&
-                      pendingAttack.spell.id !== 'basic_golpe_fisico' &&
-                      pendingAttack.spell.damageMode === 'auto' &&
-                      pendingAttack.spell.damage.dice.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                          {pendingAttack.isReinforced ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-[var(--arc-atk-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--arc-atk-text)]">
-                              <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)]" />
-                              Reforzado: tirará daño ×2 y aplicará el mayor
-                            </span>
-                          ) : (
-                            onReinforcePendingAttack && (
-                              <button
-                                type="button"
-                                onClick={onReinforcePendingAttack}
-                                className="min-h-[34px] inline-flex items-center gap-1.5 rounded-md bg-[var(--arc-atk-raised)] border border-[var(--arc-atk-border)] px-3 py-1 text-xs font-semibold text-[var(--arc-atk-text)] hover:brightness-110 whitespace-nowrap shrink-0 transition-all"
-                              >
-                                <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)]" />
-                                Reforzar Hechizo (-1 maná · daño ×2)
-                              </button>
-                            )
-                          )}
-                        </div>
-                      )}
-
-                    {attackerCanCastTurnBuffs && (hechizoVelozSpell || elevarLimiteSpell) && (
-                      <div className="border-t border-[var(--arc-atk-border)]/40 pt-2.5 space-y-1.5">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                          <span className="font-semibold text-[var(--arc-atk-text)] opacity-90">
-                            ¿Encadenar otro ataque este turno?
-                          </span>
-                          <span className="font-mono-num font-bold text-[var(--arc-atk-accent)]">
-                            Acciones {attackerTurnStatus.remaining}/{attackerTurnStatus.max}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {hechizoVelozSpell && (
-                            <button
-                              type="button"
-                              disabled={attackerTurnStatus.hasHechizoVeloz}
-                              onClick={() => {
-                                setChainListCollapsed(false);
-                                onQuickCastTurnBuff?.(
-                                  hechizoVelozSpell,
-                                  pendingAttack.attackerCharacterId
-                                );
-                              }}
-                              className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-                                attackerTurnStatus.hasHechizoVeloz
-                                  ? 'bg-[var(--arc-input)]/70 text-[var(--arc-atk-accent)] opacity-80 cursor-default'
-                                  : 'bg-[var(--arc-atk-raised)] border border-[var(--arc-atk-border)] text-[var(--arc-atk-text)] hover:brightness-110'
-                              }`}
-                            >
-                              <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)]" />
-                              {attackerTurnStatus.hasHechizoVeloz
-                                ? 'Hechizo Veloz activo (2/2)'
-                                : 'Hechizo Veloz (-3 maná → 2/2)'}
-                            </button>
-                          )}
-
-                          {elevarLimiteSpell && (
-                            <button
-                              type="button"
-                              disabled={!attackerTurnStatus.canActivateElevarLimite}
-                              onClick={() => {
-                                setChainListCollapsed(false);
-                                onQuickCastTurnBuff?.(
-                                  elevarLimiteSpell,
-                                  pendingAttack.attackerCharacterId
-                                );
-                              }}
-                              title={
-                                attackerTurnStatus.hasElevarLimite
-                                  ? 'Elevar el Límite ya está activo en este turno'
-                                  : !attackerTurnStatus.hasHechizoVeloz
-                                    ? 'Bloqueado: activá Hechizo Veloz antes de Elevar el Límite'
-                                    : 'Activar Elevar el Límite (-5 maná) para una 3ra acción ofensiva'
-                              }
-                              className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-all ${
-                                attackerTurnStatus.hasElevarLimite
-                                  ? 'bg-[var(--arc-input)]/70 text-[var(--arc-atk-accent)] opacity-80 cursor-default'
-                                  : !attackerTurnStatus.hasHechizoVeloz
-                                    ? 'bg-[var(--arc-input)]/60 text-[var(--arc-muted)] opacity-60 cursor-not-allowed'
-                                    : 'bg-[var(--arc-atk-raised)] border border-[var(--arc-atk-border)] text-[var(--arc-atk-text)] hover:brightness-110'
-                              }`}
-                            >
-                              {!attackerTurnStatus.hasHechizoVeloz ? (
-                                <Lock className="h-3.5 w-3.5" />
-                              ) : (
-                                <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)]" />
-                              )}
-                              {attackerTurnStatus.hasElevarLimite
-                                ? 'Elevar el Límite activo (3/3)'
-                                : 'Elevar el Límite (-5 maná → 3/3)'}
-                            </button>
-                          )}
-                        </div>
-
-                        {attackerChar &&
-                          attackerCb &&
-                          (attackerTurnStatus.hasHechizoVeloz ||
-                            attackerTurnStatus.hasElevarLimite) && (
-                            <div className="pt-1.5">
-                              {renderChainCastList(attackerChar, attackerCb, 'duel')}
-                            </div>
-                          )}
-                      </div>
-                    )}
-
-                    {pendingAttack.spell.collateral?.enabled && onApplyCollateralDamage && (
-                      <div className="flex flex-wrap items-center gap-2 border-t border-[var(--arc-atk-border)]/40 pt-2.5">
-                        <span className="text-xs text-[var(--arc-atk-text)] opacity-85">
-                          Colateral: {formatCollateralValue(pendingAttack.spell.collateral)} (
-                          {pendingAttack.spell.collateral.durationType === 'turns'
-                            ? `${pendingAttack.spell.collateral.durationTurns || 1}t`
-                            : 'Instantáneo'}
-                          )
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const col = pendingAttack.spell.collateral!;
-                            setColTargetId(
-                              pendingAttack.attackerCombatantId || combatants[0]?.id || ''
-                            );
-                            setColLabel(col.label || `Colateral (${pendingAttack.spell.name})`);
-                            setColMode(col.mode);
-                            setColFixed(col.fixedAmount ?? 3);
-                            setColDieType(col.dice?.[0]?.type || 'd4');
-                            setColDieCount(col.dice?.[0]?.count || 1);
-                            setColBonus(col.bonus || 0);
-                            setColKind(col.damageKind || 'magico');
-                            setColDurationType(col.durationType);
-                            setColTurns(col.durationTurns || 2);
-                            setColLethal(pendingAttack.isLethal);
-                            setShowCollateralPanel(true);
-                          }}
-                          className="min-h-[30px] rounded-md bg-[var(--arc-atk-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--arc-atk-text)] hover:brightness-110 whitespace-nowrap shrink-0 transition-all"
-                        >
-                          Cargar daño colateral
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* COLUMNA DERECHA — DEFIENDE */}
-                  <div className="bg-[var(--arc-def-bg)] p-4 space-y-3">
-                    {isAwaitingDefenseRoll && (
-                      <>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--arc-def-accent)]">
-                              <Shield className="h-3.5 w-3.5 shrink-0" />
-                              Defiende
-                            </div>
-                            <p className="text-xs font-mono-num text-[var(--arc-def-text)] opacity-85 mt-0.5">
-                              Debe superar{' '}
-                              <strong className="text-[var(--arc-atk-accent)]">{atkNetFmt}</strong>{' '}
-                              para evitar el daño
-                            </p>
-                          </div>
-
-                          {defendingCombatant &&
-                            defendingChar &&
-                            pendingAttack.spell.damageMode === 'auto' && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onResolveDirectDamage(
-                                    defendingCombatant.id,
-                                    undefined,
-                                    effectiveReduction,
-                                    damageDivisor
-                                  )
-                                }
-                                className="min-h-[32px] inline-flex items-center gap-1 rounded-md bg-transparent px-2 text-xs font-semibold text-[var(--arc-atk-accent)] hover:bg-[var(--arc-atk-bg)] whitespace-nowrap shrink-0 transition-colors"
-                              >
-                                <Swords className="h-3.5 w-3.5" />
-                                Sin defensa
-                              </button>
-                            )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                          <label
-                            htmlFor="defense-target"
-                            className="text-xs font-semibold text-[var(--arc-def-text)] shrink-0"
-                          >
-                            Objetivo:
-                          </label>
-                          <select
-                            id="defense-target"
-                            value={defendingTargetId || ''}
-                            onChange={(e) => handleSelectDefender(e.target.value)}
-                            className="flex-1 min-w-[180px] min-h-[38px] rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
-                          >
-                            {sortedCombatants
-                              .filter(
-                                (cb) => cb.characterId !== pendingAttack.attackerCharacterId
-                              )
-                              .map((cb) => {
-                                const char = characters.find((c) => c.id === cb.characterId);
-                                if (!char) return null;
-                                return (
-                                  <option key={cb.id} value={cb.id}>
-                                    {char.name} [{char.kind === 'mage' ? 'PJ' : 'PNJ'} · PV{' '}
-                                    {char.hp.current}/{char.hp.max}]
-                                  </option>
-                                );
-                              })}
-                          </select>
-                        </div>
-
-                        {defendingCombatant && defendingChar && (
-                          <div className="space-y-1.5 text-xs">
-                            {defendingEffects.summaryTags.length > 0 && (
-                              <div className="rounded-md border border-[#7a3b26] bg-[#2a140d] px-2.5 py-2 space-y-1 text-[#ffd4c2]">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="font-bold text-[#ff9a76]">
-                                    Estados en {defendingChar.name}:
-                                  </span>
-                                  {defendingEffects.summaryTags.map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="rounded bg-black/35 px-1.5 py-0.5 text-[11px] font-semibold text-[#ffe4d6]"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                </div>
-                                {defendingEffects.incomingAutoCrit && (
-                                  <p className="text-[11px] font-semibold text-[#ffb394]">
-                                    ⚡ Golpe entrante = Crítico automático (dados al máximo) por{' '}
-                                    {defendingEffects.incomingAutoCritReasons.join(', ')}.
-                                  </p>
-                                )}
-                                {defendingEffects.autoFailsDefense > 0 &&
-                                  !defendingEffects.cannotDefend && (
-                                    <p className="text-[11px] text-[#ffc9b0]">
-                                      Penalización automática en defensa: +
-                                      {defendingEffects.autoFailsDefense} fallo
-                                      {defendingEffects.autoFailsDefense > 1 ? 's' : ''} (
-                                      {defendingEffects.autoFailsDefenseNotes.join(', ')}).
-                                    </p>
-                                  )}
-                              </div>
-                            )}
-                            {defendingChar.resistances && (
-                              <p className="text-[var(--arc-def-text)] opacity-90">
-                                <span className="font-semibold text-[var(--arc-def-accent)]">
-                                  Resistencias:
-                                </span>{' '}
-                                {defendingChar.resistances}
-                              </p>
-                            )}
-                            {(() => {
-                              const armorMods = getCombatantArmorModifiers(defendingCombatant);
-                              if (armorMods.names.length === 0) return null;
-                              return (
-                                <p className="text-[var(--arc-def-accent)]">
-                                  Armadura activa: {armorMods.names.join(', ')} (aplicada abajo)
-                                </p>
-                              );
-                            })()}
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--arc-def-border)]/40 pt-2.5 text-xs">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[var(--arc-def-text)] opacity-80">
-                              Resistencia:
-                            </span>
-                            <div className="flex flex-wrap p-0.5 rounded-md bg-[var(--arc-input)]/85 gap-0.5">
-                              {(
-                                [
-                                  { val: 1 as const, label: 'Normal' },
-                                  { val: 2 as const, label: '÷2' },
-                                  { val: 4 as const, label: '÷4' },
-                                  { val: 0 as const, label: 'Anular' },
-                                ]
-                              ).map((opt) => (
-                                <button
-                                  key={opt.val}
-                                  type="button"
-                                  onClick={() => setDamageDivisor(opt.val)}
-                                  className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
-                                    damageDivisor === opt.val
-                                      ? opt.val === 0
-                                        ? 'bg-[#63291d] text-[#ffd6c9]'
-                                        : 'bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
-                                      : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-                                  }`}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <label className="flex items-center gap-1.5 text-[var(--arc-def-text)] opacity-85">
-                            <span>Reducción:</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={99}
-                              disabled={damageDivisor === 0}
-                              value={damageReduction}
-                              onChange={(e) =>
-                                setDamageReduction(Math.max(0, parseInt(e.target.value, 10) || 0))
-                              }
-                              className="font-mono-num w-14 min-h-[30px] rounded border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-1.5 text-center text-xs text-[var(--arc-text)] disabled:opacity-40"
-                            />
-                          </label>
-                        </div>
-
-                        {defendingCombatant && defendingChar && (
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            {onTriggerCounterspellFromAttack &&
-                              isPendingMagical &&
-                              defendingChar.knownSpells.includes('basic_interrumpir_circulo') && (
-                                <button
-                                  type="button"
-                                  disabled={
-                                    defendingEffects.cannotReact ||
-                                    defendingEffects.cannotCastMagic
-                                  }
-                                  title={
-                                    defendingEffects.cannotReact
-                                      ? `Sin capacidad de reaccionar (${defendingEffects.cannotReactReasons.join(', ')})`
-                                      : defendingEffects.cannotCastMagic
-                                        ? `Silenciado (${defendingEffects.cannotCastMagicReasons.join(', ')})`
-                                        : undefined
-                                  }
-                                  onClick={() =>
-                                    onTriggerCounterspellFromAttack(defendingCombatant.id)
-                                  }
-                                  className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-magic-raised)] border border-[var(--arc-magic-border)] px-3 text-xs font-semibold text-[var(--arc-magic-text)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-all"
-                                >
-                                  {(defendingEffects.cannotReact ||
-                                    defendingEffects.cannotCastMagic) && (
-                                    <Lock className="h-3 w-3 shrink-0" />
-                                  )}
-                                  Interrumpir Círculo (-7 maná · Inf+Man)
-                                </button>
-                              )}
-                            <span className="text-xs text-[var(--arc-def-text)] opacity-75">
-                              {defendingEffects.cannotReact
-                                ? `Reacción bloqueada (${defendingEffects.cannotReactReasons.join(', ')}): no puede activar Protección.`
-                                : defendingEffects.cannotCastMagic
-                                  ? `Silenciado (${defendingEffects.cannotCastMagicReasons.join(', ')}): no puede activar Protección mágica.`
-                                  : 'Si impacta, podrás activar Protección luego de ver el daño.'}
-                            </span>
-                          </div>
-                        )}
-
-                        {defendingCombatant && defendingChar && (
-                          <div className="border-t border-[var(--arc-def-border)]/40 pt-3 space-y-2.5">
-                            {defendingChar.condition !== 'active' ||
-                            defendingEffects.cannotDefend ? (
-                              <div className="space-y-2">
-                                <p className="text-[13px] text-[var(--arc-atk-accent)]">
-                                  {defendingChar.condition !== 'active'
-                                    ? `${defendingChar.name} está ${conditionLabel(defendingChar.condition)} y no puede lanzar defensa activa.`
-                                    : `${defendingChar.name} no puede defenderse (${defendingEffects.cannotDefendReasons.join(', ')}).`}
-                                </p>
-                                {pendingAttack.spell.damageMode === 'auto' && (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      onResolveDirectDamage(
-                                        defendingCombatant.id,
-                                        undefined,
-                                        effectiveReduction,
-                                        damageDivisor
-                                      )
-                                    }
-                                    className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[#b85a3a] px-4 text-xs font-semibold text-white hover:bg-[#cc6644] shadow-sm whitespace-nowrap shrink-0 transition-colors"
-                                  >
-                                    <Swords className="h-3.5 w-3.5" />
-                                    {defendingEffects.incomingAutoCrit
-                                      ? 'Aplicar daño crítico automático'
-                                      : 'Tirar daño directo (sin defensa)'}
-                                  </button>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex flex-wrap items-center gap-2">
-                                <select
-                                  value={defenseChoice}
-                                  onChange={(e) => setDefenseChoice(e.target.value)}
-                                  aria-label="Opción de defensa"
-                                  className="w-full sm:w-auto sm:flex-1 min-h-[40px] rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
-                                >
-                                  {defenderDefenseSpells.length > 0 && (
-                                    <optgroup label="Hechizos y acciones de defensa">
-                                      {defenderDefenseSpells
-                                        .filter(
-                                          (s) =>
-                                            !(
-                                              defendingEffects.cannotCastMagic &&
-                                              isSpellMagical(s)
-                                            )
-                                        )
-                                        .map((s) => {
-                                          const dice = s.combatStats.reduce(
-                                            (acc, k) =>
-                                              acc + getCharacterStatDice(defendingChar, k, formula),
-                                            0
-                                          );
-                                          const manaInfo = getEffectiveDefenseManaCost(
-                                            defendingChar,
-                                            s,
-                                            defendingEffects.disarmed
-                                          );
-                                          return (
-                                            <option key={s.id} value={`spell:${s.id}`}>
-                                              {s.name} ({dice}d6
-                                              {s.assuredSuccess > 0
-                                                ? ` +${s.assuredSuccess} aseg.`
-                                                : ''}{' '}
-                                              ·{' '}
-                                              {manaInfo.discount > 0
-                                                ? `${manaInfo.cost} maná (-${manaInfo.discount} Escudo)`
-                                                : `${s.manaCost} maná`}
-                                              )
-                                            </option>
-                                          );
-                                        })}
-                                    </optgroup>
-                                  )}
-                                  <optgroup label="Tirada directa por atributo">
-                                    {(['fisico', 'manipulacion', 'influencia'] as StatKey[]).map(
-                                      (k) => (
-                                        <option key={k} value={`stat:${k}`}>
-                                          {STAT_NAMES[k]} (
-                                          {getCharacterStatDice(defendingChar, k, formula)}d6)
-                                        </option>
-                                      )
-                                    )}
-                                    <option value="manual">Manual (elegir dados)</option>
-                                  </optgroup>
-                                </select>
-
-                                {defenseChoice === 'manual' && (
-                                  <input
-                                    type="number"
-                                    min={1}
-                                    max={20}
-                                    value={manualDefDice}
-                                    onChange={(e) =>
-                                      setManualDefDice(
-                                        Math.max(1, parseInt(e.target.value, 10) || 1)
-                                      )
-                                    }
-                                    aria-label="Cantidad de dados manuales de defensa"
-                                    className="font-mono-num w-16 min-h-[40px] rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-2 text-center text-xs text-[var(--arc-text)]"
-                                  />
-                                )}
-
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onRollDefense(
-                                      defendingCombatant.id,
-                                      defenseChoice,
-                                      manualDefDice,
-                                      effectiveReduction,
-                                      damageDivisor
-                                    );
-                                  }}
-                                  className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
-                                >
-                                  <Shield className="h-3.5 w-3.5" />
-                                  Tirar defensa
-                                </button>
-                              </div>
-                            )}
-
-                            {pendingAttack.spell.damageMode === 'manual' && (
-                              <div className="flex flex-wrap items-center gap-2 pt-1">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  value={manualDmgInput}
-                                  onChange={(e) => setManualDmgInput(e.target.value)}
-                                  placeholder="Daño tirado manualmente..."
-                                  className="font-mono-num w-44 min-h-[38px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const val = parseInt(manualDmgInput, 10);
-                                    if (Number.isNaN(val)) return;
-                                    onResolveDirectDamage(
-                                      defendingCombatant.id,
-                                      val,
-                                      effectiveReduction,
-                                      damageDivisor
-                                    );
-                                    setManualDmgInput('');
-                                  }}
-                                  className="min-h-[38px] rounded-lg bg-[#b85a3a] px-3.5 text-xs font-semibold text-white hover:bg-[#cc6644] shadow-sm whitespace-nowrap shrink-0 transition-colors"
-                                >
-                                  Cargar daño directo
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {(isAwaitingDamageRoll || isAwaitingDamageDecision) && (
-                      <>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--arc-def-accent)]">
-                              <Shield className="h-3.5 w-3.5 shrink-0" />
-                              Defiende
-                            </div>
-                            <h3 className="text-base font-bold text-[var(--arc-def-text)] mt-0.5 leading-snug">
-                              {activeDefenderName}
-                            </h3>
-                            <p className="text-[13px] font-medium text-[var(--arc-def-text)] opacity-85">
-                              {pendingAttack.defenseRoll
-                                ? pendingAttack.defenseRoll.defenseLabel
-                                : 'Sin defensa (impacto directo)'}
-                            </p>
-                          </div>
-
-                          {pendingAttack.defenseRoll && (
-                            <div className="text-right shrink-0">
-                              <div className="text-[11px] uppercase tracking-wider text-[var(--arc-def-text)] opacity-70">
-                                Neto defensa
-                              </div>
-                              <div className="font-mono-num text-2xl font-bold leading-none text-[var(--arc-def-accent)] mt-0.5">
-                                {defNetFmt}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {pendingAttack.defenseRoll && (
-                          <div className="space-y-1.5">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {pendingAttack.defenseRoll.roll.rolls.map((val, idx) => {
-                                const dieStyle =
-                                  val === 1
-                                    ? 'border-[var(--arc-atk-border)] bg-[var(--arc-atk-raised)] text-[var(--arc-atk-accent)]'
-                                    : val >= 5
-                                      ? 'border-[var(--arc-def-border)] bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
-                                      : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-muted)]';
-                                return (
-                                  <span
-                                    key={`${pendingAttack.id}-def-${idx}-${val}`}
-                                    style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
-                                    className={`animate-arcane-die font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${
-                                      val === 6
-                                        ? 'ring-1 ring-[#8cc8ff]/70 '
-                                        : val === 1
-                                          ? 'ring-1 ring-[#ff8b6b]/70 '
-                                          : ''
-                                    }${dieStyle}`}
-                                  >
-                                    {val}
-                                  </span>
-                                );
-                              })}
-                              {pendingAttack.defenseRoll.roll.assured > 0 && (
-                                <span className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[var(--arc-def-border)] bg-[var(--arc-def-raised)] px-2 text-xs font-bold text-[var(--arc-def-accent)]">
-                                  +{pendingAttack.defenseRoll.roll.assured} aseg.
-                                </span>
-                              )}
-                              {pendingAttack.defenseRoll.roll.statusAutoFails &&
-                                pendingAttack.defenseRoll.roll.statusAutoFails > 0 && (
-                                  <span
-                                    title={pendingAttack.defenseRoll.roll.statusPenaltyNotes?.join(
-                                      ' · '
-                                    )}
-                                    className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[#8a3525] bg-[#361611] px-2 text-xs font-bold text-[#ff9a7a]"
-                                  >
-                                    +{pendingAttack.defenseRoll.roll.statusAutoFails} fallo
-                                    {pendingAttack.defenseRoll.roll.statusAutoFails > 1
-                                      ? 's'
-                                      : ''}{' '}
-                                    auto.
-                                  </span>
-                                )}
-                            </div>
-                            <p className="text-xs font-mono-num text-[var(--arc-def-text)] opacity-85">
-                              {pendingAttack.defenseRoll.roll.successes} éxito(s) ·{' '}
-                              {pendingAttack.defenseRoll.roll.fails} fallo(s)
-                              {pendingAttack.defenseRoll.roll.statusPenaltyNotes &&
-                              pendingAttack.defenseRoll.roll.statusPenaltyNotes.length > 0
-                                ? ` [${pendingAttack.defenseRoll.roll.statusPenaltyNotes.join(', ')}]`
-                                : ''}
-                            </p>
-                          </div>
-                        )}
-
-                        {resolvedTargetChar?.resistances && (
-                          <p className="text-xs text-[var(--arc-def-text)] opacity-90">
-                            <span className="font-semibold text-[var(--arc-def-accent)]">
-                              Resistencias:
-                            </span>{' '}
-                            {resolvedTargetChar.resistances}
-                          </p>
-                        )}
-
-                        <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--arc-def-border)]/40 pt-2.5 text-xs">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[var(--arc-def-text)] opacity-80">
-                              Resistencia:
-                            </span>
-                            <div className="flex flex-wrap p-0.5 rounded-md bg-[var(--arc-input)]/85 gap-0.5">
-                              {(
-                                [
-                                  { val: 1 as const, label: 'Normal' },
-                                  { val: 2 as const, label: '÷2' },
-                                  { val: 4 as const, label: '÷4' },
-                                  { val: 0 as const, label: 'Anular' },
-                                ]
-                              ).map((opt) => (
-                                <button
-                                  key={opt.val}
-                                  type="button"
-                                  onClick={() => setDamageDivisor(opt.val)}
-                                  className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
-                                    damageDivisor === opt.val
-                                      ? opt.val === 0
-                                        ? 'bg-[#63291d] text-[#ffd6c9]'
-                                        : 'bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
-                                      : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
-                                  }`}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <label className="flex items-center gap-1.5 text-[var(--arc-def-text)] opacity-85">
-                            <span>Reducción base:</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={99}
-                              disabled={damageDivisor === 0}
-                              value={damageReduction}
-                              onChange={(e) =>
-                                setDamageReduction(Math.max(0, parseInt(e.target.value, 10) || 0))
-                              }
-                              className="font-mono-num w-14 min-h-[30px] rounded border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-1.5 text-center text-xs text-[var(--arc-text)] disabled:opacity-40"
-                            />
-                          </label>
-                        </div>
-
-                        {isAwaitingDamageDecision && resolvedTargetChar && (
-                          <div className="border-t border-[var(--arc-def-border)]/50 pt-3 space-y-2.5">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--arc-def-accent)]">
-                                <ShieldPlus className="h-4 w-4 shrink-0" />
-                                <span>Protección ante daño entrante</span>
-                              </div>
-                              <span className="font-mono-num text-xs text-[var(--arc-def-text)] opacity-85">
-                                PV {resolvedTargetChar.hp.current}/{resolvedTargetChar.hp.max} ·
-                                Maná {resolvedTargetChar.mana.current}/
-                                {resolvedTargetChar.mana.max}
-                              </span>
-                            </div>
-
-                            {resolvedTargetChar.condition !== 'active' ||
-                            defenderCannotUseProtection ? (
-                              <p className="text-xs text-[var(--arc-atk-accent)]">
-                                {resolvedTargetChar.condition !== 'active'
-                                  ? `${resolvedTargetChar.name} está ${conditionLabel(resolvedTargetChar.condition)} y no puede activar Protección.`
-                                  : resolvedTargetEffects.cannotReact
-                                    ? `${resolvedTargetChar.name} no tiene capacidad de reaccionar (${resolvedTargetEffects.cannotReactReasons.join(', ')}) y no puede activar Protección.`
-                                    : `${resolvedTargetChar.name} está silenciado (${resolvedTargetEffects.cannotCastMagicReasons.join(', ')}) y no puede activar Protección mágica.`}
-                              </p>
-                            ) : (
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <div className="inline-flex items-center gap-1 rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-1.5 py-0.5">
-                                    <button
-                                      type="button"
-                                      disabled={effectiveProtStacks <= 0}
-                                      onClick={() =>
-                                        setPendingProtStacks((s) => Math.max(0, s - 1))
-                                      }
-                                      aria-label="Restar 1 carga de Protección"
-                                      className="h-7 w-7 rounded text-xs font-bold text-[var(--arc-text)] hover:bg-[var(--arc-def-raised)] disabled:opacity-35 transition-colors"
-                                    >
-                                      −
-                                    </button>
-                                    <span className="font-mono-num min-w-[2.25rem] text-center text-xs font-bold text-[var(--arc-def-accent)]">
-                                      ×{effectiveProtStacks}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      disabled={
-                                        effectiveProtStacks >= maxProtStacks || damageDivisor === 0
-                                      }
-                                      onClick={() =>
-                                        setPendingProtStacks((s) => Math.min(maxProtStacks, s + 1))
-                                      }
-                                      aria-label="Sumar 1 carga de Protección"
-                                      className="h-7 w-7 rounded text-xs font-bold text-[var(--arc-text)] hover:bg-[var(--arc-def-raised)] disabled:opacity-35 transition-colors"
-                                    >
-                                      +
-                                    </button>
-                                  </div>
-
-                                  <button
-                                    type="button"
-                                    disabled={
-                                      effectiveProtStacks >= maxProtStacks ||
-                                      damageDivisor === 0 ||
-                                      previewFinalDamage === 0
-                                    }
-                                    onClick={() =>
-                                      setPendingProtStacks((s) => Math.min(maxProtStacks, s + 1))
-                                    }
-                                    className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-def-raised)] border border-[var(--arc-def-border)] px-3 text-xs font-semibold text-[var(--arc-def-text)] hover:brightness-110 disabled:opacity-40 whitespace-nowrap shrink-0 transition-all"
-                                  >
-                                    <ShieldPlus className="h-3.5 w-3.5 text-[var(--arc-def-accent)]" />
-                                    +1 Protección (-{nextProtMana} maná → -{stepRed}{' '}
-                                    {pendingDmgKind === 'magico' ? 'mág.' : 'fís.'})
-                                  </button>
-                                </div>
-
-                                {effectiveProtStacks > 0 && (
-                                  <span className="font-mono-num text-xs font-semibold text-[var(--arc-def-accent)]">
-                                    −{protSummary.manaCost} maná → −{protSummary.reduction} daño
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {isAwaitingDamageRoll && (
-                          <p className="text-xs text-[var(--arc-def-text)] opacity-75">
-                            Tirá o cargá el daño abajo; luego podrás decidir si activás{' '}
-                            <strong>Protección</strong> antes de descontar PV.
-                          </p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {isAwaitingDamageRoll && pendingAttack.defenseRoll && (
-                  <div className="border-t border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                    <div className="space-y-0.5">
-                      <div className="text-sm font-bold text-[var(--arc-atk-accent)]">
-                        {isTrueTie
-                          ? `Empate (${atkNetFmt} == ${defNetFmt}): el ataque impacta`
-                          : `Ataque (${atkNetFmt}) supera a Defensa (${defNetFmt}): cargar daño`}
-                      </div>
-                      <p className="text-xs text-[var(--arc-muted)]">
-                        Se efectúa <strong>{pendingAttack.spell.name}</strong> sobre{' '}
-                        <strong>{pendingAttack.defenseRoll.defenderName}</strong>
-                        {pendingAttack.spell.effectDescription
-                          ? ` — ${pendingAttack.spell.effectDescription}`
-                          : ''}
-                        . Luego se podrá activar Protección.
-                      </p>
-                    </div>
-
-                    {pendingAttack.spell.damageMode === 'auto' ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onVerifyTieDamage(undefined, effectiveReduction, damageDivisor)
-                        }
-                        className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
-                      >
-                        <Dices className="h-4 w-4" />
-                        Tirar daño (
-                        {pendingAttack.spell.damage.dice
-                          .map((d) => `${d.count}${d.type}`)
-                          .join(' + ') || '0'}
-                        {pendingAttack.spell.damage.bonus
-                          ? ` + ${pendingAttack.spell.damage.bonus}`
-                          : ''}
-                        )
-                      </button>
-                    ) : (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <input
-                          type="number"
-                          min={0}
-                          value={manualDmgInput}
-                          onChange={(e) => setManualDmgInput(e.target.value)}
-                          placeholder="Daño tirado..."
-                          className="font-mono-num w-40 min-h-[38px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const val = parseInt(manualDmgInput, 10);
-                            if (Number.isNaN(val)) return;
-                            onVerifyTieDamage(val, effectiveReduction, damageDivisor);
-                            setManualDmgInput('');
-                          }}
-                          className="min-h-[38px] rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
-                        >
-                          Cargar daño y decidir Protección
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {isAwaitingDamageDecision && pendingDmg && resolvedTargetChar && (
-                  <div
-                    key={`step3-${pendingAttack.id}-${rawDamageTotal}`}
-                    className="animate-arcane-die border-t border-[var(--arc-border)] bg-[var(--arc-surface)] px-4 py-3 flex flex-wrap items-center justify-between gap-3"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="text-sm font-bold text-[var(--arc-text)] font-mono-num">
-                        Daño final a{' '}
-                        <span className="text-[var(--arc-def-accent)]">
-                          {resolvedTargetChar.name}
-                        </span>
-                        :{' '}
-                        <span
-                          className={
-                            previewFinalDamage > 0
-                              ? 'text-[var(--arc-atk-accent)]'
-                              : 'text-[var(--arc-def-accent)]'
-                          }
-                        >
-                          {previewFinalDamage} PV
-                        </span>
-                        <span className="ml-2 text-xs font-normal text-[var(--arc-muted)]">
-                          (PV {resolvedTargetChar.hp.current} → {previewResultingHp})
-                        </span>
-                      </div>
-                      <p className="text-xs font-mono-num text-[var(--arc-muted)]">
-                        Tirado {rawDamageTotal}
-                        {effectiveReduction > 0 ? ` − ${effectiveReduction} base` : ''}
-                        {protSummary.reduction > 0
-                          ? ` − ${protSummary.reduction} Protección (×${effectiveProtStacks}, −${protSummary.manaCost} maná)`
-                          : ''}
-                        {damageDivisor === 2
-                          ? ' ÷ 2'
-                          : damageDivisor === 4
-                            ? ' ÷ 4'
-                            : damageDivisor === 0
-                              ? ' → Anulado'
-                              : ''}
-                        {' = '}
-                        <strong className="text-[var(--arc-text)]">{previewFinalDamage} PV</strong>
-                      </p>
+                        Daño {pendingDmgKind === 'magico' ? 'Mágico' : 'Físico'}
+                      </span>
+                      <span className="text-xs text-[var(--arc-muted)]">
+                        · {pendingAttack.isLethal ? 'Letal' : 'No letal'}
+                      </span>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => {
-                        onConfirmPendingDamage?.(
-                          effectiveReduction,
-                          damageDivisor,
-                          effectiveProtStacks
-                        );
+                        setDefendingTargetId(null);
                         setPendingProtStacks(0);
+                        setManualDmgInput('');
+                        onDismissPendingAttack();
                       }}
-                      className="min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
+                      className="min-h-[32px] rounded-md bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)] transition-colors"
                     >
-                      <Shield className="h-4 w-4" />
-                      {previewFinalDamage > 0
-                        ? `Confirmar y aplicar ${previewFinalDamage} de daño`
-                        : 'Confirmar (0 de daño · mitigado)'}
+                      Cerrar
                     </button>
                   </div>
-                )}
-              </div>
-            );
-          })()}
+
+                  {(pendingAttack.spell.areaConfig?.enabled ||
+                    (pendingAttack.areaTargetIds && pendingAttack.areaTargetIds.length > 0) ||
+                    (pendingAttack.areaResolvedTargets &&
+                      pendingAttack.areaResolvedTargets.length > 0)) &&
+                    (() => {
+                      const queuedIds = pendingAttack.areaTargetIds || [];
+                      const resolvedList = pendingAttack.areaResolvedTargets || [];
+                      const resolvedIdSet = new Set(resolvedList.map((r) => r.combatantId));
+                      const activeId = pendingAttack.targetCombatantId;
+                      const eligibleTargets = combatants.filter(
+                        (cb) => cb.id !== pendingAttack.attackerCombatantId
+                      );
+                      const totalRemaining = (activeId ? 1 : 0) + queuedIds.length;
+
+                      return (
+                        <div className="border-b border-[var(--arc-border)] bg-[var(--arc-input)]/60 px-3.5 sm:px-4 py-2.5 space-y-2 text-xs">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                              <span className="font-bold text-[#9fd2ff]">
+                                {pendingAttack.areaLabel || 'Ataque en área / Multi-objetivo'}
+                              </span>
+                              <span aria-hidden="true" className="text-[var(--arc-muted)]">
+                                ·
+                              </span>
+                              <span className="font-mono-num text-[var(--arc-muted)]">
+                                Pendientes: {totalRemaining}
+                                {resolvedList.length > 0
+                                  ? ` · Resueltos: ${resolvedList.length}`
+                                  : ''}
+                              </span>
+                            </div>
+
+                            {isAwaitingDefenseRoll &&
+                              onResolveAllAreaDirect &&
+                              totalRemaining > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={onResolveAllAreaDirect}
+                                  className="min-h-[30px] rounded-md bg-[var(--arc-action)] px-2.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] transition-colors"
+                                >
+                                  Daño directo a los {totalRemaining} restantes
+                                </button>
+                              )}
+                          </div>
+
+                          {onToggleAreaTarget && eligibleTargets.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[11px] font-semibold text-[var(--arc-muted)] mr-1">
+                                Blancos en el área:
+                              </span>
+                              {eligibleTargets.map((cb) => {
+                                const ch = characters.find((c) => c.id === cb.characterId);
+                                if (!ch) return null;
+                                const isCurrent = cb.id === activeId;
+                                const isQueued = queuedIds.includes(cb.id);
+                                const isDone = resolvedIdSet.has(cb.id);
+                                const isElectrified = (cb.activeStatuses || []).some(
+                                  (st) => getStatusElementalKind(st) === 'electrified'
+                                );
+                                return (
+                                  <button
+                                    key={cb.id}
+                                    type="button"
+                                    disabled={isDone || (isCurrent && !isAwaitingDefenseRoll)}
+                                    onClick={() => onToggleAreaTarget(cb.id)}
+                                    className={`min-h-[28px] rounded-md border px-2 text-[11px] font-semibold transition-colors ${
+                                      isDone
+                                        ? 'border-[var(--arc-border)] bg-[var(--arc-surface)] text-[var(--arc-muted)] line-through opacity-60 cursor-default'
+                                        : isCurrent
+                                          ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
+                                          : isQueued
+                                            ? 'border-[#5a8fd6] bg-[#16273d] text-[#cfe4ff] hover:brightness-110'
+                                            : 'border-[var(--arc-border)] bg-[var(--arc-surface)] text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                                    }`}
+                                  >
+                                    {isCurrent ? '▶ ' : isQueued ? '✓ ' : '+ '}
+                                    {ch.name}
+                                    {isElectrified ? ' ⚡' : ''}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {resolvedList.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-[var(--arc-muted)]">
+                              <span>Resueltos:</span>
+                              {resolvedList.map((r) => (
+                                <span
+                                  key={r.combatantId}
+                                  className="font-mono-num text-[var(--arc-text)]"
+                                >
+                                  {r.name}: {r.outcome === 'blocked' ? 'Bloqueó' : `-${r.damage} PV`}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-[var(--arc-border)]">
+                    {/* COLUMNA IZQUIERDA — ATACA */}
+                    <div className="bg-[var(--arc-atk-bg)] p-3.5 sm:p-4 space-y-3 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--arc-atk-accent)]">
+                            <Swords className="h-3.5 w-3.5 shrink-0" />
+                            Ataca
+                          </div>
+                          <h3 className="text-base font-bold text-[var(--arc-atk-text)] mt-0.5 leading-snug break-words">
+                            {pendingAttack.attackerName}
+                          </h3>
+                          <p className="text-[13px] font-medium text-[var(--arc-atk-text)] opacity-85 break-words">
+                            {pendingAttack.spell.name}
+                          </p>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div className="text-[11px] uppercase tracking-wider text-[var(--arc-atk-text)] opacity-70">
+                            Neto ataque
+                          </div>
+                          <div className="font-mono-num text-xl sm:text-2xl font-bold leading-none text-[var(--arc-atk-accent)] mt-0.5">
+                            {atkNetFmt}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {pendingAttack.attackRoll.rolls.map((val, idx) => {
+                            const dieStyle =
+                              val === 1
+                                ? 'border-[var(--arc-atk-border)] bg-[var(--arc-atk-raised)] text-[var(--arc-atk-accent)]'
+                                : val >= 5
+                                  ? 'border-[#4a7a30] bg-[#1e3818] text-[#c4f2a4]'
+                                  : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-muted)]';
+                            return (
+                              <span
+                                key={`${pendingAttack.id}-${idx}-${val}`}
+                                style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
+                                className={`animate-arcane-die font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${
+                                  val === 6
+                                    ? 'ring-1 ring-[#9be870]/70 '
+                                    : val === 1
+                                      ? 'ring-1 ring-[#ff8b6b]/70 '
+                                      : ''
+                                }${dieStyle}`}
+                              >
+                                {val}
+                              </span>
+                            );
+                          })}
+                          {pendingAttack.attackRoll.assured > 0 && (
+                            <span className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[var(--arc-atk-border)] bg-[var(--arc-atk-raised)] px-2 text-xs font-bold text-[var(--arc-atk-accent)]">
+                              +{pendingAttack.attackRoll.assured} aseg.
+                            </span>
+                          )}
+                          {pendingAttack.attackRoll.statusAutoFails &&
+                            pendingAttack.attackRoll.statusAutoFails > 0 && (
+                              <span
+                                title={pendingAttack.attackRoll.statusPenaltyNotes?.join(' · ')}
+                                className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[#8a3525] bg-[#361611] px-2 text-xs font-bold text-[#ff9a7a]"
+                              >
+                                +{pendingAttack.attackRoll.statusAutoFails} fallo
+                                {pendingAttack.attackRoll.statusAutoFails > 1 ? 's' : ''} auto.
+                              </span>
+                            )}
+                        </div>
+                        <p className="text-xs font-mono-num text-[var(--arc-atk-text)] opacity-85 break-words">
+                          {pendingAttack.attackRoll.successes} éxito(s) ·{' '}
+                          {pendingAttack.attackRoll.fails} fallo(s)
+                          {pendingAttack.attackRoll.statusPenaltyNotes &&
+                          pendingAttack.attackRoll.statusPenaltyNotes.length > 0
+                            ? ` [${pendingAttack.attackRoll.statusPenaltyNotes.join(', ')}]`
+                            : ''}
+                          {pendingAttack.attackRoll.breakdown &&
+                          pendingAttack.attackRoll.breakdown.length > 0
+                            ? ` · ${pendingAttack.attackRoll.breakdown
+                                .map((b) => `${STAT_NAMES[b.stat]} ${b.dice}d6`)
+                                .join(' + ')}`
+                            : ''}
+                        </p>
+                      </div>
+
+                      {pendingDmg && (
+                        <div
+                          key={`dmg-raw-${pendingAttack.id}-${rawDamageTotal}`}
+                          className="animate-arcane-die border-t border-[var(--arc-atk-border)]/45 pt-2.5 space-y-1"
+                        >
+                          {pendingDmg.rawSummary.isCriticalHit && (
+                            <div className="inline-flex items-center gap-1.5 rounded bg-[#5e1c14] px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffd6c9]">
+                              <Zap className="h-3 w-3 shrink-0" />
+                              Crítico automático
+                              {pendingDmg.rawSummary.criticalReason
+                                ? ` (${pendingDmg.rawSummary.criticalReason})`
+                                : ''}
+                            </div>
+                          )}
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-[var(--arc-atk-accent)]">
+                              Daño entrante tirado
+                            </span>
+                            <span className="font-mono-num text-xl font-bold text-[var(--arc-atk-accent)]">
+                              {rawDamageTotal} PV
+                            </span>
+                          </div>
+                          <div className="text-xs font-mono-num text-[var(--arc-atk-text)] opacity-90 break-words">
+                            <span
+                              className={`mr-1.5 font-semibold ${
+                                pendingDmgKind === 'magico'
+                                  ? 'text-[var(--arc-magic-accent)]'
+                                  : 'text-[var(--arc-phys-accent)]'
+                              }`}
+                            >
+                              [{pendingDmgKind === 'magico' ? 'Mágico' : 'Físico'}]
+                            </span>
+                            {pendingDmg.rawSummary.isManual
+                              ? `Total manual: ${rawDamageTotal}`
+                              : `${pendingDmg.rawSummary.parts.join(' + ')}${
+                                  pendingDmg.rawSummary.bonus
+                                    ? ` + ${pendingDmg.rawSummary.bonus}`
+                                    : ''
+                                } = ${rawDamageTotal}`}
+                            {pendingDmg.rawSummary.notes ? ` (${pendingDmg.rawSummary.notes})` : ''}
+                          </div>
+                          {isFireDamageSpell(pendingAttack.spell) &&
+                            (pendingDmg.rawSummary.maxDieCount || 0) > 0 && (
+                              <p className="text-xs font-semibold text-[#ffae7a] flex items-center gap-1.5 pt-0.5">
+                                <Flame className="h-3.5 w-3.5 shrink-0" />
+                                Dado máximo de fuego (×{pendingDmg.rawSummary.maxDieCount}):
+                                aplicará Quemadura si entra daño (&gt; 0 PV).
+                              </p>
+                            )}
+                        </div>
+                      )}
+
+                      {!pendingDmg && isFireDamageSpell(pendingAttack.spell) && (
+                        <p className="text-xs font-medium text-[var(--arc-atk-text)] opacity-90 flex items-start gap-1.5">
+                          <Flame className="h-3.5 w-3.5 shrink-0 mt-0.5 text-[var(--arc-atk-accent)]" />
+                          <span>
+                            Daño de fuego: cada dado máximo aplica +1 carga de Quemadura (1d4 × 2t,
+                            máx. 10).
+                          </span>
+                        </p>
+                      )}
+
+                      {!pendingDmg &&
+                        pendingAttack.spell.id !== 'basic_golpe_fisico' &&
+                        pendingAttack.spell.damageMode === 'auto' &&
+                        pendingAttack.spell.damage.dice.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                            {pendingAttack.isReinforced ? (
+                              <span className="inline-flex items-center gap-1 rounded-md bg-[var(--arc-atk-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--arc-atk-text)]">
+                                <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)] shrink-0" />
+                                Reforzado: tirará daño ×2 y aplicará el mayor
+                              </span>
+                            ) : (
+                              onReinforcePendingAttack && (
+                                <button
+                                  type="button"
+                                  onClick={onReinforcePendingAttack}
+                                  className="min-h-[34px] inline-flex items-center gap-1.5 rounded-md bg-[var(--arc-atk-raised)] border border-[var(--arc-atk-border)] px-3 py-1 text-xs font-semibold text-[var(--arc-atk-text)] hover:brightness-110 transition-all"
+                                >
+                                  <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)] shrink-0" />
+                                  <span>Reforzar Hechizo (-1 maná · daño ×2)</span>
+                                </button>
+                              )
+                            )}
+                          </div>
+                        )}
+
+                      {attackerCanCastTurnBuffs && (hechizoVelozSpell || elevarLimiteSpell) && (
+                        <div className="border-t border-[var(--arc-atk-border)]/40 pt-2.5 space-y-1.5">
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                            <span className="font-semibold text-[var(--arc-atk-text)] opacity-90">
+                              ¿Encadenar otro ataque este turno?
+                            </span>
+                            <span className="font-mono-num font-bold text-[var(--arc-atk-accent)]">
+                              Acciones {attackerTurnStatus.remaining}/{attackerTurnStatus.max}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {hechizoVelozSpell && (
+                              <button
+                                type="button"
+                                disabled={attackerTurnStatus.hasHechizoVeloz}
+                                onClick={() => {
+                                  setChainListCollapsed(false);
+                                  onQuickCastTurnBuff?.(
+                                    hechizoVelozSpell,
+                                    pendingAttack.attackerCharacterId
+                                  );
+                                }}
+                                className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all ${
+                                  attackerTurnStatus.hasHechizoVeloz
+                                    ? 'bg-[var(--arc-input)]/70 text-[var(--arc-atk-accent)] opacity-80 cursor-default'
+                                    : 'bg-[var(--arc-atk-raised)] border border-[var(--arc-atk-border)] text-[var(--arc-atk-text)] hover:brightness-110'
+                                }`}
+                              >
+                                <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)] shrink-0" />
+                                <span>
+                                  {attackerTurnStatus.hasHechizoVeloz
+                                    ? 'Hechizo Veloz activo (2/2)'
+                                    : 'Hechizo Veloz (-3 maná → 2/2)'}
+                                </span>
+                              </button>
+                            )}
+
+                            {elevarLimiteSpell && (
+                              <button
+                                type="button"
+                                disabled={!attackerTurnStatus.canActivateElevarLimite}
+                                onClick={() => {
+                                  setChainListCollapsed(false);
+                                  onQuickCastTurnBuff?.(
+                                    elevarLimiteSpell,
+                                    pendingAttack.attackerCharacterId
+                                  );
+                                }}
+                                title={
+                                  attackerTurnStatus.hasElevarLimite
+                                    ? 'Elevar el Límite ya está activo en este turno'
+                                    : !attackerTurnStatus.hasHechizoVeloz
+                                      ? 'Bloqueado: activá Hechizo Veloz antes de Elevar el Límite'
+                                      : 'Activar Elevar el Límite (-5 maná) para una 3ra acción ofensiva'
+                                }
+                                className={`min-h-[32px] inline-flex items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all ${
+                                  attackerTurnStatus.hasElevarLimite
+                                    ? 'bg-[var(--arc-input)]/70 text-[var(--arc-atk-accent)] opacity-80 cursor-default'
+                                    : !attackerTurnStatus.hasHechizoVeloz
+                                      ? 'bg-[var(--arc-input)]/60 text-[var(--arc-muted)] opacity-60 cursor-not-allowed'
+                                      : 'bg-[var(--arc-atk-raised)] border border-[var(--arc-atk-border)] text-[var(--arc-atk-text)] hover:brightness-110'
+                                }`}
+                              >
+                                {!attackerTurnStatus.hasHechizoVeloz ? (
+                                  <Lock className="h-3.5 w-3.5 shrink-0" />
+                                ) : (
+                                  <Zap className="h-3.5 w-3.5 text-[var(--arc-atk-accent)] shrink-0" />
+                                )}
+                                <span>
+                                  {attackerTurnStatus.hasElevarLimite
+                                    ? 'Elevar el Límite activo (3/3)'
+                                    : 'Elevar el Límite (-5 maná → 3/3)'}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+
+                          {attackerChar &&
+                            attackerCb &&
+                            (attackerTurnStatus.hasHechizoVeloz ||
+                              attackerTurnStatus.hasElevarLimite) && (
+                              <div className="pt-1.5">
+                                {renderChainCastList(attackerChar, attackerCb, 'duel')}
+                              </div>
+                            )}
+                        </div>
+                      )}
+
+                      {pendingAttack.spell.collateral?.enabled && onApplyCollateralDamage && (
+                        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--arc-atk-border)]/40 pt-2.5">
+                          <span className="text-xs text-[var(--arc-atk-text)] opacity-85">
+                            Colateral: {formatCollateralValue(pendingAttack.spell.collateral)} (
+                            {pendingAttack.spell.collateral.durationType === 'turns'
+                              ? `${pendingAttack.spell.collateral.durationTurns || 1}t`
+                              : 'Instantáneo'}
+                            )
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const col = pendingAttack.spell.collateral!;
+                              setColTargetId(
+                                pendingAttack.attackerCombatantId || combatants[0]?.id || ''
+                              );
+                              setColLabel(col.label || `Colateral (${pendingAttack.spell.name})`);
+                              setColMode(col.mode);
+                              setColFixed(col.fixedAmount ?? 3);
+                              setColDieType(col.dice?.[0]?.type || 'd4');
+                              setColDieCount(col.dice?.[0]?.count || 1);
+                              setColBonus(col.bonus || 0);
+                              setColKind(col.damageKind || 'magico');
+                              setColDurationType(col.durationType);
+                              setColTurns(col.durationTurns || 2);
+                              setColLethal(pendingAttack.isLethal);
+                              setShowCollateralPanel(true);
+                            }}
+                            className="min-h-[30px] rounded-md bg-[var(--arc-atk-raised)] px-2.5 py-1 text-xs font-semibold text-[var(--arc-atk-text)] hover:brightness-110 transition-all"
+                          >
+                            Cargar daño colateral
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* COLUMNA DERECHA — DEFIENDE */}
+                    <div className="bg-[var(--arc-def-bg)] p-3.5 sm:p-4 space-y-3 min-w-0">
+                      {isAwaitingDefenseRoll && (
+                        <>
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--arc-def-accent)]">
+                                <Shield className="h-3.5 w-3.5 shrink-0" />
+                                Defiende
+                              </div>
+                              <p className="text-xs font-mono-num text-[var(--arc-def-text)] opacity-85 mt-0.5">
+                                Debe superar{' '}
+                                <strong className="text-[var(--arc-atk-accent)]">{atkNetFmt}</strong>{' '}
+                                para evitar el daño
+                              </p>
+                            </div>
+
+                            {defendingCombatant &&
+                              defendingChar &&
+                              pendingAttack.spell.damageMode === 'auto' && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onResolveDirectDamage(
+                                      defendingCombatant.id,
+                                      undefined,
+                                      effectiveReduction,
+                                      damageDivisor
+                                    )
+                                  }
+                                  className="min-h-[32px] inline-flex items-center gap-1 rounded-md bg-transparent px-2 text-xs font-semibold text-[var(--arc-atk-accent)] hover:bg-[var(--arc-atk-bg)] transition-colors"
+                                >
+                                  <Swords className="h-3.5 w-3.5 shrink-0" />
+                                  <span>Sin defensa</span>
+                                </button>
+                              )}
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <label
+                              htmlFor="defense-target"
+                              className="text-xs font-semibold text-[var(--arc-def-text)] shrink-0"
+                            >
+                              Objetivo:
+                            </label>
+                            <select
+                              id="defense-target"
+                              value={defendingTargetId || ''}
+                              onChange={(e) => handleSelectDefender(e.target.value)}
+                              className="w-full sm:flex-1 min-w-0 min-h-[38px] rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                            >
+                              {sortedCombatants
+                                .filter(
+                                  (cb) => cb.characterId !== pendingAttack.attackerCharacterId
+                                )
+                                .map((cb) => {
+                                  const char = characters.find((c) => c.id === cb.characterId);
+                                  if (!char) return null;
+                                  return (
+                                    <option key={cb.id} value={cb.id}>
+                                      {char.name} [{char.kind === 'mage' ? 'PJ' : 'PNJ'} · PV{' '}
+                                      {char.hp.current}/{char.hp.max}]
+                                    </option>
+                                  );
+                                })}
+                            </select>
+                          </div>
+
+                          {defendingCombatant && defendingChar && (
+                            <div className="space-y-1.5 text-xs">
+                              {defendingEffects.summaryTags.length > 0 && (
+                                <div className="rounded-md border border-[#7a3b26] bg-[#2a140d] px-2.5 py-2 space-y-1 text-[#ffd4c2]">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className="font-bold text-[#ff9a76]">
+                                      Estados en {defendingChar.name}:
+                                    </span>
+                                    {defendingEffects.summaryTags.map((tag) => (
+                                      <span
+                                        key={tag}
+                                        className="rounded bg-black/35 px-1.5 py-0.5 text-[11px] font-semibold text-[#ffe4d6]"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                  {defendingEffects.incomingAutoCrit && (
+                                    <p className="text-[11px] font-semibold text-[#ffb394]">
+                                      ⚡ Golpe entrante = Crítico automático (dados al máximo) por{' '}
+                                      {defendingEffects.incomingAutoCritReasons.join(', ')}.
+                                    </p>
+                                  )}
+                                  {defendingEffects.autoFailsDefense > 0 &&
+                                    !defendingEffects.cannotDefend && (
+                                      <p className="text-[11px] text-[#ffc9b0]">
+                                        Penalización automática en defensa: +
+                                        {defendingEffects.autoFailsDefense} fallo
+                                        {defendingEffects.autoFailsDefense > 1 ? 's' : ''} (
+                                        {defendingEffects.autoFailsDefenseNotes.join(', ')}).
+                                      </p>
+                                    )}
+                                </div>
+                              )}
+                              {defendingChar.resistances && (
+                                <p className="text-[var(--arc-def-text)] opacity-90">
+                                  <span className="font-semibold text-[var(--arc-def-accent)]">
+                                    Resistencias:
+                                  </span>{' '}
+                                  {defendingChar.resistances}
+                                </p>
+                              )}
+                              {(() => {
+                                const armorMods = getCombatantArmorModifiers(defendingCombatant);
+                                if (armorMods.names.length === 0) return null;
+                                return (
+                                  <p className="text-[var(--arc-def-accent)]">
+                                    Armadura activa: {armorMods.names.join(', ')} (aplicada abajo)
+                                  </p>
+                                );
+                              })()}
+                            </div>
+                          )}
+
+                          <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--arc-def-border)]/40 pt-2.5 text-xs">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[var(--arc-def-text)] opacity-80">
+                                Resistencia:
+                              </span>
+                              <div className="flex flex-wrap p-0.5 rounded-md bg-[var(--arc-input)]/85 gap-0.5">
+                                {(
+                                  [
+                                    { val: 1 as const, label: 'Normal' },
+                                    { val: 2 as const, label: '÷2' },
+                                    { val: 4 as const, label: '÷4' },
+                                    { val: 0 as const, label: 'Anular' },
+                                  ]
+                                ).map((opt) => (
+                                  <button
+                                    key={opt.val}
+                                    type="button"
+                                    onClick={() => setDamageDivisor(opt.val)}
+                                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                                      damageDivisor === opt.val
+                                        ? opt.val === 0
+                                          ? 'bg-[#63291d] text-[#ffd6c9]'
+                                          : 'bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
+                                        : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <label className="flex items-center gap-1.5 text-[var(--arc-def-text)] opacity-85">
+                              <span>Reducción:</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={99}
+                                disabled={damageDivisor === 0}
+                                value={damageReduction}
+                                onChange={(e) =>
+                                  setDamageReduction(Math.max(0, parseInt(e.target.value, 10) || 0))
+                                }
+                                className="font-mono-num w-14 min-h-[30px] rounded border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-1.5 text-center text-xs text-[var(--arc-text)] disabled:opacity-40"
+                              />
+                            </label>
+                          </div>
+
+                          {defendingCombatant && defendingChar && (
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              {onTriggerCounterspellFromAttack &&
+  isSpellMagical(pendingAttack.spell) &&
+  defendingChar.knownSpells.includes('basic_interrumpir_circulo') && (
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      defendingEffects.cannotReact ||
+                                      defendingEffects.cannotCastMagic
+                                    }
+                                    title={
+                                      defendingEffects.cannotReact
+                                        ? `Sin capacidad de reaccionar (${defendingEffects.cannotReactReasons.join(', ')})`
+                                        : defendingEffects.cannotCastMagic
+                                          ? `Silenciado (${defendingEffects.cannotCastMagicReasons.join(', ')})`
+                                          : undefined
+                                    }
+                                    onClick={() =>
+                                      onTriggerCounterspellFromAttack(defendingCombatant.id)
+                                    }
+                                    className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-magic-raised)] border border-[var(--arc-magic-border)] px-3 text-xs font-semibold text-[var(--arc-magic-text)] hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                  >
+                                    {(defendingEffects.cannotReact ||
+                                      defendingEffects.cannotCastMagic) && (
+                                      <Lock className="h-3 w-3 shrink-0" />
+                                    )}
+                                    <span>Interrumpir Círculo (-7 maná · Inf+Man)</span>
+                                  </button>
+                                )}
+                              <span className="text-xs text-[var(--arc-def-text)] opacity-75">
+                                {defendingEffects.cannotReact
+                                  ? `Reacción bloqueada (${defendingEffects.cannotReactReasons.join(', ')}): no puede activar Protección.`
+                                  : defendingEffects.cannotCastMagic
+                                    ? `Silenciado (${defendingEffects.cannotCastMagicReasons.join(', ')}): no puede activar Protección mágica.`
+                                    : 'Si impacta, podrás activar Protección luego de ver el daño.'}
+                              </span>
+                            </div>
+                          )}
+
+                          {defendingCombatant && defendingChar && (
+                            <div className="border-t border-[var(--arc-def-border)]/40 pt-3 space-y-2.5">
+                              {defendingChar.condition !== 'active' ||
+                              defendingEffects.cannotDefend ? (
+                                <div className="space-y-2">
+                                  <p className="text-[13px] text-[var(--arc-atk-accent)]">
+                                    {defendingChar.condition !== 'active'
+                                      ? `${defendingChar.name} está ${conditionLabel(defendingChar.condition)} y no puede lanzar defensa activa.`
+                                      : `${defendingChar.name} no puede defenderse (${defendingEffects.cannotDefendReasons.join(', ')}).`}
+                                  </p>
+                                  {pendingAttack.spell.damageMode === 'auto' && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        onResolveDirectDamage(
+                                          defendingCombatant.id,
+                                          undefined,
+                                          effectiveReduction,
+                                          damageDivisor
+                                        )
+                                      }
+                                      className="w-full sm:w-auto min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#b85a3a] px-4 text-xs font-semibold text-white hover:bg-[#cc6644] shadow-sm transition-colors"
+                                    >
+                                      <Swords className="h-3.5 w-3.5 shrink-0" />
+                                      <span>
+                                        {defendingEffects.incomingAutoCrit
+                                          ? 'Aplicar daño crítico automático'
+                                          : 'Tirar daño directo (sin defensa)'}
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+                                  <select
+                                    value={defenseChoice}
+                                    onChange={(e) => setDefenseChoice(e.target.value)}
+                                    aria-label="Opción de defensa"
+                                    className="w-full sm:flex-1 min-w-0 min-h-[38px] rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                                  >
+                                    {defenderDefenseSpells.length > 0 && (
+                                      <optgroup label="Hechizos y acciones de defensa">
+                                        {defenderDefenseSpells
+                                          .filter(
+                                            (s) =>
+                                              !(
+                                                defendingEffects.cannotCastMagic &&
+                                                isSpellMagical(s)
+                                              )
+                                          )
+                                          .map((s) => {
+                                            const dice = s.combatStats.reduce(
+                                              (acc, k) =>
+                                                acc + getCharacterStatDice(defendingChar, k, formula),
+                                              0
+                                            );
+                                            const manaInfo = getEffectiveDefenseManaCost(
+                                              defendingChar,
+                                              s,
+                                              defendingEffects.disarmed
+                                            );
+                                            return (
+                                              <option key={s.id} value={`spell:${s.id}`}>
+                                                {s.name} ({dice}d6
+                                                {s.assuredSuccess > 0
+                                                  ? ` +${s.assuredSuccess} aseg.`
+                                                  : ''}{' '}
+                                                ·{' '}
+                                                {manaInfo.discount > 0
+                                                  ? `${manaInfo.cost} maná (-${manaInfo.discount} Escudo)`
+                                                  : `${s.manaCost} maná`}
+                                                )
+                                              </option>
+                                            );
+                                          })}
+                                      </optgroup>
+                                    )}
+                                    <optgroup label="Tirada directa por atributo">
+                                      {(['fisico', 'manipulacion', 'influencia'] as StatKey[]).map(
+                                        (k) => (
+                                          <option key={k} value={`stat:${k}`}>
+                                            {STAT_NAMES[k]} (
+                                            {getCharacterStatDice(defendingChar, k, formula)}d6)
+                                          </option>
+                                        )
+                                      )}
+                                      <option value="manual">Manual (elegir dados)</option>
+                                    </optgroup>
+                                  </select>
+
+                                  <div className="flex items-center gap-2">
+                                    {defenseChoice === 'manual' && (
+                                      <input
+                                        type="number"
+                                        min={1}
+                                        max={20}
+                                        value={manualDefDice}
+                                        onChange={(e) =>
+                                          setManualDefDice(
+                                            Math.max(1, parseInt(e.target.value, 10) || 1)
+                                          )
+                                        }
+                                        aria-label="Cantidad de dados manuales de defensa"
+                                        className="font-mono-num w-16 min-h-[38px] rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-2 text-center text-xs text-[var(--arc-text)]"
+                                      />
+                                    )}
+
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onRollDefense(
+                                          defendingCombatant.id,
+                                          defenseChoice,
+                                          manualDefDice,
+                                          effectiveReduction,
+                                          damageDivisor
+                                        );
+                                      }}
+                                      className="flex-1 sm:flex-initial min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
+                                    >
+                                      <Shield className="h-3.5 w-3.5 shrink-0" />
+                                      <span>Tirar defensa</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {pendingAttack.spell.damageMode === 'manual' && (
+                                <div className="flex flex-wrap items-center gap-2 pt-1">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={manualDmgInput}
+                                    onChange={(e) => setManualDmgInput(e.target.value)}
+                                    placeholder="Daño tirado manualmente..."
+                                    className="font-mono-num w-full sm:w-44 min-h-[38px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const val = parseInt(manualDmgInput, 10);
+                                      if (Number.isNaN(val)) return;
+                                      onResolveDirectDamage(
+                                        defendingCombatant.id,
+                                        val,
+                                        effectiveReduction,
+                                        damageDivisor
+                                      );
+                                      setManualDmgInput('');
+                                    }}
+                                    className="w-full sm:w-auto min-h-[38px] rounded-lg bg-[#b85a3a] px-3.5 text-xs font-semibold text-white hover:bg-[#cc6644] shadow-sm transition-colors"
+                                  >
+                                    Cargar daño directo
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+
+                      {(isAwaitingDamageRoll || isAwaitingDamageDecision) && (
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[var(--arc-def-accent)]">
+                                <Shield className="h-3.5 w-3.5 shrink-0" />
+                                Defiende
+                              </div>
+                              <h3 className="text-base font-bold text-[var(--arc-def-text)] mt-0.5 leading-snug break-words">
+                                {activeDefenderName}
+                              </h3>
+                              <p className="text-[13px] font-medium text-[var(--arc-def-text)] opacity-85 break-words">
+                                {pendingAttack.defenseRoll
+                                  ? pendingAttack.defenseRoll.defenseLabel
+                                  : 'Sin defensa (impacto directo)'}
+                              </p>
+                            </div>
+
+                            {pendingAttack.defenseRoll && (
+                              <div className="text-right shrink-0">
+                                <div className="text-[11px] uppercase tracking-wider text-[var(--arc-def-text)] opacity-70">
+                                  Neto defensa
+                                </div>
+                                <div className="font-mono-num text-xl sm:text-2xl font-bold leading-none text-[var(--arc-def-accent)] mt-0.5">
+                                  {defNetFmt}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {pendingAttack.defenseRoll && (
+                            <div className="space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {pendingAttack.defenseRoll.roll.rolls.map((val, idx) => {
+                                  const dieStyle =
+                                    val === 1
+                                      ? 'border-[var(--arc-atk-border)] bg-[var(--arc-atk-raised)] text-[var(--arc-atk-accent)]'
+                                      : val >= 5
+                                        ? 'border-[var(--arc-def-border)] bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
+                                        : 'border-[var(--arc-border)] bg-[var(--arc-input)] text-[var(--arc-muted)]';
+                                  return (
+                                    <span
+                                      key={`${pendingAttack.id}-def-${idx}-${val}`}
+                                      style={{ animationDelay: `${Math.min(idx * 35, 280)}ms` }}
+                                      className={`animate-arcane-die font-mono-num inline-flex h-7 w-7 items-center justify-center rounded-md border text-xs font-bold ${
+                                        val === 6
+                                          ? 'ring-1 ring-[#8cc8ff]/70 '
+                                          : val === 1
+                                            ? 'ring-1 ring-[#ff8b6b]/70 '
+                                            : ''
+                                      }${dieStyle}`}
+                                    >
+                                      {val}
+                                    </span>
+                                  );
+                                })}
+                                {pendingAttack.defenseRoll.roll.assured > 0 && (
+                                  <span className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[var(--arc-def-border)] bg-[var(--arc-def-raised)] px-2 text-xs font-bold text-[var(--arc-def-accent)]">
+                                    +{pendingAttack.defenseRoll.roll.assured} aseg.
+                                  </span>
+                                )}
+                                {pendingAttack.defenseRoll.roll.statusAutoFails &&
+                                  pendingAttack.defenseRoll.roll.statusAutoFails > 0 && (
+                                    <span
+                                      title={pendingAttack.defenseRoll.roll.statusPenaltyNotes?.join(
+                                        ' · '
+                                      )}
+                                      className="font-mono-num inline-flex h-7 items-center justify-center rounded-md border border-dashed border-[#8a3525] bg-[#361611] px-2 text-xs font-bold text-[#ff9a7a]"
+                                    >
+                                      +{pendingAttack.defenseRoll.roll.statusAutoFails} fallo
+                                      {pendingAttack.defenseRoll.roll.statusAutoFails > 1
+                                        ? 's'
+                                        : ''}{' '}
+                                      auto.
+                                    </span>
+                                  )}
+                              </div>
+                              <p className="text-xs font-mono-num text-[var(--arc-def-text)] opacity-85 break-words">
+                                {pendingAttack.defenseRoll.roll.successes} éxito(s) ·{' '}
+                                {pendingAttack.defenseRoll.roll.fails} fallo(s)
+                                {pendingAttack.defenseRoll.roll.statusPenaltyNotes &&
+                                pendingAttack.defenseRoll.roll.statusPenaltyNotes.length > 0
+                                  ? ` [${pendingAttack.defenseRoll.roll.statusPenaltyNotes.join(', ')}]`
+                                  : ''}
+                              </p>
+                            </div>
+                          )}
+
+                          {resolvedTargetChar?.resistances && (
+                            <p className="text-xs text-[var(--arc-def-text)] opacity-90">
+                              <span className="font-semibold text-[var(--arc-def-accent)]">
+                                Resistencias:
+                              </span>{' '}
+                              {resolvedTargetChar.resistances}
+                            </p>
+                          )}
+
+                          <div className="flex flex-wrap items-center justify-between gap-2.5 border-t border-[var(--arc-def-border)]/40 pt-2.5 text-xs">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="text-[var(--arc-def-text)] opacity-80">
+                                Resistencia:
+                              </span>
+                              <div className="flex flex-wrap p-0.5 rounded-md bg-[var(--arc-input)]/85 gap-0.5">
+                                {(
+                                  [
+                                    { val: 1 as const, label: 'Normal' },
+                                    { val: 2 as const, label: '÷2' },
+                                    { val: 4 as const, label: '÷4' },
+                                    { val: 0 as const, label: 'Anular' },
+                                  ]
+                                ).map((opt) => (
+                                  <button
+                                    key={opt.val}
+                                    type="button"
+                                    onClick={() => setDamageDivisor(opt.val)}
+                                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                                      damageDivisor === opt.val
+                                        ? opt.val === 0
+                                          ? 'bg-[#63291d] text-[#ffd6c9]'
+                                          : 'bg-[var(--arc-def-raised)] text-[var(--arc-def-accent)]'
+                                        : 'text-[var(--arc-muted)] hover:text-[var(--arc-text)]'
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <label className="flex items-center gap-1.5 text-[var(--arc-def-text)] opacity-85">
+                              <span>Reducción base:</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={99}
+                                disabled={damageDivisor === 0}
+                                value={damageReduction}
+                                onChange={(e) =>
+                                  setDamageReduction(Math.max(0, parseInt(e.target.value, 10) || 0))
+                                }
+                                className="font-mono-num w-14 min-h-[30px] rounded border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-1.5 text-center text-xs text-[var(--arc-text)] disabled:opacity-40"
+                              />
+                            </label>
+                          </div>
+
+                          {isAwaitingDamageDecision && resolvedTargetChar && (
+                            <div className="border-t border-[var(--arc-def-border)]/50 pt-3 space-y-2.5">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--arc-def-accent)]">
+                                  <ShieldPlus className="h-4 w-4 shrink-0" />
+                                  <span>Protección ante daño entrante</span>
+                                </div>
+                                <span className="font-mono-num text-xs text-[var(--arc-def-text)] opacity-85">
+                                  PV {resolvedTargetChar.hp.current}/{resolvedTargetChar.hp.max} ·
+                                  Maná {resolvedTargetChar.mana.current}/
+                                  {resolvedTargetChar.mana.max}
+                                </span>
+                              </div>
+
+                              {resolvedTargetChar.condition !== 'active' ||
+                              defenderCannotUseProtection ? (
+                                <p className="text-xs text-[var(--arc-atk-accent)]">
+                                  {resolvedTargetChar.condition !== 'active'
+                                    ? `${resolvedTargetChar.name} está ${conditionLabel(resolvedTargetChar.condition)} y no puede activar Protección.`
+                                    : resolvedTargetEffects.cannotReact
+                                      ? `${resolvedTargetChar.name} no tiene capacidad de reaccionar (${resolvedTargetEffects.cannotReactReasons.join(', ')}) y no puede activar Protección.`
+                                      : `${resolvedTargetChar.name} está silenciado (${resolvedTargetEffects.cannotCastMagicReasons.join(', ')}) y no puede activar Protección mágica.`}
+                                </p>
+                              ) : (
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <div className="inline-flex items-center gap-1 rounded-lg border border-[var(--arc-def-border)] bg-[var(--arc-input)] px-1.5 py-0.5">
+                                      <button
+                                        type="button"
+                                        disabled={effectiveProtStacks <= 0}
+                                        onClick={() =>
+                                          setPendingProtStacks((s) => Math.max(0, s - 1))
+                                        }
+                                        aria-label="Restar 1 carga de Protección"
+                                        className="h-7 w-7 rounded text-xs font-bold text-[var(--arc-text)] hover:bg-[var(--arc-def-raised)] disabled:opacity-35 transition-colors"
+                                      >
+                                        −
+                                      </button>
+                                      <span className="font-mono-num min-w-[2.25rem] text-center text-xs font-bold text-[var(--arc-def-accent)]">
+                                        ×{effectiveProtStacks}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        disabled={
+                                          effectiveProtStacks >= maxProtStacks || damageDivisor === 0
+                                        }
+                                        onClick={() =>
+                                          setPendingProtStacks((s) => Math.min(maxProtStacks, s + 1))
+                                        }
+                                        aria-label="Sumar 1 carga de Protección"
+                                        className="h-7 w-7 rounded text-xs font-bold text-[var(--arc-text)] hover:bg-[var(--arc-def-raised)] disabled:opacity-35 transition-colors"
+                                      >
+                                        +
+                                      </button>
+                                    </div>
+
+                                    <button
+                                      type="button"
+                                      disabled={
+                                        effectiveProtStacks >= maxProtStacks ||
+                                        damageDivisor === 0 ||
+                                        previewFinalDamage === 0
+                                      }
+                                      onClick={() =>
+                                        setPendingProtStacks((s) => Math.min(maxProtStacks, s + 1))
+                                      }
+                                      className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-def-raised)] border border-[var(--arc-def-border)] px-3 text-xs font-semibold text-[var(--arc-def-text)] hover:brightness-110 disabled:opacity-40 transition-all"
+                                    >
+                                      <ShieldPlus className="h-3.5 w-3.5 text-[var(--arc-def-accent)] shrink-0" />
+                                      <span>
+                                        +1 Protección (-{nextProtMana} maná → -{stepRed}{' '}
+                                        {pendingDmgKind === 'magico' ? 'mág.' : 'fís.'})
+                                      </span>
+                                    </button>
+                                  </div>
+
+                                  {effectiveProtStacks > 0 && (
+                                    <span className="font-mono-num text-xs font-semibold text-[var(--arc-def-accent)]">
+                                      −{protSummary.manaCost} maná → −{protSummary.reduction} daño
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {isAwaitingDamageRoll && (
+                            <p className="text-xs text-[var(--arc-def-text)] opacity-75">
+                              Tirá o cargá el daño abajo; luego podrás decidir si activás{' '}
+                              <strong>Protección</strong> antes de descontar PV.
+                            </p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {isAwaitingDamageRoll && pendingAttack.defenseRoll && (
+                    <div className="border-t border-[var(--arc-border)] bg-[var(--arc-surface)] px-3.5 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="text-sm font-bold text-[var(--arc-atk-accent)]">
+                          {isTrueTie
+                            ? `Empate (${atkNetFmt} == ${defNetFmt}): el ataque impacta`
+                            : `Ataque (${atkNetFmt}) supera a Defensa (${defNetFmt}): cargar daño`}
+                        </div>
+                        <p className="text-xs text-[var(--arc-muted)] break-words">
+                          Se efectúa <strong>{pendingAttack.spell.name}</strong> sobre{' '}
+                          <strong>{pendingAttack.defenseRoll.defenderName}</strong>
+                          {pendingAttack.spell.effectDescription
+                            ? ` — ${pendingAttack.spell.effectDescription}`
+                            : ''}
+                          . Luego se podrá activar Protección.
+                        </p>
+                      </div>
+
+                      {pendingAttack.spell.damageMode === 'auto' ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onVerifyTieDamage(undefined, effectiveReduction, damageDivisor)
+                          }
+                          className="w-full sm:w-auto min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
+                        >
+                          <Dices className="h-4 w-4 shrink-0" />
+                          <span>
+                            Tirar daño (
+                            {pendingAttack.spell.damage.dice
+                              .map((d) => `${d.count}${d.type}`)
+                              .join(' + ') || '0'}
+                            {pendingAttack.spell.damage.bonus
+                              ? ` + ${pendingAttack.spell.damage.bonus}`
+                              : ''}
+                            )
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                          <input
+                            type="number"
+                            min={0}
+                            value={manualDmgInput}
+                            onChange={(e) => setManualDmgInput(e.target.value)}
+                            placeholder="Daño tirado..."
+                            className="font-mono-num w-full sm:w-40 min-h-[38px] rounded-md border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const val = parseInt(manualDmgInput, 10);
+                              if (Number.isNaN(val)) return;
+                              onVerifyTieDamage(val, effectiveReduction, damageDivisor);
+                              setManualDmgInput('');
+                            }}
+                            className="w-full sm:w-auto min-h-[38px] rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
+                          >
+                            Cargar daño y decidir Protección
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {isAwaitingDamageDecision && pendingDmg && resolvedTargetChar && (
+                    <div
+                      key={`step3-${pendingAttack.id}-${rawDamageTotal}`}
+                      className="animate-arcane-die border-t border-[var(--arc-border)] bg-[var(--arc-surface)] px-3.5 sm:px-4 py-3 flex flex-wrap items-center justify-between gap-3"
+                    >
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <div className="text-sm font-bold text-[var(--arc-text)] font-mono-num break-words">
+                          Daño final a{' '}
+                          <span className="text-[var(--arc-def-accent)]">
+                            {resolvedTargetChar.name}
+                          </span>
+                          :{' '}
+                          <span
+                            className={
+                              previewFinalDamage > 0
+                                ? 'text-[var(--arc-atk-accent)]'
+                                : 'text-[var(--arc-def-accent)]'
+                            }
+                          >
+                            {previewFinalDamage} PV
+                          </span>
+                          <span className="ml-2 text-xs font-normal text-[var(--arc-muted)]">
+                            (PV {resolvedTargetChar.hp.current} → {previewResultingHp})
+                          </span>
+                        </div>
+                        <p className="text-xs font-mono-num text-[var(--arc-muted)] break-words">
+                          Tirado {rawDamageTotal}
+                          {effectiveReduction > 0 ? ` − ${effectiveReduction} base` : ''}
+                          {protSummary.reduction > 0
+                            ? ` − ${protSummary.reduction} Protección (×${effectiveProtStacks}, −${protSummary.manaCost} maná)`
+                            : ''}
+                          {damageDivisor === 2
+                            ? ' ÷ 2'
+                            : damageDivisor === 4
+                              ? ' ÷ 4'
+                              : damageDivisor === 0
+                                ? ' → Anulado'
+                                : ''}
+                          {' = '}
+                          <strong className="text-[var(--arc-text)]">{previewFinalDamage} PV</strong>
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onConfirmPendingDamage?.(
+                            effectiveReduction,
+                            damageDivisor,
+                            effectiveProtStacks
+                          );
+                          setPendingProtStacks(0);
+                        }}
+                        className="w-full sm:w-auto min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
+                      >
+                        <Shield className="h-4 w-4 shrink-0" />
+                        <span>
+                          {previewFinalDamage > 0
+                            ? `Confirmar y aplicar ${previewFinalDamage} de daño`
+                            : 'Confirmar (0 de daño · mitigado)'}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
           {/* Tirada enfrentada de Interrumpir Círculo */}
           {pendingCounterspell && onResolveCounterspell && (
-            <div className="rounded-xl border border-[#6e4fb8] bg-[#171129] p-4 space-y-3">
+            <div className="rounded-xl border border-[#6e4fb8] bg-[#171129] p-3.5 sm:p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-base font-bold text-[#dec7ff]">
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-[#dec7ff] break-words">
                     🌀 Interrumpir Círculo — {pendingCounterspell.interruptorName}
                     {pendingCounterspell.spellName ? ` vs ${pendingCounterspell.spellName}` : ''}
                   </h3>
-                  <p className="text-[13px] text-[#c7b3eb] font-mono-num mt-0.5">
+                  <p className="text-xs sm:text-[13px] text-[#c7b3eb] font-mono-num mt-0.5 break-words">
                     Tirada de {pendingCounterspell.interruptorName} (Influencia + Manipulación):{' '}
                     {pendingCounterspell.interruptRoll.successes} éxito(s) ·{' '}
                     {pendingCounterspell.interruptRoll.fails} fallo(s) · Neto{' '}
@@ -3810,7 +3845,7 @@ export function CombatPanel({
                 )}
               </div>
 
-              <p className="text-[13px] text-[#d6c9ef] leading-relaxed">
+              <p className="text-xs sm:text-[13px] text-[#d6c9ef] leading-relaxed">
                 Tirada enfrentada de <strong>Influencia + Manipulación de maná</strong>. Si{' '}
                 <strong>{pendingCounterspell.interruptorName}</strong> saca más neto que el lanzador
                 rival, el hechizo queda anulado.
@@ -3831,14 +3866,16 @@ export function CombatPanel({
                         key={cb.id}
                         type="button"
                         onClick={() => onResolveCounterspell(cb.id)}
-                        className={`min-h-[38px] inline-flex items-center gap-1.5 rounded-lg px-3.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                        className={`min-h-[36px] inline-flex items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
                           isTarget
                             ? 'bg-[#6e4fb8] text-white hover:bg-[#805fd1] shadow-sm'
                             : 'bg-[#2a1d4a] text-[#dec7ff] hover:bg-[#3a2866]'
                         }`}
                       >
-                        <Dices className="h-3.5 w-3.5" />
-                        {char.name} resiste ({infManDice}d6 Inf+Man)
+                        <Dices className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {char.name} resiste ({infManDice}d6 Inf+Man)
+                        </span>
                       </button>
                     );
                   })}
@@ -3853,12 +3890,12 @@ export function CombatPanel({
                       setManualCounterDice(Math.max(1, parseInt(e.target.value, 10) || 1))
                     }
                     aria-label="Dados manuales de Influencia + Manipulación rival"
-                    className="font-mono-num w-14 min-h-[38px] rounded-lg border border-[#553e85] bg-[#100b1d] px-1.5 text-center text-xs text-[#efe6d5]"
+                    className="font-mono-num w-14 min-h-[36px] rounded-lg border border-[#553e85] bg-[#100b1d] px-1.5 text-center text-xs text-[#efe6d5]"
                   />
                   <button
                     type="button"
                     onClick={() => onResolveCounterspell('manual', manualCounterDice)}
-                    className="min-h-[38px] rounded-lg bg-[#2a1d4a] px-3 text-xs font-semibold text-[#dec7ff] hover:bg-[#3a2866] transition-colors"
+                    className="min-h-[36px] rounded-lg bg-[#2a1d4a] px-3 text-xs font-semibold text-[#dec7ff] hover:bg-[#3a2866] transition-colors"
                   >
                     Rival manual ({manualCounterDice}d6)
                   </button>
@@ -3869,14 +3906,14 @@ export function CombatPanel({
 
           {/* Chequeo de Estado pendiente */}
           {pendingStatusCheck && (
-            <div className="rounded-xl border border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)] p-4 space-y-3">
+            <div className="rounded-xl border border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)] p-3.5 sm:p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="text-base font-bold text-[var(--arc-magic-accent)]">
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base font-bold text-[var(--arc-magic-accent)] break-words">
                     Aplicar estado ({pendingStatusCheck.statuses.join(' / ')}):{' '}
                     {pendingStatusCheck.casterName} — {pendingStatusCheck.spellName}
                   </h3>
-                  <p className="text-[13px] text-[var(--arc-magic-text)] font-mono-num mt-0.5">
+                  <p className="text-xs sm:text-[13px] text-[var(--arc-magic-text)] font-mono-num mt-0.5 break-words">
                     Tirada de Influencia del lanzador:{' '}
                     {pendingStatusCheck.casterRoll.successes} éxito(s) ·{' '}
                     {pendingStatusCheck.casterRoll.fails} fallo(s) · Neto{' '}
@@ -3896,7 +3933,7 @@ export function CombatPanel({
                 </button>
               </div>
 
-              <p className="text-[13px] text-[#cbb893] leading-relaxed">
+              <p className="text-xs sm:text-[13px] text-[#cbb893] leading-relaxed">
                 Los estados van siempre por <strong>Influencia</strong>. Elegí el objetivo para
                 resistir con su Influencia (se aplica si lanzador ≥ defensor) o aplicalo directo:
               </p>
@@ -3927,10 +3964,12 @@ export function CombatPanel({
                         <button
                           type="button"
                           onClick={() => onRollStatusResistance(cb.id)}
-                          className="min-h-[38px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
+                          className="min-h-[36px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors"
                         >
-                          <Dices className="h-3.5 w-3.5" />
-                          {char.name} resiste (Inf {infDice}d6)
+                          <Dices className="h-3.5 w-3.5 shrink-0" />
+                          <span>
+                            {char.name} resiste (Inf {infDice}d6)
+                          </span>
                         </button>
                         <button
                           type="button"
@@ -3948,9 +3987,9 @@ export function CombatPanel({
 
           {/* Curación pendiente para aplicar a un combatiente */}
           {pendingHeal && (
-            <div className="rounded-xl border border-[#5f8240] bg-[#1c2615] p-4 space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[13px] font-semibold text-[#cdeba9]">
+            <div className="rounded-xl border border-[#5f8240] bg-[#1c2615] p-3.5 sm:p-4 space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-xs sm:text-[13px] font-semibold text-[#cdeba9] break-words">
                   <HeartPulse className="inline h-4 w-4 mr-1.5" />
                   {pendingHeal.healerName} lanzó {pendingHeal.spellName}:{' '}
                   {pendingHeal.isManual
@@ -3960,7 +3999,7 @@ export function CombatPanel({
                 <button
                   type="button"
                   onClick={onDismissPendingHeal}
-                  className="rounded-md px-2.5 py-1 text-xs text-[#9cb984] hover:bg-black/25 hover:text-white transition-colors"
+                  className="rounded-md px-2.5 py-1 text-xs text-[#9cb984] hover:bg-black/25 hover:text-white transition-colors shrink-0"
                 >
                   Cerrar
                 </button>
@@ -3972,7 +4011,7 @@ export function CombatPanel({
                   value={manualHealInput}
                   onChange={(e) => setManualHealInput(e.target.value)}
                   placeholder="Total de curación..."
-                  className="font-mono-num w-40 min-h-[38px] rounded-md border border-[#4a6932] bg-[#12180e] px-2.5 text-xs text-[#efe6d5]"
+                  className="font-mono-num w-full sm:w-40 min-h-[38px] rounded-md border border-[#4a6932] bg-[#12180e] px-2.5 text-xs text-[#efe6d5]"
                 />
               )}
               <div className="flex flex-wrap gap-2">
@@ -3993,7 +4032,7 @@ export function CombatPanel({
                           onApplyHeal(char.id);
                         }
                       }}
-                      className="min-h-[38px] rounded-lg bg-[#5f8240] px-3.5 text-xs font-semibold text-[#141a0d] hover:bg-[#77a352] shadow-sm transition-colors"
+                      className="min-h-[36px] rounded-lg bg-[#5f8240] px-3 text-xs font-semibold text-[#141a0d] hover:bg-[#77a352] shadow-sm transition-colors"
                     >
                       Curar a {char.name} ({char.hp.current}/{char.hp.max})
                     </button>
@@ -4102,7 +4141,7 @@ export function CombatPanel({
                 return (
                   <div
                     key={cb.id}
-                    className={`rounded-xl border p-3 space-y-2.5 transition-all ${cardColors} ${activeRoleRing} ${downStateClass}`}
+                    className={`rounded-xl border p-3 space-y-2.5 transition-all min-w-0 ${cardColors} ${activeRoleRing} ${downStateClass}`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="min-w-0 flex-1 space-y-0.5">
@@ -4121,7 +4160,7 @@ export function CombatPanel({
                               Máquina
                             </span>
                           )}
-                          <span className="text-sm sm:text-base font-bold text-[#efe6d5] truncate">
+                          <span className="text-sm sm:text-base font-bold text-[#efe6d5] break-words">
                             {char.name}
                           </span>
                           {isDead && (
@@ -4170,7 +4209,7 @@ export function CombatPanel({
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex flex-wrap items-center gap-1">
                         <div className="flex items-center gap-1 text-xs text-[#a3947e] mr-0.5">
                           <span>Init</span>
                           <input
@@ -4193,21 +4232,21 @@ export function CombatPanel({
                                 ? 'Pasar a control manual'
                                 : 'Dejar que la máquina controle a este combatiente'
                             }
-                            className={`min-h-[30px] inline-flex items-center gap-1 rounded-lg border px-2 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                            className={`min-h-[30px] inline-flex items-center gap-1 rounded-lg border px-2 text-xs font-semibold transition-colors ${
                               cb.isBotControlled
                                 ? 'border-[var(--arc-accent)] bg-[var(--arc-raised)] text-[var(--arc-accent)]'
                                 : 'border-transparent bg-transparent text-[#a3947e] hover:bg-white/10 hover:text-[#efe6d5]'
                             }`}
                           >
                             <Bot className="h-3.5 w-3.5 shrink-0" />
-                            Bot
+                            <span>Bot</span>
                           </button>
                         )}
 
                         <button
                           type="button"
                           onClick={() => onSelectActor(char.id)}
-                          className={`min-h-[30px] rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                          className={`min-h-[30px] rounded-lg px-2.5 text-xs font-semibold transition-colors ${
                             isActor
                               ? 'bg-[#d4a843] text-[#181209]'
                               : 'bg-transparent text-[#efe6d5] hover:bg-white/10'
@@ -4229,13 +4268,13 @@ export function CombatPanel({
                     </div>
 
                     {/* Barras rápidas PV y Maná */}
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      <div className="space-y-1">
+                    <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex flex-wrap items-center justify-between gap-1 text-xs font-mono-num">
                           <span className="text-[#d6c9b3] font-semibold">
                             PV {char.hp.current}/{char.hp.max}
                           </span>
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex flex-wrap items-center gap-0.5">
                             {[-5, -1, 1, 5].map((d) => (
                               <button
                                 key={d}
@@ -4259,14 +4298,14 @@ export function CombatPanel({
                                   }
                                 }}
                                 title="Aplicar daño directo con opción rápida de Protección"
-                                className={`min-h-[26px] inline-flex items-center gap-1 rounded px-1.5 text-xs font-sans font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                                className={`min-h-[26px] inline-flex items-center gap-1 rounded px-1.5 text-xs font-sans font-semibold transition-colors ${
                                   isDirectDmgOpen
                                     ? 'bg-[#1a3352] text-[#9fd2ff]'
                                     : 'bg-transparent text-[#9fd2ff] hover:bg-black/30'
                                 }`}
                               >
-                                <Shield className="h-3.5 w-3.5" />
-                                Daño / Prot.
+                                <Shield className="h-3.5 w-3.5 shrink-0" />
+                                <span>Daño / Prot.</span>
                               </button>
                             )}
                           </div>
@@ -4276,7 +4315,7 @@ export function CombatPanel({
                         </div>
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <div className="flex items-center justify-between text-xs font-mono-num">
                           <span className="text-[#d6c9b3] font-semibold">
                             Maná {char.mana.current}/{char.mana.max}
@@ -4307,8 +4346,8 @@ export function CombatPanel({
                         <div className="border-t border-white/10 pt-2 space-y-2">
                           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                             <span className="font-semibold text-[#9fd2ff] inline-flex items-center gap-1.5">
-                              <Shield className="h-3.5 w-3.5" />
-                              Daño directo a {char.name} con Protección rápida
+                              <Shield className="h-3.5 w-3.5 shrink-0" />
+                              <span>Daño directo a {char.name} con Protección rápida</span>
                             </span>
                             <button
                               type="button"
@@ -4400,7 +4439,7 @@ export function CombatPanel({
                               onChange={(e) => setDirectDmgLabel(e.target.value)}
                               placeholder="Motivo (opcional)"
                               aria-label={`Motivo del daño directo para ${char.name}`}
-                              className="flex-1 min-w-[130px] min-h-[32px] rounded-md border border-white/15 bg-black/35 px-2.5 text-xs text-[#efe6d5]"
+                              className="w-full sm:flex-1 min-w-0 min-h-[32px] rounded-md border border-white/15 bg-black/35 px-2.5 text-xs text-[#efe6d5]"
                             />
 
                             <label className="inline-flex items-center gap-1.5 text-[#d6c9b3] cursor-pointer">
@@ -4440,7 +4479,7 @@ export function CombatPanel({
                                 setDirectDmgProtStacks(0);
                                 setDirectDmgLabel('');
                               }}
-                              className="min-h-[32px] inline-flex items-center gap-1.5 rounded-lg bg-[#b85a3a] px-3 text-xs font-semibold text-white hover:bg-[#cc6644] disabled:opacity-40 shadow-sm whitespace-nowrap shrink-0 transition-colors"
+                              className="w-full sm:w-auto min-h-[32px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#b85a3a] px-3 text-xs font-semibold text-white hover:bg-[#cc6644] disabled:opacity-40 shadow-sm transition-colors"
                             >
                               Aplicar daño ({directNetDmg} PV)
                             </button>
@@ -4481,7 +4520,7 @@ export function CombatPanel({
                             return (
                               <div
                                 key={prep.id}
-                                className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs ${
+                                className={`inline-flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1 text-xs ${
                                   isPrepMagic
                                     ? 'bg-[var(--arc-magic-bg)]'
                                     : 'bg-[var(--arc-phys-bg)]'
@@ -4512,12 +4551,14 @@ export function CombatPanel({
                                       prepDepCheck?.missingReason ||
                                       `Requiere: ${prepDepCheck?.requiredName}`
                                     }
-                                    className="inline-flex items-center gap-1 rounded-md bg-[var(--arc-raised)] px-2 py-0.5 text-[11px] font-semibold text-[#f3b562] opacity-85 cursor-not-allowed whitespace-nowrap shrink-0"
+                                    className="inline-flex items-center gap-1 rounded-md bg-[var(--arc-raised)] px-2 py-0.5 text-[11px] font-semibold text-[#f3b562] opacity-85 cursor-not-allowed"
                                   >
                                     <Lock className="h-3 w-3 shrink-0" />
-                                    {prepStatusBlock ||
-                                      prepDepCheck?.missingReason ||
-                                      'Bloqueado'}
+                                    <span>
+                                      {prepStatusBlock ||
+                                        prepDepCheck?.missingReason ||
+                                        'Bloqueado'}
+                                    </span>
                                   </button>
                                 ) : (
                                   <button
@@ -4574,10 +4615,10 @@ export function CombatPanel({
                                   type="button"
                                   onClick={() => onCancelCombatantBuffs(cb.id)}
                                   title="Cancelar todos los hechizos por turno y buffs activos de este combatiente"
-                                  className="min-h-[24px] inline-flex items-center gap-1 rounded-md border border-[#6e3a2c] bg-[#2a1510] px-2 text-[11px] font-semibold text-[#ffb8a3] hover:bg-[#3d1e17] whitespace-nowrap shrink-0 transition-colors"
+                                  className="min-h-[24px] inline-flex items-center gap-1 rounded-md border border-[#6e3a2c] bg-[#2a1510] px-2 text-[11px] font-semibold text-[#ffb8a3] hover:bg-[#3d1e17] transition-colors"
                                 >
                                   <XCircle className="h-3 w-3 shrink-0" />
-                                  Cancelar buffs ({cancellableBuffCount})
+                                  <span>Cancelar buffs ({cancellableBuffCount})</span>
                                 </button>
                               )}
                             </div>
@@ -4656,34 +4697,34 @@ export function CombatPanel({
                                 return (
                                   <span
                                     key={st.id}
-                                    className={`inline-flex flex-wrap items-center gap-1 rounded-lg px-2 py-1 text-xs ${chipColorClass} ${statusAnimClass}`}
+                                    className={`inline-flex flex-wrap items-center gap-1 rounded-lg px-2 py-1 text-xs max-w-full ${chipColorClass} ${statusAnimClass}`}
                                   >
                                     {elemKind === 'burn' && (
-                                      <Flame className="h-3.5 w-3.5 text-[#ff8748]" />
+                                      <Flame className="h-3.5 w-3.5 text-[#ff8748] shrink-0" />
                                     )}
                                     {elemKind === 'poison' && (
-                                      <Droplets className="h-3.5 w-3.5 text-[#7ee068]" />
+                                      <Droplets className="h-3.5 w-3.5 text-[#7ee068] shrink-0" />
                                     )}
                                     {elemKind === 'frozen' && (
-                                      <Snowflake className="h-3.5 w-3.5 text-[#7ad0ff]" />
+                                      <Snowflake className="h-3.5 w-3.5 text-[#7ad0ff] shrink-0" />
                                     )}
                                     {elemKind === 'electrified' && (
-                                      <Zap className="h-3.5 w-3.5 text-[#ffd859]" />
+                                      <Zap className="h-3.5 w-3.5 text-[#ffd859] shrink-0" />
                                     )}
                                     {elemKind === 'bleeding' && (
-                                      <Droplets className="h-3.5 w-3.5 text-[#ff6b81]" />
+                                      <Droplets className="h-3.5 w-3.5 text-[#ff6b81] shrink-0" />
                                     )}
                                     {controlKey === 'aturdir' && (
-                                      <Zap className="h-3.5 w-3.5 text-[#facc15]" />
+                                      <Zap className="h-3.5 w-3.5 text-[#facc15] shrink-0" />
                                     )}
                                     {controlKey === 'cegar' && (
-                                      <EyeOff className="h-3.5 w-3.5 text-[#c4b5fd]" />
+                                      <EyeOff className="h-3.5 w-3.5 text-[#c4b5fd] shrink-0" />
                                     )}
                                     {!isElemental && isCollateral && (
-                                      <AlertTriangle className="h-3.5 w-3.5 text-[#ff9d5c]" />
+                                      <AlertTriangle className="h-3.5 w-3.5 text-[#ff9d5c] shrink-0" />
                                     )}
                                     {!isElemental && !isCollateral && isBuff && (
-                                      <ShieldPlus className="h-3.5 w-3.5 text-[#7ee098]" />
+                                      <ShieldPlus className="h-3.5 w-3.5 text-[#7ee098] shrink-0" />
                                     )}
                                     {isElemental && elemKind && mechanicId && onInspectMechanic ? (
                                       <button
@@ -4699,8 +4740,8 @@ export function CombatPanel({
                                         aria-label={`Consultar ${ELEMENTAL_STATUS_META[elemKind].name}`}
                                         title={`Consultar regla de ${ELEMENTAL_STATUS_META[elemKind].name}`}
                                       >
-                                        {ELEMENTAL_STATUS_META[elemKind].name}
-                                        <BookOpen className="h-3 w-3" />
+                                        <span>{ELEMENTAL_STATUS_META[elemKind].name}</span>
+                                        <BookOpen className="h-3 w-3 shrink-0" />
                                       </button>
                                     ) : (
                                       <span className="text-[11px] uppercase tracking-wide opacity-80 font-bold">
@@ -4730,8 +4771,8 @@ export function CombatPanel({
                                           aria-label={`Consultar ${st.name}`}
                                           title={`Consultar regla de ${st.name}`}
                                         >
-                                          {st.name}
-                                          <BookOpen className="h-3 w-3" />
+                                          <span>{st.name}</span>
+                                          <BookOpen className="h-3 w-3 shrink-0" />
                                         </button>
                                       ) : (
                                         <strong>{st.name}</strong>
@@ -4756,7 +4797,7 @@ export function CombatPanel({
                                               ? `Bloqueado por ${cbStatusEffects.cannotActReasons.join(', ')}`
                                               : 'Gastar 1 acción del turno para recuperar el arma/escudo soltado'
                                         }
-                                        className="rounded bg-[#7c4820] px-2 py-0.5 text-[11px] font-semibold text-[#fff2de] hover:bg-[#945829] disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                        className="rounded bg-[#7c4820] px-2 py-0.5 text-[11px] font-semibold text-[#fff2de] hover:bg-[#945829] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                       >
                                         Recuperar arma (1 acc.)
                                       </button>
@@ -4775,7 +4816,7 @@ export function CombatPanel({
                                             ? 'No puede levantarse mientras tiene movilidad 0 o está impedido'
                                             : 'Levantarse del suelo (retira Derribar)'
                                         }
-                                        className="rounded bg-black/35 px-2 py-0.5 text-[11px] font-semibold hover:bg-black/55 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0 transition-colors"
+                                        className="rounded bg-black/35 px-2 py-0.5 text-[11px] font-semibold hover:bg-black/55 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                                       >
                                         Levantarse
                                       </button>
@@ -4963,14 +5004,14 @@ export function CombatPanel({
                                                 type="button"
                                                 onClick={() => triggerElemTurn(cb.id, st.id)}
                                                 title={`Aplicar daño de ${meta.name} al inicio del turno y descontar 1 turno`}
-                                                className="rounded bg-black/35 px-2 py-0.5 text-[11px] font-semibold hover:bg-black/55 whitespace-nowrap shrink-0 transition-colors"
+                                                className="rounded bg-black/35 px-2 py-0.5 text-[11px] font-semibold hover:bg-black/55 transition-colors"
                                               >
                                                 Inicio turno ({elemStacks.length}
                                                 {tickDie})
                                               </button>
                                             )}
                                             {onTriggerSynergyReaction && (
-                                              <span className="inline-flex items-center gap-1">
+                                              <span className="inline-flex flex-wrap items-center gap-1">
                                                 <button
                                                   type="button"
                                                   onClick={() =>
@@ -4980,7 +5021,7 @@ export function CombatPanel({
                                                     )
                                                   }
                                                   title={synergyBtn.title}
-                                                  className={`rounded px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap shrink-0 transition-colors ${synergyBtn.cls}`}
+                                                  className={`rounded px-2 py-0.5 text-[11px] font-semibold transition-colors ${synergyBtn.cls}`}
                                                 >
                                                   {synergyBtn.label}
                                                 </button>
@@ -4997,7 +5038,7 @@ export function CombatPanel({
                                                         }
                                                       )
                                                     }
-                                                    className="inline-flex h-6 w-6 items-center justify-center rounded bg-black/30 text-current hover:bg-black/50"
+                                                    className="inline-flex h-6 w-6 items-center justify-center rounded bg-black/30 text-current hover:bg-black/50 shrink-0"
                                                     aria-label={`Consultar ${synergyBtn.label}`}
                                                     title={`Consultar regla de ${synergyBtn.label}`}
                                                   >
@@ -5096,7 +5137,7 @@ export function CombatPanel({
                                       onClick={() => onRemoveCombatantStatus(cb.id, st.id)}
                                       title={`Cancelar / disipar ${st.name}`}
                                       aria-label={`Cancelar ${st.name}`}
-                                      className="inline-flex items-center gap-0.5 rounded bg-black/25 px-1.5 py-0.5 text-[10px] font-semibold opacity-85 hover:bg-[#5c2015] hover:text-[#ffd2c4] hover:opacity-100 ml-0.5 whitespace-nowrap shrink-0 transition-colors"
+                                      className="inline-flex items-center gap-0.5 rounded bg-black/25 px-1.5 py-0.5 text-[10px] font-semibold opacity-85 hover:bg-[#5c2015] hover:text-[#ffd2c4] hover:opacity-100 ml-0.5 transition-colors"
                                     >
                                       Cancelar ×
                                     </button>

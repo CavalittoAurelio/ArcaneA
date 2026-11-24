@@ -9036,7 +9036,7 @@ const handleSummonBeastProfile = (
       }`}
     >
       <header className="arc-no-print border-b border-[var(--arc-border)] bg-[var(--arc-header)]">
-        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 sm:py-4">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-2.5 sm:gap-3 px-3.5 sm:px-6 py-3 sm:py-4">
           <div className="inline-flex items-baseline gap-2 whitespace-nowrap shrink-0">
             <BookOpen className="h-5 w-5 self-center text-[var(--arc-action)]" aria-hidden="true" />
             <span className="font-display text-lg sm:text-xl font-bold tracking-wide text-[var(--arc-accent)]">
@@ -9062,13 +9062,16 @@ const handleSummonBeastProfile = (
                 setShowEditor((v) => !v);
               }
             }}
-            className="md:order-3 min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 py-2 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
+            className="md:order-3 min-h-[38px] sm:min-h-[40px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-3.5 sm:px-4 py-2 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
           >
             <Plus className="h-4 w-4" />
-            {showEditor && activeTab === 'arena' ? 'Ocultar editor' : 'Nuevo hechizo'}
+            <span>{showEditor && activeTab === 'arena' ? 'Ocultar editor' : 'Nuevo hechizo'}</span>
           </button>
 
-          <nav className="w-full md:w-auto md:order-2 flex items-center justify-between sm:justify-start gap-2 sm:gap-5 md:gap-6 overflow-x-auto text-xs sm:text-sm font-medium border-t border-[var(--arc-border)] pt-2 md:border-t-0 md:pt-0">
+          <nav
+            aria-label="Secciones principales"
+            className="w-full md:w-auto md:order-2 flex items-center justify-start gap-3 sm:gap-5 md:gap-6 overflow-x-auto pb-0.5 md:pb-0 text-xs sm:text-sm font-medium border-t border-[var(--arc-border)] pt-2 md:border-t-0 md:pt-0"
+          >
             {[
               { id: 'arena' as const, label: 'Grimorio', short: 'Grimorio', dot: false },
               { id: 'archive' as const, label: 'Archivo Arcano', short: 'Archivo', dot: false },
@@ -9304,7 +9307,7 @@ const handleSummonBeastProfile = (
       )}
 
       <main
-        className={`mx-auto max-w-[1440px] px-3.5 pt-3.5 sm:px-6 sm:pt-6 ${
+        className={`mx-auto max-w-[1440px] overflow-x-clip px-3.5 pt-3.5 sm:px-6 sm:pt-6 ${
           activeTab === 'quickcast' ? 'pb-24 md:pb-6' : 'pb-6'
         }`}
       >
@@ -9314,7 +9317,7 @@ const handleSummonBeastProfile = (
             <div className="space-y-4">
               {/* Barra superior del taller de Grimorio */}
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3">
-                <div className="text-[13px] text-[var(--arc-muted)]">
+                <div className="text-xs sm:text-[13px] text-[var(--arc-muted)] leading-relaxed min-w-0 flex-1">
                   Taller de grimorio: creá, duplicá y administrá hechizos y maestrías. Explorá hechizos no aprendidos en{' '}
                   <button
                     type="button"
@@ -9333,7 +9336,7 @@ const handleSummonBeastProfile = (
                   </button>
                   .
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                   <button
                     type="button"
                     onClick={() => setShowCustomizer((v) => !v)}
@@ -9365,11 +9368,11 @@ const handleSummonBeastProfile = (
               )}
 
               {/* Vista de 2 columnas en escritorio cuando el editor está abierto; ancho completo con grilla de 2 columnas cuando está cerrado */}
-              <div className="grid gap-5 xl:grid-cols-12 items-start">
+              <div className="grid gap-4 sm:gap-5 xl:grid-cols-12 items-start">
                 <div
-                  className={
+                  className={`min-w-0 ${
                     isEditorVisible ? 'order-2 xl:order-1 xl:col-span-5' : 'xl:col-span-12'
-                  }
+                  }`}
                 >
                   <SpellBookList
                     spells={spells}
@@ -9419,7 +9422,7 @@ const handleSummonBeastProfile = (
                 </div>
 
                 {isEditorVisible && (
-                  <div className="order-1 xl:order-2 xl:col-span-7 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 xl:pb-2">
+                  <div className="min-w-0 order-1 xl:order-2 xl:col-span-7 xl:sticky xl:top-4 xl:max-h-[calc(100vh-2rem)] xl:overflow-y-auto xl:overscroll-contain xl:pr-1 xl:pb-2">
                     <GrimorioEditor
                       activeCharacter={activeCharacter}
                       spells={spells}
@@ -9483,12 +9486,12 @@ const handleSummonBeastProfile = (
           <div className="space-y-4">
             {/* Barra de personalización del tablero de Combate */}
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3">
-              <div className="text-[13px] text-[var(--arc-muted)]">
+              <div className="text-xs sm:text-[13px] text-[var(--arc-muted)] leading-relaxed min-w-0 flex-1">
                 {customizeLayoutMode
                   ? 'Modo edición de cajas activo: arrastrá cada caja desde su barra superior para cambiarla de lado o altura.'
                   : 'Mesa de Combate completa: Casteo rápido, Armas y Catalizadores, enfrentamientos y registro.'}
               </div>
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                 <button
                   type="button"
                   onClick={() => setShowCustomizer((v) => !v)}
@@ -9540,10 +9543,11 @@ const handleSummonBeastProfile = (
               />
             )}
 
-            <div className="grid gap-5 xl:grid-cols-12 items-start">
+            <div className="grid gap-4 sm:gap-5 xl:grid-cols-12 items-start">
               {renderArenaColumn('left')}
               {renderArenaColumn('right')}
             </div>
+
             {/* Navegación inferior en celular para Combate */}
             <nav
               aria-label="Navegación rápida de combate"

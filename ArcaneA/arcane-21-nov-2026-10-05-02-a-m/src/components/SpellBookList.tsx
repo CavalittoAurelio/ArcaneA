@@ -2481,121 +2481,116 @@ export function SpellBookList({
                     )}
 
                     <div className="relative flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
-                          <span
-                            style={{ color: catMeta.accent }}
-                            className="inline-flex items-center gap-1 font-semibold"
-                          >
-                            <SpellCategoryIcon category={category} className="h-3.5 w-3.5" />
-                            {catMeta.label}
-                          </span>
-                          <span className="text-[var(--arc-muted)]" aria-hidden="true">
-                            ·
-                          </span>
-                          <span
-                            className={
-                              isMagical
-                                ? 'text-[var(--arc-magic-accent)] font-semibold'
-                                : 'text-[var(--arc-phys-accent)] font-semibold'
-                            }
-                          >
-                            {spell.effectType === 'damage'
-                              ? spellDmgKind === 'magico'
-                                ? 'Mágico'
-                                : 'Físico'
-                              : isMagical
-                                ? 'Mágico'
-                                : 'Físico'}
-                          </span>
-                        </div>
-                        <div className="mt-1 font-mono-num text-xs text-[var(--arc-muted)]">
-                          {defManaInfo.cost} maná
-                        </div>
-                      </div>
+  <div className="min-w-0 flex-1">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+      <span
+        style={{ color: catMeta.accent }}
+        className="inline-flex items-center gap-1 font-semibold"
+      >
+        <SpellCategoryIcon category={category} className="h-3.5 w-3.5" />
+        {catMeta.label}
+      </span>
+      <span className="text-[var(--arc-muted)]" aria-hidden="true">·</span>
+      <span
+        className={
+          isMagical
+            ? 'text-[var(--arc-magic-accent)] font-semibold'
+            : 'text-[var(--arc-phys-accent)] font-semibold'
+        }
+      >
+        {spell.effectType === 'damage'
+          ? spellDmgKind === 'magico' ? 'Mágico' : 'Físico'
+          : isMagical ? 'Mágico' : 'Físico'}
+      </span>
+    </div>
+    <div className="mt-1 font-mono-num text-xs text-[var(--arc-muted)]">
+      {defManaInfo.cost} maná
+    </div>
+  </div>
 
-                      {(spell.effectType === 'damage' || spell.effectType === 'heal') &&
-                        diceDisplayText && (
-                          <div className="shrink-0 text-right">
-                            <div
-                              className={`font-mono-num text-xl font-bold leading-none tracking-tight ${
-                                spell.effectType === 'heal'
-                                  ? 'text-[#8fd2a1]'
-                                  : isMagical
-                                    ? 'text-[var(--arc-magic-accent)]'
-                                    : 'text-[var(--arc-phys-accent)]'
-                              }`}
-                            >
-                              {diceDisplayText}
-                            </div>
-                            {hasDieUpgrade && (
-                              <div className="mt-0.5 font-mono-num text-[10px] text-[var(--arc-muted)] line-through">
-                                {baseDiceText}
-                              </div>
-                            )}
-                          </div>
-                        )}
+  <div className="flex items-center gap-2 shrink-0">
+    {(spell.effectType === 'damage' || spell.effectType === 'heal') &&
+      diceDisplayText && (
+        <div className="text-right">
+          <div
+            className={`font-mono-num text-lg sm:text-xl font-bold leading-none tracking-tight ${
+              spell.effectType === 'heal'
+                ? 'text-[#8fd2a1]'
+                : isMagical
+                  ? 'text-[var(--arc-magic-accent)]'
+                  : 'text-[var(--arc-phys-accent)]'
+            }`}
+          >
+            {diceDisplayText}
+          </div>
+          {hasDieUpgrade && (
+            <div className="mt-0.5 font-mono-num text-[10px] text-[var(--arc-muted)] line-through">
+              {baseDiceText}
+            </div>
+          )}
+        </div>
+      )}
 
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setOpenCompactMenuSpellId(isCompactMenuOpen ? null : spell.id);
-                        }}
-                        title="Opciones del hechizo"
-                        aria-label={`Opciones de ${spell.name}`}
-                        aria-expanded={isCompactMenuOpen}
-                        className="absolute -right-0.5 -top-12 min-h-[32px] w-8 inline-flex items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        setOpenCompactMenuSpellId(isCompactMenuOpen ? null : spell.id);
+      }}
+      title="Opciones del hechizo"
+      aria-label={`Opciones de ${spell.name}`}
+      aria-expanded={isCompactMenuOpen}
+      className="min-h-[32px] w-8 inline-flex items-center justify-center rounded-md text-[var(--arc-muted)] hover:bg-[var(--arc-raised)] hover:text-[var(--arc-text)]"
+    >
+      <MoreHorizontal className="h-4 w-4" />
+    </button>
 
-                      {isCompactMenuOpen && (
-                        <div
-                          role="menu"
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute right-0 top-8 z-20 w-40 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] p-1 shadow-xl"
-                        >
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setOpenCompactMenuSpellId(null);
-                              onDuplicateSpell(spell);
-                            }}
-                            className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                            Duplicar
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setOpenCompactMenuSpellId(null);
-                              onEditSpell(spell);
-                            }}
-                            className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
-                          >
-                            <Edit3 className="h-3.5 w-3.5" />
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            onClick={() => {
-                              setOpenCompactMenuSpellId(null);
-                              onDeleteSpell(spell.id);
-                            }}
-                            className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[#e88a70] hover:bg-[#361912]"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                            Eliminar
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
+    {isCompactMenuOpen && (
+      <div
+        role="menu"
+        onClick={(e) => e.stopPropagation()}
+        className="absolute right-0 top-9 z-20 w-40 rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] p-1 shadow-xl"
+      >
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpenCompactMenuSpellId(null);
+            onDuplicateSpell(spell);
+          }}
+          className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
+        >
+          <Copy className="h-3.5 w-3.5" />
+          Duplicar
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpenCompactMenuSpellId(null);
+            onEditSpell(spell);
+          }}
+          className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[var(--arc-text)] hover:bg-[var(--arc-input)]"
+        >
+          <Edit3 className="h-3.5 w-3.5" />
+          Editar
+        </button>
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpenCompactMenuSpellId(null);
+            onDeleteSpell(spell.id);
+          }}
+          className="flex min-h-[34px] w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-xs text-[#e88a70] hover:bg-[#361912]"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          Eliminar
+        </button>
+      </div>
+    )}
+  </div>
+</div>
                     {spell.effectDescription && (
                       <p className="text-xs text-[var(--arc-muted)] line-clamp-2 leading-snug">
                         {spell.effectDescription}

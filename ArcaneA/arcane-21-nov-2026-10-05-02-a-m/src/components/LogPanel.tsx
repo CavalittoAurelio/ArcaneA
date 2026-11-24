@@ -36,7 +36,7 @@ function DiceRow({ summary, tone }: { summary: D6RollSummary; tone?: 'atk' | 'de
         : 'text-[var(--arc-muted)]';
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 min-w-0">
       <div className="flex flex-wrap items-center gap-1.5">
         {summary.rolls.map((val, idx) => {
           const style =
@@ -68,7 +68,7 @@ function DiceRow({ summary, tone }: { summary: D6RollSummary; tone?: 'atk' | 'de
           </span>
         )}
       </div>
-      <div className={`text-xs font-mono-num ${metaTextClass}`}>
+      <div className={`text-xs font-mono-num break-words ${metaTextClass}`}>
         {summary.breakdown && summary.breakdown.length > 0 && (
           <span className="mr-1.5 opacity-80">
             ({summary.breakdown.map((b) => `${STAT_NAMES[b.stat]} ${b.dice}d6`).join(' + ')}) ·
@@ -89,7 +89,7 @@ function DiceRow({ summary, tone }: { summary: D6RollSummary; tone?: 'atk' | 'de
 
 function DamageLine({ damageRoll }: { damageRoll: DamageRollSummary }) {
   return (
-    <div className="text-[13px] font-mono-num text-[var(--arc-text)] rounded-lg bg-[var(--arc-input)]/75 px-3 py-2">
+    <div className="text-xs sm:text-[13px] font-mono-num text-[var(--arc-text)] rounded-lg bg-[var(--arc-input)]/75 px-3 py-2 break-words">
       {damageRoll.isCriticalHit && (
         <span className="mr-2 inline-flex items-center rounded bg-[#5e1c14] px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#ffd6c9]">
           CRÍTICO AUTO{damageRoll.criticalReason ? ` · ${damageRoll.criticalReason}` : ''}
@@ -200,8 +200,8 @@ function MechanicLogLinks({
           }
           className="min-h-[28px] inline-flex items-center gap-1 rounded-md border border-[var(--arc-border)] bg-[var(--arc-surface)] px-2 text-[11px] font-semibold text-[var(--arc-accent)] hover:bg-[var(--arc-raised)]"
         >
-          <BookOpen className="h-3 w-3" />
-          {getCombatMechanic(mechanicId)?.name || 'Mecánica'}
+          <BookOpen className="h-3 w-3 shrink-0" />
+          <span>{getCombatMechanic(mechanicId)?.name || 'Mecánica'}</span>
         </button>
       ))}
     </div>
@@ -213,13 +213,13 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
   const [quickAssured, setQuickAssured] = useState(0);
 
   return (
-    <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-4 sm:p-5 space-y-4">
+    <section className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface)] p-3.5 sm:p-5 space-y-4 min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] pb-3.5">
-        <div>
-          <h2 className="font-display text-lg sm:text-xl font-bold text-[var(--arc-accent)]">
+        <div className="min-w-0">
+          <h2 className="font-display text-base sm:text-xl font-bold text-[var(--arc-accent)] break-words">
             Historial y Dados Rápidos
           </h2>
-          <p className="text-[13px] text-[var(--arc-muted)] mt-0.5">
+          <p className="text-xs sm:text-[13px] text-[var(--arc-muted)] mt-0.5">
             Registro cronológico de casteos, ataques, defensas y daños
           </p>
         </div>
@@ -227,22 +227,22 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
         <button
           type="button"
           onClick={onClearLogs}
-          className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[#361912] hover:text-[#e88a70] whitespace-nowrap shrink-0 transition-colors"
+          className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg bg-transparent px-2.5 text-xs font-medium text-[var(--arc-muted)] hover:bg-[#361912] hover:text-[#e88a70] transition-colors shrink-0"
         >
-          <Trash2 className="h-3.5 w-3.5" />
-          Limpiar historial
+          <Trash2 className="h-3.5 w-3.5 shrink-0" />
+          <span>Limpiar historial</span>
         </button>
       </div>
 
-      {/* Tirador rápido integrado (sin recuadro anidado) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--arc-border)] pb-3.5">
-        <div className="flex flex-wrap items-center gap-4 text-xs">
+      {/* Tirador rápido integrado */}
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center justify-between gap-2.5 sm:gap-3 border-b border-[var(--arc-border)] pb-3.5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
           <div className="flex items-center gap-1">
             <span className="text-[var(--arc-muted)] mr-1">Dados d6:</span>
             <button
               type="button"
               onClick={() => setQuickDice((n) => Math.max(1, n - 1))}
-              className="min-h-[30px] w-7 rounded-md bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
+              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
             >
               −
             </button>
@@ -252,7 +252,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
             <button
               type="button"
               onClick={() => setQuickDice((n) => Math.min(20, n + 1))}
-              className="min-h-[30px] w-7 rounded-md bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
+              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
             >
               +
             </button>
@@ -263,7 +263,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
             <button
               type="button"
               onClick={() => setQuickAssured((n) => Math.max(0, n - 1))}
-              className="min-h-[30px] w-7 rounded-md bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
+              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
             >
               −
             </button>
@@ -273,7 +273,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
             <button
               type="button"
               onClick={() => setQuickAssured((n) => Math.min(10, n + 1))}
-              className="min-h-[30px] w-7 rounded-md bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
+              className="min-h-[30px] w-7 rounded-md bg-[var(--arc-input)] sm:bg-transparent text-[var(--arc-text)] font-semibold hover:bg-[var(--arc-raised)] transition-colors"
             >
               +
             </button>
@@ -283,20 +283,20 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
         <button
           type="button"
           onClick={() => onQuickRoll(quickDice, quickAssured)}
-          className="min-h-[38px] inline-flex items-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm whitespace-nowrap shrink-0 transition-colors"
+          className="w-full sm:w-auto min-h-[38px] inline-flex items-center justify-center gap-1.5 rounded-lg bg-[var(--arc-action)] px-4 text-xs font-semibold text-[var(--arc-action-text)] hover:bg-[var(--arc-action-hover)] shadow-sm transition-colors shrink-0"
         >
-          <Dices className="h-3.5 w-3.5" />
-          Tirar {quickDice}d6
+          <Dices className="h-3.5 w-3.5 shrink-0" />
+          <span>Tirar {quickDice}d6</span>
         </button>
       </div>
 
       {/* Entradas del log */}
       {logs.length === 0 ? (
-        <div className="rounded-lg bg-[var(--arc-surface-alt)] p-6 text-center text-[13px] text-[var(--arc-muted)]">
+        <div className="rounded-lg bg-[var(--arc-surface-alt)] p-6 text-center text-xs sm:text-[13px] text-[var(--arc-muted)]">
           Aún no se realizaron tiradas ni acciones de combate.
         </div>
       ) : (
-        <div className="space-y-3 max-h-[560px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[420px] sm:max-h-[560px] overflow-y-auto pr-0.5 sm:pr-1">
           {logs.map((entry) => {
             const clash = entry.clash;
             const isSplitDuel = Boolean(entry.attackRoll && entry.defenseRoll);
@@ -315,23 +315,23 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
               return (
                 <article
                   key={entry.id}
-                  className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] overflow-hidden"
+                  className="rounded-xl border border-[var(--arc-border)] bg-[var(--arc-surface-alt)] overflow-hidden min-w-0"
                 >
                   {/* Barra superior con veredicto y participantes */}
                   <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--arc-border)] bg-[var(--arc-surface)] px-3.5 py-2.5">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs min-w-0">
                       <span className={`font-bold uppercase tracking-wide ${verdict.toneClass}`}>
                         {verdict.label}
                       </span>
                       <span className="text-[var(--arc-border-strong)]">·</span>
                       <span className="inline-flex items-center gap-1 font-semibold text-[var(--arc-atk-accent)]">
                         <Swords className="h-3 w-3 shrink-0" />
-                        {atkName}
+                        <span>{atkName}</span>
                       </span>
                       <ArrowRight className="h-3 w-3 text-[var(--arc-muted)] shrink-0" />
                       <span className="inline-flex items-center gap-1 font-semibold text-[var(--arc-def-accent)]">
                         <Shield className="h-3 w-3 shrink-0" />
-                        {defName}
+                        <span>{defName}</span>
                       </span>
                       {dmgKind && (
                         <>
@@ -348,28 +348,28 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                         </>
                       )}
                     </div>
-                    <span className="font-mono-num text-xs text-[var(--arc-muted)]">
+                    <span className="font-mono-num text-xs text-[var(--arc-muted)] shrink-0">
                       {entry.timestamp}
                     </span>
                   </div>
 
                   {/* Dos columnas: Atacante (cálido) | Defensor (frío) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[var(--arc-border)]">
-                    <div className="bg-[var(--arc-atk-bg)] p-3.5 space-y-2">
+                    <div className="bg-[var(--arc-atk-bg)] p-3.5 space-y-2 min-w-0">
                       <div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--arc-atk-accent)]">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--arc-atk-accent)] min-w-0">
                             <Swords className="h-3 w-3 shrink-0" />
-                            Ataca · {atkName}
+                            <span className="truncate">Ataca · {atkName}</span>
                           </span>
-                          <span className="font-mono-num text-sm font-bold text-[var(--arc-atk-accent)]">
+                          <span className="font-mono-num text-sm font-bold text-[var(--arc-atk-accent)] shrink-0">
                             {entry.attackRoll.net > 0
                               ? `+${entry.attackRoll.net}`
                               : entry.attackRoll.net}
                           </span>
                         </div>
                         {clash?.attackerAction && (
-                          <div className="text-[13px] font-semibold text-[var(--arc-atk-text)] mt-0.5">
+                          <div className="text-xs sm:text-[13px] font-semibold text-[var(--arc-atk-text)] mt-0.5 break-words">
                             {clash.attackerAction}
                           </div>
                         )}
@@ -377,21 +377,21 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                       <DiceRow summary={entry.attackRoll} tone="atk" />
                     </div>
 
-                    <div className="bg-[var(--arc-def-bg)] p-3.5 space-y-2">
+                    <div className="bg-[var(--arc-def-bg)] p-3.5 space-y-2 min-w-0">
                       <div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--arc-def-accent)]">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--arc-def-accent)] min-w-0">
                             <Shield className="h-3 w-3 shrink-0" />
-                            Defiende · {defName}
+                            <span className="truncate">Defiende · {defName}</span>
                           </span>
-                          <span className="font-mono-num text-sm font-bold text-[var(--arc-def-accent)]">
+                          <span className="font-mono-num text-sm font-bold text-[var(--arc-def-accent)] shrink-0">
                             {entry.defenseRoll.net > 0
                               ? `+${entry.defenseRoll.net}`
                               : entry.defenseRoll.net}
                           </span>
                         </div>
                         {clash?.defenderAction && (
-                          <div className="text-[13px] font-semibold text-[var(--arc-def-text)] mt-0.5">
+                          <div className="text-xs sm:text-[13px] font-semibold text-[var(--arc-def-text)] mt-0.5 break-words">
                             {clash.defenderAction}
                           </div>
                         )}
@@ -401,16 +401,18 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                   </div>
 
                   {/* Pie con daño y resumen */}
-                  <div className="border-t border-[var(--arc-border)] px-3.5 py-2.5 space-y-1.5">
+                  <div className="border-t border-[var(--arc-border)] px-3.5 py-2.5 space-y-1.5 min-w-0">
                     {entry.damageRoll && <DamageLine damageRoll={entry.damageRoll} />}
-                    <p className="text-[13px] text-[var(--arc-text)] opacity-90 leading-relaxed">
+                    <p className="text-xs sm:text-[13px] text-[var(--arc-text)] opacity-90 leading-relaxed break-words">
                       {entry.summaryText}
                     </p>
                     {entry.manaNote && (
-                      <p className="text-xs text-[var(--arc-magic-accent)]">{entry.manaNote}</p>
+                      <p className="text-xs text-[var(--arc-magic-accent)] break-words">
+                        {entry.manaNote}
+                      </p>
                     )}
                     {entry.masteryNote && (
-                      <p className="text-xs font-medium text-[var(--arc-accent)]">
+                      <p className="text-xs font-medium text-[var(--arc-accent)] break-words">
                         {entry.masteryNote}
                       </p>
                     )}
@@ -438,14 +440,14 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
               return (
                 <article
                   key={entry.id}
-                  className={`rounded-xl border p-4 space-y-2.5 ${
+                  className={`rounded-xl border p-3.5 sm:p-4 space-y-2.5 min-w-0 ${
                     isAtk
                       ? 'border-[var(--arc-atk-border)] bg-[var(--arc-atk-bg)]'
                       : 'border-[var(--arc-def-border)] bg-[var(--arc-def-bg)]'
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <div className="flex flex-wrap items-center gap-2 text-xs min-w-0">
                       <span
                         className={`inline-flex items-center gap-1 font-bold uppercase tracking-wider ${
                           isAtk ? 'text-[var(--arc-atk-accent)]' : 'text-[var(--arc-def-accent)]'
@@ -456,7 +458,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                         ) : (
                           <Shield className="h-3.5 w-3.5 shrink-0" />
                         )}
-                        {isAtk ? 'Ataca' : 'Defiende'}
+                        <span>{isAtk ? 'Ataca' : 'Defiende'}</span>
                       </span>
 
                       {clash?.attackerName && clash?.defenderName && (
@@ -480,13 +482,13 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                       )}
                     </div>
 
-                    <span className="font-mono-num text-xs text-[var(--arc-muted)]">
+                    <span className="font-mono-num text-xs text-[var(--arc-muted)] shrink-0">
                       {entry.timestamp}
                     </span>
                   </div>
 
                   <h3
-                    className={`text-[15px] font-bold ${
+                    className={`text-sm sm:text-[15px] font-bold break-words ${
                       isAtk ? 'text-[var(--arc-atk-text)]' : 'text-[var(--arc-def-text)]'
                     }`}
                   >
@@ -498,7 +500,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                   {entry.damageRoll && <DamageLine damageRoll={entry.damageRoll} />}
 
                   <p
-                    className={`text-[13px] leading-relaxed ${
+                    className={`text-xs sm:text-[13px] leading-relaxed break-words ${
                       isAtk ? 'text-[var(--arc-atk-text)]' : 'text-[var(--arc-def-text)]'
                     } opacity-90`}
                   >
@@ -506,10 +508,12 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                   </p>
 
                   {entry.manaNote && (
-                    <p className="text-xs text-[var(--arc-magic-accent)]">{entry.manaNote}</p>
+                    <p className="text-xs text-[var(--arc-magic-accent)] break-words">
+                      {entry.manaNote}
+                    </p>
                   )}
                   {entry.masteryNote && (
-                    <p className="text-xs font-medium text-[var(--arc-accent)]">
+                    <p className="text-xs font-medium text-[var(--arc-accent)] break-words">
                       {entry.masteryNote}
                     </p>
                   )}
@@ -529,7 +533,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
             return (
               <article
                 key={entry.id}
-                className={`rounded-xl border p-4 space-y-2.5 ${
+                className={`rounded-xl border p-3.5 sm:p-4 space-y-2.5 min-w-0 ${
                   isMagicalEntry
                     ? 'border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)]'
                     : isPhysicalEntry
@@ -539,7 +543,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <h3
-                    className={`text-[15px] font-bold ${
+                    className={`text-sm sm:text-[15px] font-bold break-words min-w-0 flex-1 ${
                       isMagicalEntry
                         ? 'text-[var(--arc-magic-accent)]'
                         : isPhysicalEntry
@@ -549,7 +553,7 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
                   >
                     {entry.title}
                   </h3>
-                  <span className="font-mono-num text-xs text-[var(--arc-muted)]">
+                  <span className="font-mono-num text-xs text-[var(--arc-muted)] shrink-0">
                     {entry.timestamp}
                   </span>
                 </div>
@@ -563,16 +567,18 @@ export function LogPanel({ logs, onClearLogs, onQuickRoll, onInspectMechanic }: 
 
                 {entry.damageRoll && <DamageLine damageRoll={entry.damageRoll} />}
 
-                <p className="text-[13px] text-[var(--arc-text)] opacity-90 leading-relaxed">
+                <p className="text-xs sm:text-[13px] text-[var(--arc-text)] opacity-90 leading-relaxed break-words">
                   {entry.summaryText}
                 </p>
 
                 {entry.manaNote && (
-                  <p className="text-xs text-[var(--arc-magic-accent)]">{entry.manaNote}</p>
+                  <p className="text-xs text-[var(--arc-magic-accent)] break-words">
+                    {entry.manaNote}
+                  </p>
                 )}
 
                 {entry.masteryNote && (
-                  <p className="text-xs font-medium text-[var(--arc-accent)]">
+                  <p className="text-xs font-medium text-[var(--arc-accent)] break-words">
                     {entry.masteryNote}
                   </p>
                 )}
