@@ -8755,7 +8755,6 @@ const handleImportBackup = (jsonText: string): { ok: boolean; message: string } 
       <LogPanel
         logs={logs}
         onClearLogs={() => setLogs([])}
-        onQuickRoll={handleQuickRoll}
         onInspectMechanic={(mechanicId, context) =>
           setCombatMechanicReader({ mechanicId, context })
         }
@@ -8950,7 +8949,19 @@ const handleSummonBeastProfile = (
     const existingExact = characters.some(
       (c) => c.name.toLowerCase() === normalizedBase.toLowerCase()
     );
-
+    const attackBonus = profile.attackBonus || 0;
+    const naturalWeapon: CharacterWeapon = {
+      id: generateId('wp_beast_'),
+      presetId: `beast_natural:${attackBonus}`,
+      name: profile.attackName || 'Ataque bestial',
+      category: 'natural',
+      dice:
+        profile.attackDice && profile.attackDice.length > 0
+          ? profile.attackDice.map((d) => ({ ...d }))
+          : [{ type: 'd6', count: 1 }],
+      isNatural: true,
+      isMagicalCatalyst: profile.attackDamageKind === 'magico',
+    };
     let resolvedName = rawBaseName;
     if (!options?.customName?.trim()) {
       if (matchingCount > 0) {

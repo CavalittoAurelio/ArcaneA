@@ -1831,9 +1831,20 @@ export function getWeaponDamageFormula(
 } {
   const manipLvl = character?.stats.manipulacion ?? 0;
   const infLvl = character?.stats.influencia ?? 0;
+
+  let beastBonus = 0;
+  if (weapon.presetId.startsWith('beast_natural:')) {
+    const parsed = Number(weapon.presetId.split(':')[1]);
+    if (!Number.isNaN(parsed)) {
+      beastBonus = parsed;
+    }
+  }
+
   const bonus =
     (weapon.addsManipulacionLevel ? manipLvl : 0) +
-    (weapon.addsInfluenciaLevel ? infLvl : 0);
+    (weapon.addsInfluenciaLevel ? infLvl : 0) +
+    beastBonus;
+
   const damageKind: DamageKind =
     weapon.imbued || weapon.isMagicalCatalyst ? 'magico' : 'fisico';
 
@@ -1841,9 +1852,11 @@ export function getWeaponDamageFormula(
   const bonusParts: string[] = [];
   if (weapon.addsInfluenciaLevel) bonusParts.push(`Inf ${infLvl}`);
   if (weapon.addsManipulacionLevel) bonusParts.push(`Man ${manipLvl}`);
+  if (beastBonus !== 0) bonusParts.push(`Bestia ${beastBonus > 0 ? `+${beastBonus}` : beastBonus}`);
+
   const text =
     diceStr +
-    (bonus > 0 ? ` + ${bonus}` : '') +
+    (bonus !== 0 ? ` ${bonus > 0 ? '+' : '−'} ${Math.abs(bonus)}` : '') +
     (bonusParts.length > 0 ? ` (${bonusParts.join(' + ')})` : '');
 
   return {
@@ -5413,6 +5426,30 @@ export function createCharacterFromBeastProfile(
   const hpMax = Math.max(1, profile.hpMax || 15);
   const manaMax = Math.max(0, profile.manaMax || 5);
 
+  const baseAttackName = profile.attackName || 'Ataque bestial';
+  const weaponName =
+    profile.attackBonus && profile.attackBonus !== 0
+      ? `${baseAttackName} (${profile.attackBonus > 0 ? `+${profile.attackBonus}` : profile.attackBonus})`
+      : baseAttackName;
+
+  const naturalWeapon: CharacterWeapon = {
+    id: generateId('wp_beast_'),
+    presetId: 'beast_natural',
+    name: weaponName,
+    category: 'natural',
+    dice:
+      profile.attackDice && profile.attackDice.length > 0
+        ? profile.attackDice.map((d) => ({ ...d }))
+        : [{ type: 'd6', count: 1 }],
+    isNatural: true,
+    isMagicalCatalyst: profile.attackDamageKind === 'magico',
+  };
+
+  const defaultKnownSpells = [
+    'basic_esquiva_fisica',
+    ...(manaMax > 0 ? ['basic_proteccion'] : []),
+  ];
+
   return {
     id: charId,
     name: displayName,
@@ -5423,13 +5460,13 @@ export function createCharacterFromBeastProfile(
     statPoints,
     hp: { current: hpMax, max: hpMax },
     mana: { current: manaMax, max: manaMax },
-    knownSpells: [],
+    knownSpells: defaultKnownSpells,
     spellMastery: {},
-    weapons: [],
+    weapons: [naturalWeapon],
     condition: 'active',
-    notes: `${profile.species} · ${profile.role}. Ataque: ${profile.attackName} (${
-     profile.attackDice.map((d: DamageDie) => `${d.count}${d.type}`)
-    }${profile.attackBonus ? ` + ${profile.attackBonus}` : ''}). ${profile.notes}${
+    notes: `${profile.species} · ${profile.role}. Ataque: ${baseAttackName} (${profile.attackDice
+      .map((d: DamageDie) => `${d.count}${d.type}`)
+      .join(' + ')}${profile.attackBonus ? ` + ${profile.attackBonus}` : ''}). ${profile.notes}${
       options?.setLinkedStatus ? ' [Estado inicial: Vinculado]' : ''
     }`,
     resistances: profile.resistances || '',
