@@ -5415,6 +5415,7 @@ export const STARTER_BEAST_PROFILES: BeastProfile[] = [
 ];
 
 export function createCharacterFromBeastProfile(
+  
   profile: BeastProfile,
   options?: {
     customName?: string;
@@ -5423,6 +5424,7 @@ export function createCharacterFromBeastProfile(
     formula?: FormulaConfig;
   }
 ): Character {
+  
   const charId = generateId('beast_char_');
   const displayName = options?.customName?.trim() || profile.name;
   const stats = {
@@ -5445,9 +5447,11 @@ export function createCharacterFromBeastProfile(
       ? `${baseAttackName} (${profile.attackBonus > 0 ? `+${profile.attackBonus}` : profile.attackBonus})`
       : baseAttackName;
 
+  const attackStat = profile.attackStat || 'fisico';
+  const attackBonus = profile.attackBonus || 0;
   const naturalWeapon: CharacterWeapon = {
     id: generateId('wp_beast_'),
-    presetId: 'beast_natural',
+    presetId: `beast_natural:${attackBonus}:${attackStat}`,
     name: weaponName,
     category: 'natural',
     dice:

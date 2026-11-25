@@ -31,8 +31,10 @@ import type {
   ProgressionHistoryEntry,
   Spell,
   SpellEffectType,
-  StatKey,
   BeastProfile,
+  DamageKind,
+  DieType,
+  StatKey,
 
 } from '../types/rpg';
 import {
@@ -204,6 +206,11 @@ const [localCustomBeasts, setLocalCustomBeasts] = useState<BeastProfile[]>([]);
 const [beastHp, setBeastHp] = useState(18);
 const [beastMana, setBeastMana] = useState(5);
 const [beastAttackName, setBeastAttackName] = useState('Zarpazo');
+const [beastAttackStat, setBeastAttackStat] = useState<StatKey>('fisico');
+const [beastAttackDamageKind, setBeastAttackDamageKind] = useState<DamageKind>('fisico');
+const [beastAttackDiceCount, setBeastAttackDiceCount] = useState<number>(1);
+const [beastAttackDieType, setBeastAttackDieType] = useState<DieType>('d6');
+const [beastAttackBonus, setBeastAttackBonus] = useState<number>(1);
 const [beastMusicNote, setBeastMusicNote] = useState(
   'Responde a cantos o compases si ya está Vinculada.'
 );
@@ -2215,6 +2222,74 @@ const handleCreate = () => {
           </label>
         </div>
 
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
+            Stat
+            <select
+              value={beastAttackStat}
+              onChange={(e) => setBeastAttackStat(e.target.value as StatKey)}
+              className="w-full min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+            >
+              <option value="fisico">Físico</option>
+              <option value="manipulacion">Manipulación</option>
+              <option value="influencia">Influencia</option>
+            </select>
+          </label>
+
+          <label className="flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
+            Tipo
+            <select
+              value={beastAttackDamageKind}
+              onChange={(e) => setBeastAttackDamageKind(e.target.value as DamageKind)}
+              className="w-full min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+            >
+              <option value="fisico">Físico</option>
+              <option value="magico">Mágico</option>
+            </select>
+          </label>
+
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min={1}
+              max={8}
+              value={beastAttackDiceCount}
+              onChange={(e) =>
+                setBeastAttackDiceCount(Math.max(1, parseInt(e.target.value, 10) || 1))
+              }
+              aria-label="Cantidad de dados de daño"
+              className="font-mono-num w-16 min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
+            />
+            <select
+              value={beastAttackDieType}
+              onChange={(e) => setBeastAttackDieType(e.target.value as DieType)}
+              aria-label="Tipo de dado de daño"
+              className="flex-1 min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2.5 text-xs text-[var(--arc-text)]"
+            >
+              <option value="d4">d4</option>
+              <option value="d6">d6</option>
+              <option value="d8">d8</option>
+              <option value="d10">d10</option>
+              <option value="d12">d12</option>
+            </select>
+          </div>
+
+          <label className="flex items-center gap-1.5 text-xs text-[var(--arc-muted)]">
+            Bono
+            <input
+              type="number"
+              min={-10}
+              max={20}
+              value={beastAttackBonus}
+              onChange={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                setBeastAttackBonus(Number.isNaN(parsed) ? 0 : parsed);
+              }}
+              className="font-mono-num w-full min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-input)] px-2 text-xs text-[var(--arc-text)]"
+            />
+          </label>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2.5">
           <input
             type="text"
@@ -2247,21 +2322,20 @@ const handleCreate = () => {
                 stats: { fisico: 2, manipulacion: 2, influencia: 1 },
                 statPoints: { fisico: 2, manipulacion: 2, influencia: 1 },
                 attackName: attackTrimmed,
-                attackStat: 'fisico',
-                attackDice: [{ type: 'd6', count: 1 }],
-                attackBonus: 1,
-                attackDamageKind: 'fisico',
+                attackStat: beastAttackStat,
+                attackDice: [{ type: beastAttackDieType, count: beastAttackDiceCount }],
+                attackBonus: beastAttackBonus,
+                attackDamageKind: beastAttackDamageKind,
                 notes: `Perfil personalizado (${speciesTrimmed}).`,
                 musicSynergyNote: beastMusicNote.trim() || undefined,
                 isPreset: false,
               };
               if (onCreateCustomBeast) {
-  onCreateCustomBeast(createdProfile);
-} else {
-  setLocalCustomBeasts((prev) => [...prev, createdProfile]);
-}
-setBeastCustomName('');
-            
+                onCreateCustomBeast(createdProfile);
+              } else {
+                setLocalCustomBeasts((prev) => [...prev, createdProfile]);
+              }
+              setBeastCustomName('');
             }}
             className="min-h-[36px] rounded-lg border border-[var(--arc-border)] bg-[var(--arc-raised)] px-4 text-xs font-semibold text-[var(--arc-accent)] hover:brightness-110 transition-colors"
           >

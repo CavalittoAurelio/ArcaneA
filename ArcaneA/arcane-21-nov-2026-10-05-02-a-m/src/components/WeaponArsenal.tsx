@@ -216,31 +216,42 @@ export function WeaponArsenal({
       ) : (
         <div className="space-y-3">
           {weapons.map((weapon) => {
-            const dmgInfo = getWeaponDamageFormula(weapon, activeCharacter);
-            const statChoice = getWeaponStatChoice(weapon);
-            const attackStat: StatKey =
-              statChoice === 'highest' ? highestStatInfo.stat : statChoice;
-            const attackDice =
-              statChoice === 'highest'
-                ? highestStatInfo.dice
-                : getCharacterStatDice(activeCharacter, attackStat, formula);
-            const isShield = weapon.catalystKind === 'shield';
-            const shieldMana = shieldManaInputs[weapon.id] ?? 1;
-            const isImbueOpen = imbuingWeaponId === weapon.id;
+        const beastPresetParts = weapon.presetId?.startsWith('beast_natural:')
+          ? weapon.presetId.split(':')
+          : [];
+        const rawBeastStat = beastPresetParts[2];
+        const beastPresetStat: StatKey | undefined =
+          rawBeastStat === 'fisico' ||
+          rawBeastStat === 'manipulacion' ||
+          rawBeastStat === 'influencia'
+            ? rawBeastStat
+            : undefined;
 
-            const isMagicalWeapon =
-              !weapon.destroyed && (dmgInfo.damageKind === 'magico' || weapon.isMagicalCatalyst);
+        const dmgInfo = getWeaponDamageFormula(weapon, activeCharacter);
+        const statChoice = beastPresetStat ?? getWeaponStatChoice(weapon);
+        const attackStat: StatKey =
+          statChoice === 'highest' ? highestStatInfo.stat : statChoice;
+        const attackDice =
+          statChoice === 'highest'
+            ? highestStatInfo.dice
+            : getCharacterStatDice(activeCharacter, attackStat, formula);
+        const isShield = weapon.catalystKind === 'shield';
+        const shieldMana = shieldManaInputs[weapon.id] ?? 1;
+        const isImbueOpen = imbuingWeaponId === weapon.id;
 
-            return (
-              <article
-                key={weapon.id}
-                className={`rounded-xl border p-3.5 sm:p-4 space-y-3 ${
-                  weapon.destroyed
-                    ? 'border-[#5a2c22] bg-[#1e1210] opacity-75'
-                    : isMagicalWeapon
-                      ? 'border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)]'
-                      : 'border-[var(--arc-phys-border)] bg-[var(--arc-phys-bg)]'
-                }`}
+        const isMagicalWeapon =
+          !weapon.destroyed && (dmgInfo.damageKind === 'magico' || weapon.isMagicalCatalyst);
+
+        return (
+          <article
+            key={weapon.id}
+            className={`rounded-xl border p-3.5 sm:p-4 space-y-3 ${
+              weapon.destroyed
+                ? 'border-[#5a2c22] bg-[#1e1210] opacity-75'
+                : isMagicalWeapon
+                  ? 'border-[var(--arc-magic-border)] bg-[var(--arc-magic-bg)]'
+                  : 'border-[var(--arc-phys-border)] bg-[var(--arc-phys-bg)]'
+            }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
